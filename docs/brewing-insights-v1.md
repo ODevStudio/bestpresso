@@ -71,6 +71,7 @@ Persistent shell:
 - Beverage-type filter on the overview in production; hidden when only one drink type exists.
 - Four metrics in one divided surface, not four oversized cards.
 - Weekly rhythm as the main chart; time bands to its right.
+- Bar charts share rounded ends and solid Bestpresso-green fills, with a muted solid fill for the previous period and matching legend markers. No outlines or gradient strokes on bars. Keep the existing shot-detail telemetry styling separate.
 - Profile ranking and one restrained observation card below.
 - Recent brews preview and a `View all history` entry point below the overview.
 

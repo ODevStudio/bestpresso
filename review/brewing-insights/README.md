@@ -12,6 +12,7 @@ This is a separate entry, not a production route. The normal build does not bund
 - Weekday, time-band and profile drill-down; comparison evidence sets; profile search and clear filter.
 - Existing shot-detail graph and stage components; returning retains the contextual filter.
 - Page-local dark/light toggle. No machine connection, commands or settings writes.
+- Shared rounded, solid-fill bars across the home entry, weekday comparison, time bands and profile usage. Previous-period bars and their legend use a muted fill, not an outline; telemetry curves are unchanged.
 
 The detail curves are illustrative demo telemetry, not real measurements for the fictional shots.
 Backend aggregation, beverage filters, pagination, caching, full browser navigation and production integration remain specified work.
@@ -52,3 +53,12 @@ These checks verify the design prototype, not a Decaid aggregation implementatio
 - Settings was checked in local/disconnected mode. No settings were saved and no machine operations were performed.
 
 Evidence: `detail-full-width-dark.png`, `detail-full-width-light-1024.png`, `sidebar-insights-dark.png`, `sidebar-settings-dark.png`.
+
+## Filled bar styling refinement
+
+- Home, weekday and horizontal bars share one rounded solid-fill rule; comparison bars and legend markers use a theme-specific muted fill. No bar borders, shadows or gradients.
+- Actual browser clicks verified Monday → nine matching brews and the home insight card → seven-day Overview.
+- Visually checked dark/light at 1194×834 and light at 1024×768, including the zero-count Tuesday. No horizontal document overflow at 1024px; computed bar borders are 0px.
+- All 300 tests and the production build passed. Existing bundle-size warning remains. No telemetry, filters or aggregation logic changed.
+
+Evidence: `bars-unified-dark.png`, `bars-unified-light.png`, `bars-unified-light-1024.png`.
