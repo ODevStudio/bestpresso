@@ -106,3 +106,12 @@ Evidence: `open-charts-dark.png`, `open-charts-light.png`, `open-charts-light-st
 - All 305 tests passed, including area-scaling, zero-value and clock geometry tests. Separate preview typecheck, targeted lint and production build passed; the existing bundle-size warning remains. This remains a local fictional-data preview, not a released analytics feature.
 
 Evidence: `coxcomb-dark.png`, `coxcomb-dark-selected.png`, `coxcomb-light.png`, `coxcomb-light-stacked.png`.
+
+## Coxcomb contrast and phone-only stacking — 13 September 2026
+
+- Light mode now uses an opaque pale-sage clock face, dark neutral hour labels and a stronger previous-period sage shared with the weekday chart. Both data fills exceed 3:1 contrast against the face and hover fill; zero windows remain uncolored. Dark chart colors and opacity are unchanged. No outlines added.
+- By day and By hour stay side by side above 650px, with wrapping chart headers at compact tablet widths. At 650px and below they stack. The lower panels and summary keep their existing tablet layout. Also constrained the shared brand image height and compact history columns in this preview to prevent stretching/overflow at the narrow-tablet boundary.
+- Browser clicks verified Previous selection and 14:00–16:00 → nine matching history records on phone. Visually checked light at 980×800, 768×900, 651×850, 650×900 and 390×844, plus dark at 768×900. Chart geometry stayed circular and chart content did not overflow; temporary viewport settings were reset.
+- All 307 tests, separate preview typecheck, targeted lint and production build passed. Contrast and phone-only stacking have regression tests. Existing production bundle-size warning remains. This is fictional preview data; real device touch remains unverified.
+
+Evidence: `coxcomb-contrast-light-tablet.png`, `coxcomb-contrast-light-651.png`, `coxcomb-contrast-light-phone.png`, `coxcomb-responsive-dark-tablet.png`.

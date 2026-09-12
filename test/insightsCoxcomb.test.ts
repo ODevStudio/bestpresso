@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { COXCOMB, coxcombRadius, coxcombSector, clockPoint } from '../review/brewing-insights/coxcomb.ts'
 
@@ -19,4 +20,32 @@ test('coxcomb covers 24 hours clockwise with finite equal-angle sectors', () => 
   assert.equal(paths.length, 12)
   assert.equal(new Set(paths).size, 12)
   paths.forEach(path => { assert.match(path, /^M .+ Z$/); assert.doesNotMatch(path, /NaN|Infinity/) })
+})
+
+test('light coxcomb fills retain contrast on the clock face and hover state', () => {
+  const css = readFileSync(new URL('../review/brewing-insights/preview.css', import.meta.url), 'utf8')
+  const rule = (selector: string) => css.slice(css.indexOf(selector)).split('}')[0]
+  const color = (source: string, token: string) => {
+    const match = source.match(new RegExp(`${token}:(#[a-f0-9]{6})`, 'i'))
+    assert.ok(match, `Missing color token ${token}`)
+    return match[1]
+  }
+  const luminance = (hex: string) => {
+    const channels = hex.slice(1).match(/../g)!.map(value => parseInt(value, 16) / 255)
+      .map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4)
+    return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722
+  }
+  const contrast = (a: string, b: string) => {
+    const values = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (values[0] + .05) / (values[1] + .05)
+  }
+  const theme = rule(':root[data-theme="light"]')
+  const chart = rule('[data-theme="light"] .ins-coxcomb {')
+  const fills = [color(theme, '--ins-accent'), color(rule('[data-theme="light"] .ins-preview'), '--ins-bar-previous')]
+  const backgrounds = [color(theme, '--ins-bg'), color(chart, '--ins-coxcomb-track'), color(chart, '--ins-coxcomb-hover')]
+  for (const fill of fills) for (const background of backgrounds) {
+    assert.ok(contrast(fill, background) >= 3, `${fill} must contrast with ${background}`)
+  }
+  for (const background of backgrounds) assert.ok(contrast(color(theme, '--ins-fg'), background) >= 4.5)
+  assert.match(chart, /--ins-coxcomb-track-opacity:1/)
 })

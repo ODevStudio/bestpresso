@@ -15,6 +15,15 @@ test('overview charts precede the summary and use open sections instead of cards
   assert.match(timeChart, /<h2>By hour<\/h2>/)
 })
 
+test('overview charts stay side by side on tablets and stack only at the phone breakpoint', () => {
+  const css = read('../review/brewing-insights/preview.css')
+  const tablet = css.split('@media(max-width:999px) {')[1].split('@media(max-width:650px) {')[0]
+  const phone = css.split('@media(max-width:650px) {')[1]
+  assert.match(tablet, /\.ins-top-grid \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/)
+  assert.match(tablet, /\.ins-top-grid>\.ins-chart-section>header \{ flex-wrap:wrap/)
+  assert.match(phone, /\.ins-top-grid \{ grid-template-columns:1fr/)
+})
+
 test('Insights and Settings share the brand/close and selected navigation components', () => {
   const preview = read('../review/brewing-insights/preview.tsx')
   const settings = read('../src/features/settings/SettingsScreen.tsx')
