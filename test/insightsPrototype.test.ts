@@ -31,7 +31,7 @@ test('prototype filtering and insight evidence agree with aggregates', () => {
   assert.equal(median([36, 40]), 38)
 })
 
-test('heat strip covers all 24 hours exactly once, including midnight and end-of-day', () => {
+test('time chart covers all 24 hours exactly once, including midnight and end-of-day', () => {
   const hourly = Array.from({ length: 24 }, (_, hour) => ({ ...records[0], hour, minute: 59 }))
   assert.equal(timeWindows.length, 12)
   assert.deepEqual(timeWindowCounts(hourly), Array(12).fill(2))
@@ -42,7 +42,7 @@ test('heat strip covers all 24 hours exactly once, including midnight and end-of
   assert.equal(matches({ ...records[0], hour: 2 }, { kind: 'hours', value: '1' }), true)
 })
 
-test('every heat-strip count equals its drill-down in either reporting period', () => {
+test('every time-chart count equals its drill-down in either reporting period', () => {
   for (const days of [7, 28]) for (const previous of [false, true]) {
     const shots = getWindow(days, previous)
     const counts = timeWindowCounts(shots)

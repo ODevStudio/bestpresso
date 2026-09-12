@@ -13,7 +13,7 @@ This is a separate entry, not a production route. The normal build does not bund
 - Existing shot-detail graph and stage components; returning retains the contextual filter.
 - Page-local dark/light toggle. No machine connection, commands or settings writes.
 - Shared rounded, solid-fill bars across the home entry, weekday comparison and profile usage. Previous-period bars and their legend use a muted fill, not an outline; telemetry curves are unchanged.
-- A 24-hour heat strip compares twelve two-hour windows using the same color scale for current and previous periods.
+- A 24-hour coxcomb shows twelve two-hour windows. Current/previous views share one area scale and a compact period toggle; counts and history links appear on selection.
 
 The detail curves are illustrative demo telemetry, not real measurements for the fictional shots.
 Backend aggregation, beverage filters, pagination, caching, full browser navigation and production integration remain specified work.
@@ -96,3 +96,13 @@ Evidence: `heat-strip-dark.png`, `heat-strip-light.png`, `heat-strip-1024.png`, 
 - This is still a local fictional-data preview, not a connected-machine or hardware-touch verification.
 
 Evidence: `open-charts-dark.png`, `open-charts-light.png`, `open-charts-light-stacked.png`, `open-charts-light-stacked-summary.png`.
+
+## Coxcomb and quieter chart copy — 13 September 2026
+
+- Replaced the heat strip with a 24-hour coxcomb: twelve equal-angle, two-hour sectors arranged clockwise from midnight. Sector area (excluding the center) is proportional to count; switching This period/Previous keeps one shared scale. Zero values never create colored petals.
+- Kept only By day / By hour, essential period controls and clock/weekday labels. Removed the subtitles, weekly helper footer and heat-scale legend. Exact count and a compact history link appear only after selecting a sector, with space reserved so the summary does not jump.
+- Selection supports pointer input plus Enter/Space. Browser clicks verified current 06:00–08:00 → 4 brews; switching Previous → 5 brews and five matching history records. Keyboard selection of 22:00–24:00 → 0 and an empty history list. Monday drill-down still opened nine records in the 28-day view.
+- Visually checked both themes at 1054×901, plus a selected coxcomb and summary in the stacked light layout at 980×800. The SVG stayed 236×236 with no horizontal document overflow; temporary viewport overrides were reset. Real tablet touch remains unverified.
+- All 305 tests passed, including area-scaling, zero-value and clock geometry tests. Separate preview typecheck, targeted lint and production build passed; the existing bundle-size warning remains. This remains a local fictional-data preview, not a released analytics feature.
+
+Evidence: `coxcomb-dark.png`, `coxcomb-dark-selected.png`, `coxcomb-light.png`, `coxcomb-light-stacked.png`.

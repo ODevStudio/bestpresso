@@ -6,10 +6,13 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 
 test('overview charts precede the summary and use open sections instead of cards', () => {
   const preview = read('../review/brewing-insights/preview.tsx')
-  const heatStrip = read('../review/brewing-insights/TimeHeatStrip.tsx')
+  const timeChart = read('../review/brewing-insights/TimeCoxcomb.tsx')
   assert.ok(preview.indexOf('className="ins-top-grid"') < preview.indexOf('aria-label="Period summary"'))
   assert.match(preview, /className="ins-top-grid"><section className="ins-chart-section"/)
-  assert.match(heatStrip, /className="ins-chart-section ins-time-panel"/)
+  assert.match(timeChart, /className="ins-chart-section ins-time-panel"/)
+  assert.doesNotMatch(preview, /Your weekly rhythm|Tap a day to see|Brews by day of the week/)
+  assert.match(preview, /<h2>By day<\/h2>/)
+  assert.match(timeChart, /<h2>By hour<\/h2>/)
 })
 
 test('Insights and Settings share the brand/close and selected navigation components', () => {

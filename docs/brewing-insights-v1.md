@@ -36,7 +36,7 @@ Four headline measures:
 Three supporting views:
 
 - **Your weekly rhythm:** counts grouped Monday–Sunday. Current and previous periods use the same scale. Tapping a weekday opens its shots in History.
-- **When you brew:** a 24-hour heat strip with twelve local two-hour windows, compared against the preceding period using one count-to-color scale. Selecting a window shows its count and opens matching History. Retain four broad time bands for narrative summaries: overnight 00:00–05:59, morning 06:00–11:59, afternoon 12:00–17:59, evening 18:00–23:59.
+- **By hour:** a 24-hour coxcomb with twelve local two-hour windows, arranged clockwise from midnight. Sector area represents count; a compact current/previous toggle switches periods without changing the scale. Selecting a window shows its count and a link to matching History. Retain four broad time bands for narrative summaries: overnight 00:00–05:59, morning 06:00–11:59, afternoon 12:00–17:59, evening 18:00–23:59.
 - **Profiles you return to:** ranked profile counts/shares plus previous-period share. Tapping a row filters History. Preserve profile identity, not just the displayed title.
 
 Use typical duration as a secondary summary in History; no need for another headline card. Yield means beverage output, not coffee beans consumed. Do not combine coffee, tea and unrelated beverage categories for a misleading typical-yield story: overview filters to a beverage type; default Espresso, with other recorded drink types selectable. The home insight card uses the same chosen beverage scope (Espresso in this preview), so its shot count and average refer to the same population. The latest-shot card remains an independent shortcut to the newest eligible drink brew.
@@ -69,9 +69,9 @@ Persistent shell:
 - Compact left rail with the same logo + circular close control as Settings, plus Overview and History. The close control returns Home. Both sidebars share the Insights selected-item surface, green label and thin outline. History is a child destination inside Insights, not a new unrelated top-level feature.
 - Main header: `Your brewing`, selected dates, comparison dates and period selector.
 - Beverage-type filter on the overview in production; hidden when only one drink type exists.
-- Weekly rhythm and When you brew sit directly on the page above the summary, without card backgrounds or outlines. They share one row on wider screens and stack in that order on narrower screens.
+- The weekday and hourly charts sit directly on the page above the summary, without card backgrounds or outlines. They share one row on wider screens and stack in that order on narrower screens. Visible headings are just `By day` and `By hour`; omit repeated subtitles, helper footers and heat-scale keys.
 - Four metrics follow the charts in one divided surface, not four oversized cards.
-- Weekly rhythm is the main chart; a 24-hour heat strip sits to its right. Twelve two-hour windows cover midnight through 24:00. Current and preceding periods use the same count-to-color scale, neutral empty cells and filled green cells without outlines. Selecting a cell shows its exact count and a View brews action that opens the matching time-window and period in History. Keep broad time bands available for narrative summaries.
+- Weekday bars remain the main chart; a 24-hour coxcomb sits to the right. Twelve equal-angle sectors cover midnight through 24:00, with only 00/06/12/18 clock labels. Account for the empty center when calculating area: squared outer radius minus squared inner radius is proportional to count. Current and preceding periods share one maximum; zero counts have no colored sector. Use solid theme fills without outlines. The center starts as `24h`; selecting a sector replaces it with the count and reveals a compact time-window link below. Preserve selection when switching comparison periods, and reset it when changing the 7/28-day range. Keep broad time bands available for narrative summaries.
 - Bar charts share rounded ends and solid Bestpresso-green fills, with a muted solid fill for the previous period and matching legend markers. No outlines or gradient strokes on bars. Keep the existing shot-detail telemetry styling separate.
 - Home's profile panel, insight entry and latest-shot entry share one neutral surface in each theme; the selected profile's animated art remains separate. The entry bar chart has a 24px top inset, including short-screen layouts.
 - Profile ranking and one restrained observation card below.
@@ -180,7 +180,7 @@ Acceptance tests:
 - Completed-day bounds, midnight, week boundaries, timezone changes and DST give consistent bucket counts.
 - Excluded/unknown activities, missing scale readings, manual stops, duplicate imports and changed profile names do not create misleading insights.
 - Low sample size and incomplete comparison windows suppress change stories. Zero previous totals never yield Infinity/NaN.
-- Tapping weekday, a heat-strip window's View brews action, profile or observation opens the correct scope; a previous-period heat cell opens that earlier period. Clearing only the contextual filter retains the period and beverage choice.
+- Tapping weekday, a selected coxcomb window's history link, profile or observation opens the correct scope; selecting Previous in the coxcomb opens the earlier period. Clearing only the contextual filter retains the period and beverage choice.
 - Last shot includes today's newest eligible brew; selected period comparison remains completed-days only.
 - Open shot → hold chart → select stage → Back restores query and scroll. Existing chart behaviour is unchanged.
 - At 1194×834 and 1024×768: headline metrics, labels and touch targets do not overlap. Below 1000px stack content; no forced canvas-scale text. Check light and dark; keyboard focus and touch targets at least 44px for primary controls.
