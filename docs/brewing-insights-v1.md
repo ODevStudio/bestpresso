@@ -66,7 +66,7 @@ Use Bestpresso's quiet charcoal/warm-grey surfaces, thin outlines, green accents
 
 Persistent shell:
 
-- Compact left rail with Back to home, Overview and History. History is a child destination inside Insights, not a new unrelated top-level feature.
+- Compact left rail with the same logo + circular close control as Settings, plus Overview and History. The close control returns Home. Both sidebars share the Insights selected-item surface, green label and thin outline. History is a child destination inside Insights, not a new unrelated top-level feature.
 - Main header: `Your brewing`, selected dates, comparison dates and period selector.
 - Beverage-type filter on the overview in production; hidden when only one drink type exists.
 - Four metrics in one divided surface, not four oversized cards.
@@ -82,12 +82,12 @@ Persistent shell:
 - Search by profile name; newest first; load more in pages of 30.
 - Allow a period choice `All history` in History, in addition to the shared 7/28-day windows. All history includes today's shots; no previous-period comparison is attached to it.
 - Show the current period count and the filtered count; never label a loaded first page as the complete total.
-- A separate accessible row action opens existing shot analysis. Back returns to the same query, loaded pages and scroll position. Browser Back follows the same navigation stack.
+- A separate accessible row action opens full-width shot analysis. Close returns to this history list, retaining the same query, loaded pages and scroll position. Browser Back follows the same navigation stack in production.
 - Overview may preserve its own scroll independently from History. Returning Home does not change selected brew profile or machine workflow.
 
 ### Shot detail
 
-Reuse the current pressure/flow/temperature/yield chart, legend filtering, hold inspection and stage cards. Change the parent navigation only. Do not implement another graph engine. Allow navigating the current filtered result set without silently expanding to unrelated shots.
+Reuse the current pressure/flow/temperature/yield chart, legend filtering, hold inspection and stage cards. Do not implement another graph engine. The detail has no sidebar or embedded shot list: title, chart and stages use the full available width. Its Close button always returns to Insights → History, including when detail was opened from the homescreen's latest-shot card or Overview's recent rows. Keep a current History filter when present; otherwise open the list for the originating period. Choose another shot from that list, not from a duplicate rail inside detail.
 
 ## 4. Observations: transparent rules, not invented intelligence
 
@@ -187,4 +187,4 @@ Acceptance tests:
 
 The separate review entry uses a deterministic 56-day fictional espresso dataset. Counts, medians, comparisons, bar heights, profile shares and filtered lists are computed from the same data. It offers 7/28-day views, Home, Overview, filtered History, search, clear filter, dark/light preview and shot detail using the existing chart/stage components. Full-history pagination, backend/caching/error states, beverage filtering and browser URL restoration remain specified production work, not completed integration.
 
-The preview's curves are explicitly illustrative, rescaled from the existing demo telemetry. The entry-card dose is explicitly fictional shot metadata, not a homescreen default. They do not validate physical profile execution. No API calls, machine commands or account writes are made. Existing main application entrypoints and homescreen source are untouched. The prototype starts on Home and uses page-local theme selection, not a settings save.
+The preview's curves are explicitly illustrative, rescaled from the existing demo telemetry. The entry-card dose is explicitly fictional shot metadata, not a homescreen default. They do not validate physical profile execution. The preview makes no API calls, machine commands or account writes. Existing main application entrypoints and homescreen source are untouched. On this branch the real Settings screen now uses the shared sidebar components. The shared shot-detail screen has an opt-in standalone layout used by Insights; the existing production history route retains its browser layout until Insights integration. The prototype starts on Home and uses page-local theme selection, not a settings save.

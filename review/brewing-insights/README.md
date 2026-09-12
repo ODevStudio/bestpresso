@@ -18,7 +18,7 @@ Backend aggregation, beverage filters, pagination, caching, full browser navigat
 
 ## Verification — 12 September 2026
 
-- All 297 repository tests passed, including three prototype aggregate/filter/average tests.
+- All 300 repository tests passed, including prototype aggregate/filter/average and shared navigation guards.
 - Production build passed; existing bundle-size warning remains.
 - Separate prototype TypeScript check and targeted lint passed.
 - Actual browser clicks exercised home → overview → history → detail → back.
@@ -40,3 +40,15 @@ Current entry evidence: `home-entry-dark.png`, `home-entry-light.png`, `home-ent
 Earlier overview/detail evidence: `overview-dark.png`, `overview-light.png`, `history-dark.png`, `shot-detail-dark.png`. `home-dark.png` preserves the initial entry design for comparison.
 
 These checks verify the design prototype, not a Decaid aggregation implementation or real hardware behaviour.
+
+## Shared navigation and standalone detail refinement
+
+- Insights and the actual Settings screen use the same `SidebarBrand` and `SidebarNavItem` components.
+- Both close controls are 42×42px. Selected items share their green color, solid surface, thin outline, 14px radius and 46px height.
+- Only Insights opts into the standalone shot-detail layout. The legacy main-app history route retains its existing list browser until integration.
+- Actual clicks verified Settings section selection, Insights Overview/History selection, and Close from a latest shot returning to Insights History.
+- A filtered Adaptive V2 history retained its filter after detail; repeated detail visits restored a 273px list scroll position exactly.
+- Visually checked full-width detail and navigation in light mode at 1024×768 and dark mode at 1194×834.
+- Settings was checked in local/disconnected mode. No settings were saved and no machine operations were performed.
+
+Evidence: `detail-full-width-dark.png`, `detail-full-width-light-1024.png`, `sidebar-insights-dark.png`, `sidebar-settings-dark.png`.

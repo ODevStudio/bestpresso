@@ -15,6 +15,7 @@ interface PreviousShotScreenProps {
   status: PreviousShotStatus
   onSelectShot: (shotId: string) => Promise<PreviousShot | null>
   onDismiss: () => void
+  layout?: 'browser' | 'detail'
 }
 
 interface HistoryChartView {
@@ -44,7 +45,7 @@ const timerLabel = (shot: PreviousShot) => {
   return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`
 }
 
-export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, onDismiss }: PreviousShotScreenProps) {
+export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, onDismiss, layout = 'browser' }: PreviousShotScreenProps) {
   const { preferences } = useBestpressoPreferences()
   const firstShot = initialShot ?? shots[0] ?? null
   const [selectedId, setSelectedId] = useState(firstShot?.id)
@@ -98,8 +99,8 @@ export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, o
     showWeight: !isCleaning,
   }
 
-  return <main className="history-browser-screen">
-    <aside className="history-browser-rail">
+  return <main className={`history-browser-screen${layout === 'detail' ? ' history-browser-screen--detail' : ''}`}>
+    {layout === 'browser' && <aside className="history-browser-rail">
       <header><h1>Shot history</h1><span>{shots.length}</span></header>
       <div className="history-browser-list" role="listbox" aria-label="Shot history">
         {shots.map((shot, index) => <button className={`history-browser-item${shot.id === activeId ? ' history-browser-item--selected' : ''}`} type="button" role="option" aria-selected={shot.id === activeId} aria-busy={loadingId === shot.id} key={shot.id ?? `${shot.timestamp}:${index}`} onClick={() => void selectShot(shot)}>
@@ -108,7 +109,7 @@ export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, o
         </button>)}
         {!shots.length && <p className="history-browser-empty">{status === 'loading' ? 'Finding your pulls…' : "You haven't filled any cups yet."}</p>}
       </div>
-    </aside>
+    </aside>}
 
     <section className="history-browser-detail" aria-live="polite">
       <header className="live-pull-header">
