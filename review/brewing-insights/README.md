@@ -124,3 +124,10 @@ Evidence: `coxcomb-contrast-light-tablet.png`, `coxcomb-contrast-light-651.png`,
 - All 308 tests, separate preview typecheck, targeted lint and production build passed; the existing bundle-size warning remains. This is still a fictional-data preview on the Insights branch, not a released feature or a real-device touch test.
 
 Evidence: `tall-weekday-cool-light.png`, `tall-weekday-light-tablet.png`, `tall-weekday-light-phone.png`, `tall-weekday-dark.png`.
+
+## Softer previous-period comparison — 13 September 2026
+
+- Light comparison bars and their legend now use `#98a59d`, receding behind the unchanged current green. The selected Previous coxcomb also softens to `#79867f`, with a lighter hover face to retain 3:1 contrast. It is slightly stronger than the secondary bars because it is the primary dataset when selected. Dark mode is unchanged.
+- Browser-checked This period/Previous switching at 1052×734 and restored the light/current view; verified the dark comparison token was unchanged. All 308 tests passed, including the selected coxcomb contrast check. No layout, data, or machine behavior changed; real-device touch was not tested.
+
+Evidence: `soft-comparison-light.png`, `soft-comparison-previous-light.png`.
