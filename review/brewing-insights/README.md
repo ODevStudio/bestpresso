@@ -115,3 +115,12 @@ Evidence: `coxcomb-dark.png`, `coxcomb-dark-selected.png`, `coxcomb-light.png`, 
 - All 307 tests, separate preview typecheck, targeted lint and production build passed. Contrast and phone-only stacking have regression tests. Existing production bundle-size warning remains. This is fictional preview data; real device touch remains unverified.
 
 Evidence: `coxcomb-contrast-light-tablet.png`, `coxcomb-contrast-light-651.png`, `coxcomb-contrast-light-phone.png`, `coxcomb-responsive-dark-tablet.png`.
+
+## Taller weekday chart and cooler light palette — 13 September 2026
+
+- Increased the weekday plot from 90px to 200px on desktop/tablet (160px on phones). At 1054×901 the summary remained at the same vertical position, so the plot fills existing space rather than pushing content down. Count labels now line up with the current-period bar, not the midpoint of both bars; they remain current-period totals only.
+- Replaced the light-mode olive/sage chart treatment with cooler green `#328a6b`, neutral green-grey comparison `#6f7e77`, and a lighter neutral clock face `#e7e9e5`. The palette is shared by preview home, weekday, hourly and profile-usage charts. UI accents and dark chart colors are unchanged. Both fills retain at least 3:1 contrast against the coxcomb face/hover states.
+- Browser clicks verified Monday → nine current-period brews and the zero-count Tuesday in the seven-day view → an empty history list; previous-period coxcomb switching still works. All seven count-label centers match their current bar centers. Visually checked both themes at 1054×901, light tablet at 768×900 and light phone at 390×844, with no content overflow. Temporary viewport overrides were reset.
+- All 308 tests, separate preview typecheck, targeted lint and production build passed; the existing bundle-size warning remains. This is still a fictional-data preview on the Insights branch, not a released feature or a real-device touch test.
+
+Evidence: `tall-weekday-cool-light.png`, `tall-weekday-light-tablet.png`, `tall-weekday-light-phone.png`, `tall-weekday-dark.png`.

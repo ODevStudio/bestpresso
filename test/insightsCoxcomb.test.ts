@@ -41,7 +41,8 @@ test('light coxcomb fills retain contrast on the clock face and hover state', ()
   }
   const theme = rule(':root[data-theme="light"]')
   const chart = rule('[data-theme="light"] .ins-coxcomb {')
-  const fills = [color(theme, '--ins-accent'), color(rule('[data-theme="light"] .ins-preview'), '--ins-bar-previous')]
+  const palette = rule('[data-theme="light"] .ins-preview')
+  const fills = [color(palette, '--ins-bar-fill'), color(palette, '--ins-bar-previous')]
   const backgrounds = [color(theme, '--ins-bg'), color(chart, '--ins-coxcomb-track'), color(chart, '--ins-coxcomb-hover')]
   for (const fill of fills) for (const background of backgrounds) {
     assert.ok(contrast(fill, background) >= 3, `${fill} must contrast with ${background}`)

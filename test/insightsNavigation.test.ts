@@ -24,6 +24,15 @@ test('overview charts stay side by side on tablets and stack only at the phone b
   assert.match(phone, /\.ins-top-grid \{ grid-template-columns:1fr/)
 })
 
+test('weekday chart fills the chart row and aligns counts with the current-period bar', () => {
+  const css = read('../review/brewing-insights/preview.css')
+  const preview = read('../review/brewing-insights/preview.tsx')
+  assert.match(css, /\.ins-bar-pair \{[^}]*height:200px/)
+  assert.match(css.split('@media(max-width:650px) {')[1], /\.ins-bar-pair \{ height:160px/)
+  assert.match(preview, /className="ins-week-value"><span>\{summary.weekdays\[i\]\}<\/span>/)
+  assert.match(css, /\.ins-week-value>span \{ grid-column:2/)
+})
+
 test('Insights and Settings share the brand/close and selected navigation components', () => {
   const preview = read('../review/brewing-insights/preview.tsx')
   const settings = read('../src/features/settings/SettingsScreen.tsx')
