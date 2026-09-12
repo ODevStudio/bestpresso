@@ -7,6 +7,7 @@ export interface InsightShot {
   hour: number
   minute: number
   profile: string
+  dose: number | null
   yield: number | null
   duration: number
 }
@@ -27,6 +28,7 @@ export const records: InsightShot[] = Array.from({ length: 56 }, (_, day) => {
     hour: slot === 0 ? (date.getUTCDay() % 6 === 0 ? 9 : 7) : slot === 1 ? (day % 3 === 0 ? 14 : 10) : 17,
     minute: (day * 7 + slot * 11) % 60,
     profile: profiles[day >= 28 ? (day + slot) % 5 < 3 ? 0 : 1 + (day % 2) : (day + slot) % 3],
+    dose: 20,
     yield: day % 11 === 0 && slot === 0 ? null : (day < 28 ? 35 : 38) + ((day + slot) % 5 - 2) * 0.6,
     duration: 42 + (day + slot) % 9,
   }))
@@ -35,6 +37,10 @@ export const records: InsightShot[] = Array.from({ length: 56 }, (_, day) => {
 export const median = (values: number[]) => {
   const sorted = [...values].sort((a, b) => a - b)
   return sorted.length ? (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2 : null
+}
+export const averageYield = (shots: InsightShot[]) => {
+  const values = shots.flatMap(s => s.yield !== null && Number.isFinite(s.yield) && s.yield >= 0 ? [s.yield] : [])
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
 }
 export const getWindow = (days: number, previous = false) => records.filter(s => s.day >= 56 - days * (previous ? 2 : 1) && s.day < 56 - (previous ? days : 0))
 export function summarize(shots: InsightShot[]) {

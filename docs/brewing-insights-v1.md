@@ -6,7 +6,7 @@ Branch: `feat/brewing-insights-preview`
 
 Preview: `/review/brewing-insights/index.html`
 
-Product destination: **Insights**. Homescreen module: **Your brewing**.
+Product destination: **Insights**. Homescreen entry: **Past 7 days insight** + **Latest shot**.
 
 ## 1. Product point of view
 
@@ -39,7 +39,7 @@ Three supporting views:
 - **When you brew:** four local time bands: overnight 00:00–05:59, morning 06:00–11:59, afternoon 12:00–17:59, evening 18:00–23:59. Every band is labelled with its count and can filter History.
 - **Profiles you return to:** ranked profile counts/shares plus previous-period share. Tapping a row filters History. Preserve profile identity, not just the displayed title.
 
-Use typical duration as a secondary summary in History; no need for another headline card. Yield means beverage output, not coffee beans consumed. Do not combine coffee, tea and unrelated beverage categories for a misleading typical-yield story: overview filters to a beverage type; default Espresso, with other recorded drink types selectable. The home card counts all eligible brews and prefers a profile/routine story, never a mixed-drink yield story.
+Use typical duration as a secondary summary in History; no need for another headline card. Yield means beverage output, not coffee beans consumed. Do not combine coffee, tea and unrelated beverage categories for a misleading typical-yield story: overview filters to a beverage type; default Espresso, with other recorded drink types selectable. The home insight card uses the same chosen beverage scope (Espresso in this preview), so its shot count and average refer to the same population. The latest-shot card remains an independent shortcut to the newest eligible drink brew.
 
 ### Deliberately not in v1
 
@@ -49,16 +49,16 @@ AI-written narratives, population comparisons, caffeine/health claims, coffee co
 
 ### Homescreen
 
-Replace only the current history card, retaining coverflow, profile settings and machine utilities. Keep approximately its current footprint; never steal height from the profile selection surface.
+Replace only the current history-card footprint with two adjacent cards, retaining coverflow, profile settings and machine utilities. The wider left card takes about 60% of the row; the latest-shot card takes 40%, with a 12px gap. Do not steal height from profile selection.
 
-- Heading: `Your brewing` with an explicit period (`Last 7 days`, a completed-through date in supporting detail).
-- Two compact metrics: brews and brewing days.
-- One short supported observation, otherwise a neutral summary.
-- A quiet seven-day spark bar strip; decorative here, not seven tiny touch targets.
-- `Explore insights` opens Overview; `Last shot` goes directly to the newest eligible brew, including today.
-- No timed rotation, flashing insight, or automatic carousel.
+- Left card: seven chronological daily bars above a bottom-aligned `Past 7 days insight` title, shot count and `Avg. yield`. Whole card opens the seven-day Overview. No narrative, separator or additional link competes with this hierarchy.
+- Bars use Bestpresso green with stronger intensity for higher counts and neutral weekday initials. A known zero day has a baseline tick, not a fabricated positive bar. Full dates/counts remain accessible.
+- Home `Avg. yield` is the arithmetic mean of usable final yields, excluding missing values, not zero-filling them. Overview's `Typical yield` remains the median. Production must surface coverage and the selected beverage scope alongside the period; the prototype includes coverage in the accessible description.
+- Right card: pressure/flow thumbnail above the shot-time profile name and timestamp, with a compact dose → yield chip. Show only known fields; never borrow dose from today's selected profile. Whole card opens the latest eligible shot, including today.
+- Each card is a single generous keyboard/pointer target; charts inside are not separate tiny touch targets. Dark surfaces follow the reference; light mode uses matching light-theme surfaces.
+- At narrow widths stack the pair rather than squeeze its labels. No timed rotation, flashing insight, or automatic carousel.
 
-After a shot, immediate analysis remains accessible through Last shot. The completed-days card does not pretend to include today's activity. In production the latest-shot shortcut updates independently from the aggregate period.
+After a shot, immediate analysis remains accessible through the latest-shot card. The completed-days insight does not pretend to include today's activity. In production the latest-shot card updates independently from the aggregate period.
 
 ### Insights overview
 
@@ -187,4 +187,4 @@ Acceptance tests:
 
 The separate review entry uses a deterministic 56-day fictional espresso dataset. Counts, medians, comparisons, bar heights, profile shares and filtered lists are computed from the same data. It offers 7/28-day views, Home, Overview, filtered History, search, clear filter, dark/light preview and shot detail using the existing chart/stage components. Full-history pagination, backend/caching/error states, beverage filtering and browser URL restoration remain specified production work, not completed integration.
 
-The preview's curves are explicitly illustrative, rescaled from the existing demo telemetry. They do not validate physical profile execution. No API calls, machine commands or account writes are made. Existing main application entrypoints and homescreen source are untouched. The prototype uses page-local theme selection, not a settings save.
+The preview's curves are explicitly illustrative, rescaled from the existing demo telemetry. The entry-card dose is explicitly fictional shot metadata, not a homescreen default. They do not validate physical profile execution. No API calls, machine commands or account writes are made. Existing main application entrypoints and homescreen source are untouched. The prototype starts on Home and uses page-local theme selection, not a settings save.

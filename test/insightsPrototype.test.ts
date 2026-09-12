@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { records, getWindow, summarize, matches, observation, median } from '../review/brewing-insights/data.ts'
+import { records, getWindow, summarize, matches, observation, median, averageYield } from '../review/brewing-insights/data.ts'
 
 test('prototype windows partition current and earlier records without overlap', () => {
   for (const days of [7, 28]) {
@@ -13,6 +13,13 @@ test('prototype windows partition current and earlier records without overlap', 
     assert.equal(total.profileCounts.reduce((a, b) => a + b.count, 0), current.length)
   }
   assert.equal(getWindow(28).length + getWindow(28, true).length, records.length)
+})
+test('entry average is an arithmetic mean, excluding missing and unusable readings', () => {
+  const sample = records[0]
+  assert.equal(averageYield([20, 20, 50, null].map(yieldValue => ({ ...sample, yield: yieldValue }))), 30)
+  assert.equal(averageYield([]), null)
+  assert.equal(averageYield([null, NaN, Infinity, -1].map(yieldValue => ({ ...sample, yield: yieldValue }))), null)
+  assert.equal(averageYield([{ ...sample, yield: 0 }, { ...sample, yield: 40 }]), 20)
 })
 test('prototype filtering and insight evidence agree with aggregates', () => {
   const shots = getWindow(28), totals = summarize(shots)

@@ -7,7 +7,7 @@ This is a separate entry, not a production route. The normal build does not bund
 
 ## Demonstrated
 
-- Existing coverflow and utilities, with a replacement home insight card and direct Last shot shortcut.
+- Existing coverflow and utilities, with paired seven-day insight and latest-shot entry cards matching the supplied reference.
 - Computed 7/28-day summaries from 56 days of fictional espresso records, anchored to 12 September 2026.
 - Weekday, time-band and profile drill-down; comparison evidence sets; profile search and clear filter.
 - Existing shot-detail graph and stage components; returning retains the contextual filter.
@@ -18,7 +18,7 @@ Backend aggregation, beverage filters, pagination, caching, full browser navigat
 
 ## Verification — 12 September 2026
 
-- All 296 repository tests passed, including two prototype aggregate/filter tests.
+- All 297 repository tests passed, including three prototype aggregate/filter/average tests.
 - Production build passed; existing bundle-size warning remains.
 - Separate prototype TypeScript check and targeted lint passed.
 - Actual browser clicks exercised home → overview → history → detail → back.
@@ -28,6 +28,15 @@ Backend aggregation, beverage filters, pagination, caching, full browser navigat
 - Visually checked dark/light at 1194×834 and the dark overview/history at 1024×768; no document-width overflow at 1024.
 - Home layout was corrected after visual inspection so the new module does not clip the utilities.
 
-Evidence: `home-dark.png`, `overview-dark.png`, `overview-light.png`, `history-dark.png`, `shot-detail-dark.png`.
+Entry refinement checks:
+
+- Both whole-card buttons open their intended destinations; the insight card selects seven days, and the latest-shot card opens the correct profile/time/yield.
+- The coverflow and entry-row bounds remained identical at the initial 1120×897 viewport.
+- At 1024×768 the entry cards align with the scale card's bottom edge, with no horizontal overflow. The insight card remained clickable.
+- Dark/light entry visuals checked at 1194×834. The preview now opens on Home.
+- The home average is a mean, not the overview median; missing yield is excluded. Dose in the chip is explicitly fictional shot metadata.
+
+Current entry evidence: `home-entry-dark.png`, `home-entry-light.png`, `home-entry-1024.png`.
+Earlier overview/detail evidence: `overview-dark.png`, `overview-light.png`, `history-dark.png`, `shot-detail-dark.png`. `home-dark.png` preserves the initial entry design for comparison.
 
 These checks verify the design prototype, not a Decaid aggregation implementation or real hardware behaviour.

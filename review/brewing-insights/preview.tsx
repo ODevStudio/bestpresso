@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrewingPanel } from '../../src/features/brew/BrewingPanel'
 import { MachineUtilityCard } from '../../src/features/machine/MachineUtilityCard'
 import { PreviousShotScreen } from '../../src/features/history/PreviousShotScreen'
+import { HomeEntryCards } from './HomeEntryCards'
 import { ValueAdjustmentContext } from '../../src/components/ValueAdjustment/ValueAdjustmentContext'
 import { brewingFixture, demoLiveBrewFixture } from '../../src/fixtures/brewingFixture'
 import type { PreviousShot } from '../../src/domain/brewing'
@@ -27,7 +28,7 @@ function detailFor(shot: InsightShot): PreviousShot {
 }
 
 export function Preview() {
-  const [page, setPage] = useState<Page>('overview')
+  const [page, setPage] = useState<Page>('home')
   const [days, setDays] = useState(28)
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const [filter, setFilter] = useState<ShotFilter>(null)
@@ -43,7 +44,8 @@ export function Preview() {
   useEffect(() => { if (!selected && scroll.current) scroll.current.scrollTop = savedScroll.current }, [selected])
   const current = getWindow(days), prior = getWindow(days, true)
   const summary = summarize(current), before = summarize(prior)
-  const home = summarize(getWindow(7)), homeStory = observation(7), story = observation(days)
+  const story = observation(days)
+  const latest = records.at(-1)!
   const history = (previous ? prior : current).filter(s => matches(s, filter) && s.profile.toLowerCase().includes(search.toLowerCase())).sort((a, b) => b.day - a.day || b.hour - a.hour || b.minute - a.minute)
   const openHistory = (next: ShotFilter = null, compare = false) => { setPage('history'); setFilter(next); setSearch(''); setPrevious(false); setCompareEvidence(compare); savedScroll.current = 0; scroll.current?.scrollTo(0, 0) }
   const go = (next: Page) => { setPage(next); savedScroll.current = 0; scroll.current?.scrollTo(0, 0); if (next === 'history') { setFilter(null); setCompareEvidence(false); setPrevious(false); setSearch('') } }
@@ -60,7 +62,7 @@ export function Preview() {
     {selected ? <div className="ins-detail"><PreviousShotScreen shots={[detailFor(selected), ...history.filter(s => s.id !== selected.id).map(detailFor)]} initialShot={detailFor(selected)} status="fixture" onSelectShot={async id => { const s = records.find(x => x.id === id); return s ? detailFor(s) : null }} onDismiss={() => setSelected(null)}/></div> : page === 'home' ? <main className="app-shell ins-home">
       <header className="topbar"><img className="logo" src={logo} alt="Decent"/><nav aria-label="Preview machine controls"><button className="control-button" aria-label="Sleep preview" onClick={sampleAction}><img src={sleepIcon} alt=""/></button><button className="control-button" aria-label="Settings preview" onClick={sampleAction}><img src={settingsIcon} alt=""/></button><span className="ins-ready">● Sample machine</span></nav></header>
       <div className="dashboard"><aside className="utilities">{brewingFixture.utilities.map(u => <MachineUtilityCard key={u.id} utility={u} settingsDisabled onUpdateSetting={noop}/>)}</aside><div className="primary"><BrewingPanel profiles={brewingFixture.profiles} activeProfileId={activeProfile} settingsDisabled onUpdateProfile={noop} onSelectProfile={async id => { setActiveProfile(id); return true }} onManageProfiles={sampleAction}/>
-        <section className="ins-home-card"><header><span>Your brewing <small>Last 7 days · through 11 Sep</small></span><button className="ins-link" onClick={() => { setDays(7); go('overview') }}>Explore insights ↗</button></header><div className="ins-home-body"><div className="ins-home-number"><strong>{home.count}</strong><span>brews</span></div><div className="ins-home-number"><strong>{home.days}<small>/7</small></strong><span>brewing days</span></div><div className="ins-home-story"><p>{homeStory.body}</p><div className="ins-spark" aria-label="Seven-day brewing activity">{Array.from({ length: 7 }, (_, i) => <span key={i} style={{ height: `${10 + records.filter(s => s.day === i + 49).length * 8}px` }}/>)}</div></div></div><footer><span>Recorded brews, not cups consumed</span><button className="ins-link" onClick={() => openShot(records.at(-1)!)}>Last shot ↗</button></footer></section>
+        <HomeEntryCards shots={getWindow(7)} latest={latest} latestDetail={detailFor(latest)} onOpenInsights={() => { setDays(7); go('overview') }} onOpenLatest={() => openShot(latest)}/>
       </div></div>{notice && <button className="ins-notice" onClick={() => setNotice('')}>{notice} ×</button>}
     </main> : <div className="ins-shell"><aside className="ins-rail"><img src={logo} alt="Decent"/><button className="ins-back" onClick={() => go('home')}>← Back to brewing</button><small className="ins-eyebrow">YOUR BREWING</small><nav aria-label="Insights navigation"><button className={page === 'overview' ? 'selected' : ''} onClick={() => go('overview')}><span aria-hidden="true">◫</span> Overview</button><button className={page === 'history' ? 'selected' : ''} onClick={() => go('history')}><span aria-hidden="true">◷</span> History</button></nav><div className="ins-rail-foot"><span className="ins-dot"/> Sample collection<small>56 days of espresso<br/>No machine connection</small></div></aside>
       <div className="ins-content" ref={scroll}><header className="ins-heading"><div><small className="ins-eyebrow">INSIGHTS / {page === 'overview' ? 'OVERVIEW' : 'HISTORY'}</small><h1>{page === 'overview' ? 'Your brewing' : 'Brew history'}</h1><p>{periodLabel(days, page === 'history' && previous)}<span> · {page === 'overview' ? `compared with ${periodLabel(days, true)}` : `${history.length} matching brews`}</span></p></div><label className="ins-period"><span className="ins-sr">Period</span><select value={days} onChange={e => { setDays(Number(e.target.value)); setPrevious(false); setCompareEvidence(false); setFilter(null) }}><option value="7">Last 7 days</option><option value="28">Last 28 days</option></select></label></header>
