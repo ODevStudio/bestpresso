@@ -1,0 +1,82 @@
+import { useEffect, useRef, useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrewingPanel } from '../../src/features/brew/BrewingPanel'
+import { MachineUtilityCard } from '../../src/features/machine/MachineUtilityCard'
+import { PreviousShotScreen } from '../../src/features/history/PreviousShotScreen'
+import { ValueAdjustmentContext } from '../../src/components/ValueAdjustment/ValueAdjustmentContext'
+import { brewingFixture, demoLiveBrewFixture } from '../../src/fixtures/brewingFixture'
+import type { PreviousShot } from '../../src/domain/brewing'
+import logo from '../../src/assets/figma/decent-logo.png'
+import settingsIcon from '../../src/assets/figma/settings-glyph.svg'
+import sleepIcon from '../../src/assets/figma/sleep-glyph.svg'
+import '../../src/styles/index.css'
+import '../../src/styles/cardSurfaces.css'
+import '../../src/styles/lightMode.css'
+import './preview.css'
+import { records, bands, weekdays, getWindow, summarize, periodLabel, observation, matches, filterName, dateLabel, timeLabel, type InsightShot, type ShotFilter } from './data'
+
+type Page = 'home' | 'overview' | 'history'
+const noop = () => {}
+const signed = (n: number, digits = 0) => `${n > 0 ? '+' : ''}${n.toFixed(digits)}`
+const pct = (n: number, total: number) => Math.round(n / Math.max(1, total) * 100)
+function detailFor(shot: InsightShot): PreviousShot {
+  const base = demoLiveBrewFixture.points
+  const last = base.at(-1)!
+  return { id: shot.id, profileName: shot.profile, beverageType: 'espresso', timestamp: `${shot.date}T${timeLabel(shot)}:00`, totalTime: String(shot.duration), totalYield: shot.yield === null ? '—' : shot.yield.toFixed(1), targetYield: shot.yield ?? 38,
+    points: base.map(p => ({ ...p, elapsedMs: Math.round(p.elapsedMs / last.elapsedMs * shot.duration * 1000), weight: shot.yield === null ? undefined : (p.weight ?? 0) / (last.weight || 40) * shot.yield })) }
+}
+
+export function Preview() {
+  const [page, setPage] = useState<Page>('overview')
+  const [days, setDays] = useState(28)
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [filter, setFilter] = useState<ShotFilter>(null)
+  const [search, setSearch] = useState('')
+  const [compareEvidence, setCompareEvidence] = useState(false)
+  const [previous, setPrevious] = useState(false)
+  const [selected, setSelected] = useState<InsightShot | null>(null)
+  const [activeProfile, setActiveProfile] = useState('adaptive-v2')
+  const [notice, setNotice] = useState('')
+  const scroll = useRef<HTMLDivElement>(null)
+  const savedScroll = useRef(0)
+  useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+  useEffect(() => { if (!selected && scroll.current) scroll.current.scrollTop = savedScroll.current }, [selected])
+  const current = getWindow(days), prior = getWindow(days, true)
+  const summary = summarize(current), before = summarize(prior)
+  const home = summarize(getWindow(7)), homeStory = observation(7), story = observation(days)
+  const history = (previous ? prior : current).filter(s => matches(s, filter) && s.profile.toLowerCase().includes(search.toLowerCase())).sort((a, b) => b.day - a.day || b.hour - a.hour || b.minute - a.minute)
+  const openHistory = (next: ShotFilter = null, compare = false) => { setPage('history'); setFilter(next); setSearch(''); setPrevious(false); setCompareEvidence(compare); savedScroll.current = 0; scroll.current?.scrollTo(0, 0) }
+  const go = (next: Page) => { setPage(next); savedScroll.current = 0; scroll.current?.scrollTo(0, 0); if (next === 'history') { setFilter(null); setCompareEvidence(false); setPrevious(false); setSearch('') } }
+  const openShot = (s: InsightShot) => { savedScroll.current = scroll.current?.scrollTop ?? 0; setSelected(s) }
+  const sampleAction = () => setNotice('Design preview only — machine controls are not connected.')
+  const rows = (shots: InsightShot[]) => <div className="ins-table" role="table" aria-label="Recorded brews">
+    <div role="row" className="ins-table-head"><span role="columnheader">When</span><span role="columnheader">Profile</span><span role="columnheader">Yield</span><span role="columnheader">Duration</span><span role="columnheader" className="ins-sr">Analysis</span></div>
+    {shots.map(s => <button role="row" className="ins-shot" key={s.id} onClick={() => openShot(s)} aria-label={`Analyse ${s.profile}, ${dateLabel(s.date)} at ${timeLabel(s)}`}><span role="cell">{dateLabel(s.date)}<small>{timeLabel(s)}</small></span><span role="cell">{s.profile}</span><span role="cell">{s.yield === null ? '—' : <>{s.yield.toFixed(1)}<small className="unit"> g</small></>}</span><span role="cell">{s.duration}<small className="unit"> s</small></span><span aria-hidden="true">↗</span></button>)}
+    {!shots.length && <p className="ins-empty">No brews match this view. Try clearing the filter or search.</p>}
+  </div>
+
+  return <ValueAdjustmentContext value={noop}><div className="ins-preview">
+    <div className="ins-preview-strip"><span>DESIGN PREVIEW <i/> Fictional data · 12 Sep 2026 {selected && '· Illustrative telemetry'}</span><button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? 'Light preview' : 'Dark preview'} ◐</button></div>
+    {selected ? <div className="ins-detail"><PreviousShotScreen shots={[detailFor(selected), ...history.filter(s => s.id !== selected.id).map(detailFor)]} initialShot={detailFor(selected)} status="fixture" onSelectShot={async id => { const s = records.find(x => x.id === id); return s ? detailFor(s) : null }} onDismiss={() => setSelected(null)}/></div> : page === 'home' ? <main className="app-shell ins-home">
+      <header className="topbar"><img className="logo" src={logo} alt="Decent"/><nav aria-label="Preview machine controls"><button className="control-button" aria-label="Sleep preview" onClick={sampleAction}><img src={sleepIcon} alt=""/></button><button className="control-button" aria-label="Settings preview" onClick={sampleAction}><img src={settingsIcon} alt=""/></button><span className="ins-ready">● Sample machine</span></nav></header>
+      <div className="dashboard"><aside className="utilities">{brewingFixture.utilities.map(u => <MachineUtilityCard key={u.id} utility={u} settingsDisabled onUpdateSetting={noop}/>)}</aside><div className="primary"><BrewingPanel profiles={brewingFixture.profiles} activeProfileId={activeProfile} settingsDisabled onUpdateProfile={noop} onSelectProfile={async id => { setActiveProfile(id); return true }} onManageProfiles={sampleAction}/>
+        <section className="ins-home-card"><header><span>Your brewing <small>Last 7 days · through 11 Sep</small></span><button className="ins-link" onClick={() => { setDays(7); go('overview') }}>Explore insights ↗</button></header><div className="ins-home-body"><div className="ins-home-number"><strong>{home.count}</strong><span>brews</span></div><div className="ins-home-number"><strong>{home.days}<small>/7</small></strong><span>brewing days</span></div><div className="ins-home-story"><p>{homeStory.body}</p><div className="ins-spark" aria-label="Seven-day brewing activity">{Array.from({ length: 7 }, (_, i) => <span key={i} style={{ height: `${10 + records.filter(s => s.day === i + 49).length * 8}px` }}/>)}</div></div></div><footer><span>Recorded brews, not cups consumed</span><button className="ins-link" onClick={() => openShot(records.at(-1)!)}>Last shot ↗</button></footer></section>
+      </div></div>{notice && <button className="ins-notice" onClick={() => setNotice('')}>{notice} ×</button>}
+    </main> : <div className="ins-shell"><aside className="ins-rail"><img src={logo} alt="Decent"/><button className="ins-back" onClick={() => go('home')}>← Back to brewing</button><small className="ins-eyebrow">YOUR BREWING</small><nav aria-label="Insights navigation"><button className={page === 'overview' ? 'selected' : ''} onClick={() => go('overview')}><span aria-hidden="true">◫</span> Overview</button><button className={page === 'history' ? 'selected' : ''} onClick={() => go('history')}><span aria-hidden="true">◷</span> History</button></nav><div className="ins-rail-foot"><span className="ins-dot"/> Sample collection<small>56 days of espresso<br/>No machine connection</small></div></aside>
+      <div className="ins-content" ref={scroll}><header className="ins-heading"><div><small className="ins-eyebrow">INSIGHTS / {page === 'overview' ? 'OVERVIEW' : 'HISTORY'}</small><h1>{page === 'overview' ? 'Your brewing' : 'Brew history'}</h1><p>{periodLabel(days, page === 'history' && previous)}<span> · {page === 'overview' ? `compared with ${periodLabel(days, true)}` : `${history.length} matching brews`}</span></p></div><label className="ins-period"><span className="ins-sr">Period</span><select value={days} onChange={e => { setDays(Number(e.target.value)); setPrevious(false); setCompareEvidence(false); setFilter(null) }}><option value="7">Last 7 days</option><option value="28">Last 28 days</option></select></label></header>
+      {page === 'overview' ? <>
+        <section className="ins-metrics" aria-label="Period summary"><div><label>Brews</label><strong>{summary.count}</strong><small>{signed(summary.count - before.count)} vs previous {days} days</small></div><div><label>Brewing days</label><strong>{summary.days}<em> / {days}</em></strong><small>A day with at least one brew</small></div><div><label>Typical yield</label><strong>{summary.typicalYield?.toFixed(1)}<em> g</em></strong><small>{signed(summary.typicalYield! - before.typicalYield!, 1)} g · {summary.yieldCoverage}/{summary.count} readings</small></div><div><label>Most-used profile</label><strong className="ins-profile-value">{summary.profileCounts[0].name}</strong><small>{summary.profileCounts[0].count} brews · {pct(summary.profileCounts[0].count, summary.count)}% of this period</small></div></section>
+        <div className="ins-top-grid"><section className="ins-panel"><header><div><h2>Your weekly rhythm</h2><p>Brews by day of the week</p></div><div className="ins-legend"><span><i/>This period</span><span><i/>Previous</span></div></header><div className="ins-week" aria-label="Brews by weekday">{weekdays.map((name, i) => { const max = Math.max(...summary.weekdays, ...before.weekdays, 1); return <button key={name} onClick={() => openHistory({ kind: 'weekday', value: String(i) })} aria-label={`${name}: ${summary.weekdays[i]} brews, previously ${before.weekdays[i]}. View shots`}><span className="ins-week-value">{summary.weekdays[i]}</span><span className="ins-bar-pair"><i style={{ height: `${before.weekdays[i] / max * 100}%` }}/><b style={{ height: `${summary.weekdays[i] / max * 100}%` }}/></span><small>{name}</small></button> })}</div><footer>Tap a day to see the brews behind it <span>↗</span></footer></section>
+        <section className="ins-panel"><header><div><h2>When you brew</h2><p>Your daily pattern</p></div></header><div className="ins-bands">{bands.map((b, i) => <button key={b.name} onClick={() => openHistory({ kind: 'band', value: String(i) })}><span>{b.name}<small>{b.hours}</small></span><span className="ins-track"><i style={{ width: `${pct(summary.bands[i], summary.count)}%` }}/></span><strong>{summary.bands[i]}</strong></button>)}</div></section></div>
+        <div className="ins-bottom-grid"><section className="ins-panel"><header><div><h2>Profiles you return to</h2><p>Usage, not a taste ranking</p></div><button className="ins-link" onClick={() => openHistory()}>All brews ↗</button></header><div className="ins-profiles">{summary.profileCounts.map(p => <button key={p.name} onClick={() => openHistory({ kind: 'profile', value: p.name })}><span>{p.name}<small>{p.count} brews · {pct(p.count, summary.count)}%</small></span><span className="ins-track"><i style={{ width: `${pct(p.count, summary.count)}%` }}/></span><span aria-hidden="true">↗</span></button>)}</div></section>
+        <section className="ins-story"><small className="ins-eyebrow">{story.compare ? 'WHAT’S CHANGING' : 'YOUR PATTERN'}</small><h2>{story.title}</h2><p>{story.body}</p><small>{story.evidence}</small><button className="ins-link" onClick={() => openHistory(story.filter, story.compare)}>Explore these brews ↗</button></section></div>
+        <section className="ins-panel ins-recent"><header><div><h2>Behind the numbers</h2><p>Recent brews in this period</p></div><button className="ins-link" onClick={() => openHistory()}>View all history ↗</button></header>{rows([...current].reverse().slice(0, 3))}</section>
+        <p className="ins-footnote">Espresso only · Completed days · Local time · Missing yield is excluded from the median, not the brew count.</p>
+      </> : <>
+        <div className="ins-history-toolbar"><div><span className="ins-filter">{filterName(filter)}{filter && <button aria-label="Clear insight filter" onClick={() => { setFilter(null); setCompareEvidence(false); setPrevious(false) }}>×</button>}</span>{compareEvidence && <div className="ins-evidence-switch" aria-label="Evidence period"><button aria-pressed={!previous} onClick={() => setPrevious(false)}>This period</button><button aria-pressed={previous} onClick={() => setPrevious(true)}>Previous period</button></div>}</div><label><span className="ins-sr">Search profiles</span><input placeholder="Search profiles" value={search} onChange={e => setSearch(e.target.value)}/></label></div>
+        <section className="ins-panel ins-history-list"><header><div><h2>{history.length} recorded brews</h2><p>{previous ? 'Earlier comparison window' : 'Selected period'} · {summarize(history).yieldCoverage} with yield readings</p></div><small>Tap a brew to analyse ↗</small></header>{rows(history)}</section><p className="ins-footnote">Fictional espresso records · Full list in this prototype · Curves in detail are illustrative.</p>
+      </>}
+      </div></div>}
+  </div></ValueAdjustmentContext>
+}
+createRoot(document.getElementById('root')!).render(<Preview/>)

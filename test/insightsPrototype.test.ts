@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { records, getWindow, summarize, matches, observation, median } from '../review/brewing-insights/data.ts'
+
+test('prototype windows partition current and earlier records without overlap', () => {
+  for (const days of [7, 28]) {
+    const current = getWindow(days), prior = getWindow(days, true)
+    assert.ok(current.length > 0 && prior.length > 0)
+    assert.equal(current.some(s => prior.some(p => p.id === s.id)), false)
+    const total = summarize(current)
+    assert.equal(total.weekdays.reduce((a, b) => a + b, 0), current.length)
+    assert.equal(total.bands.reduce((a, b) => a + b, 0), current.length)
+    assert.equal(total.profileCounts.reduce((a, b) => a + b.count, 0), current.length)
+  }
+  assert.equal(getWindow(28).length + getWindow(28, true).length, records.length)
+})
+test('prototype filtering and insight evidence agree with aggregates', () => {
+  const shots = getWindow(28), totals = summarize(shots)
+  for (let day = 0; day < 7; day++) assert.equal(shots.filter(s => matches(s, { kind: 'weekday', value: String(day) })).length, totals.weekdays[day])
+  for (let band = 0; band < 4; band++) assert.equal(shots.filter(s => matches(s, { kind: 'band', value: String(band) })).length, totals.bands[band])
+  assert.ok(shots.filter(s => matches(s, observation(28).filter)).length > 0)
+  assert.ok(totals.yieldCoverage < totals.count)
+  assert.equal(median([]), null)
+  assert.equal(median([36, 40]), 38)
+})

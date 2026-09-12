@@ -1,0 +1,190 @@
+# Brewing insights — first-cut product specification
+
+Status: proposal with an interactive, sample-data prototype. Not connected to a machine, not released.
+
+Branch: `feat/brewing-insights-preview`
+
+Preview: `/review/brewing-insights/index.html`
+
+Product destination: **Insights**. Homescreen module: **Your brewing**.
+
+## 1. Product point of view
+
+Help someone understand their brewing routine and how it changes, with the evidence always one tap away. Start with a personal journal, then let enthusiasts go deeper. Do not score users, reward increasing consumption, or equate telemetry consistency with better taste.
+
+The unit is a recorded brew, not a cup consumed. Multiple people may use one machine, one brew may serve two people, and some brews are discarded. The first version describes this machine's recorded brewing; it does not claim to describe personal caffeine intake.
+
+Success means a user can answer three questions within a few seconds:
+
+1. How often, and when, have I been brewing?
+2. Which profiles am I returning to, and what has changed?
+3. Which individual shots explain that observation?
+
+## 2. First-cut scope
+
+Ship a homescreen insight card, an Insights overview, a filterable History section, and a return path to the existing detailed shot analysis. Support 7 and 28 completed local calendar days, each compared with the immediately preceding equal-length window. The home card uses 7 completed days independently of the overview selection.
+
+Four headline measures:
+
+| Measure | Definition | Display |
+| --- | --- | --- |
+| Brews | Count of eligible distinct shot IDs | Count and absolute difference from previous period |
+| Brewing days | Local dates with at least one eligible brew | Count out of selected period length |
+| Typical yield | Median final recorded beverage mass among usable records | Grams, absolute median difference, coverage |
+| Most-used profile | Largest share of eligible brews | Profile name, count and share |
+
+Three supporting views:
+
+- **Your weekly rhythm:** counts grouped Monday–Sunday. Current and previous periods use the same scale. Tapping a weekday opens its shots in History.
+- **When you brew:** four local time bands: overnight 00:00–05:59, morning 06:00–11:59, afternoon 12:00–17:59, evening 18:00–23:59. Every band is labelled with its count and can filter History.
+- **Profiles you return to:** ranked profile counts/shares plus previous-period share. Tapping a row filters History. Preserve profile identity, not just the displayed title.
+
+Use typical duration as a secondary summary in History; no need for another headline card. Yield means beverage output, not coffee beans consumed. Do not combine coffee, tea and unrelated beverage categories for a misleading typical-yield story: overview filters to a beverage type; default Espresso, with other recorded drink types selectable. The home card counts all eligible brews and prefers a profile/routine story, never a mixed-drink yield story.
+
+### Deliberately not in v1
+
+AI-written narratives, population comparisons, caffeine/health claims, coffee cost, predictive maintenance, water or energy totals, full-machine uptime, automatic dial-in/session labels, taste scores, taste recommendations, new editing of shot annotations, and bean/bag input. Existing detail telemetry stays available, but cross-shot curve averaging and repeatability grading are later work.
+
+## 3. Touchpoints and navigation
+
+### Homescreen
+
+Replace only the current history card, retaining coverflow, profile settings and machine utilities. Keep approximately its current footprint; never steal height from the profile selection surface.
+
+- Heading: `Your brewing` with an explicit period (`Last 7 days`, a completed-through date in supporting detail).
+- Two compact metrics: brews and brewing days.
+- One short supported observation, otherwise a neutral summary.
+- A quiet seven-day spark bar strip; decorative here, not seven tiny touch targets.
+- `Explore insights` opens Overview; `Last shot` goes directly to the newest eligible brew, including today.
+- No timed rotation, flashing insight, or automatic carousel.
+
+After a shot, immediate analysis remains accessible through Last shot. The completed-days card does not pretend to include today's activity. In production the latest-shot shortcut updates independently from the aggregate period.
+
+### Insights overview
+
+Use Bestpresso's quiet charcoal/warm-grey surfaces, thin outlines, green accents, neutral metric text and generous spacing. Dark remains the initial theme; honour the user's saved theme. Light mode uses the existing light surfaces and darker accent text. No blur or background animations.
+
+Persistent shell:
+
+- Compact left rail with Back to home, Overview and History. History is a child destination inside Insights, not a new unrelated top-level feature.
+- Main header: `Your brewing`, selected dates, comparison dates and period selector.
+- Beverage-type filter on the overview in production; hidden when only one drink type exists.
+- Four metrics in one divided surface, not four oversized cards.
+- Weekly rhythm as the main chart; time bands to its right.
+- Profile ranking and one restrained observation card below.
+- Recent brews preview and a `View all history` entry point below the overview.
+
+### History
+
+- Keep the selected insight period and beverage filter on entry from Overview.
+- Display an active context chip, e.g. `Morning · 06:00–12:00`, `Mondays`, or `Adaptive V2`. Include Clear filter.
+- Row fields: time/date, profile, yield, duration. Unknown values display an em dash. Do not download curves for list rows.
+- Search by profile name; newest first; load more in pages of 30.
+- Allow a period choice `All history` in History, in addition to the shared 7/28-day windows. All history includes today's shots; no previous-period comparison is attached to it.
+- Show the current period count and the filtered count; never label a loaded first page as the complete total.
+- A separate accessible row action opens existing shot analysis. Back returns to the same query, loaded pages and scroll position. Browser Back follows the same navigation stack.
+- Overview may preserve its own scroll independently from History. Returning Home does not change selected brew profile or machine workflow.
+
+### Shot detail
+
+Reuse the current pressure/flow/temperature/yield chart, legend filtering, hold inspection and stage cards. Change the parent navigation only. Do not implement another graph engine. Allow navigating the current filtered result set without silently expanding to unrelated shots.
+
+## 4. Observations: transparent rules, not invented intelligence
+
+Use deterministic templates. Every observation includes its scope, sample sizes, comparison dates and a route to evidence. Rank by the priority below; show one on Home and at most two on Overview. No observation must appear simply to fill a card.
+
+| Priority | Eligibility | Example / interpretation |
+| --- | --- | --- |
+| Profile share shift | At least 10 brews in each window, profile used at least 5 times currently, increase of at least 15 percentage points | `Adaptive V2 appears in 55% of your brews, up from 30%.` Show both period evidence sets. This is usage, not enjoyment. |
+| Time-band shift | At least 10 timestamped brews in each window, band used at least 5 times currently, share change of at least 15 points | `More of your brewing happens in the afternoon.` Show the counts and dates. |
+| Routine summary | At least 5 brews, largest band contains at least 60% | `Most of your brewing happens in the morning.` No change claim. |
+| Neutral fallback | Any eligible records | `You brewed on 5 of the last 7 days.` With no records: `Your brewing story starts with your first brew.` |
+
+Profile/time change stories require complete coverage of both periods, not merely 10 records from a partial import. Tie-break by largest absolute share change, then count, then stable ID. Recompute after new history/corrections, but freeze the selected story during a mounted view so it does not move under a user's finger.
+
+Show median-yield and count differences as factual metric annotations, not an automatic quality story. A profile mix change can explain yield changes; do not imply a change in technique. Do not infer preference, improvement, channeling or machine faults from these aggregates.
+
+## 5. Data contract and Decaid collaboration
+
+### Current foundation
+
+Bestpresso reads shot IDs, timestamps, workflow/profile snapshots, stop reasons, annotations and time-series measurements. Its UI adapter currently retains only a subset; the default history request is a 30-item page. Do not derive a monthly report from that page.
+
+Decaid's local models already support grinder and bean-batch context, barista/drinker labels, dose/yield annotations, enjoyment and notes. Their presence in a model is not evidence that existing records populate them. In particular, dose annotations can be derived from a target dose: a field named `actualDoseWeight` is not sufficient proof of weighing.
+
+### Minimum new capability (contract to agree with Decaid; not an existing endpoint)
+
+Request an aggregate for an explicit inclusive local start date, exclusive end date, IANA timezone, beverage type and eligibility policy. Return:
+
+- The interpreted date bounds, source-data revision and generated-at timestamp.
+- Current and previous period totals, active days, median yield/duration and usable sample counts for each metric.
+- Seven weekday buckets, four time-band buckets, and profile identity/count/share buckets for both periods.
+- Earliest available record, completeness/coverage status and excluded/unknown counts.
+- Filter descriptors that the paginated history query can apply to return exactly the contributing records, for either period. Do not return thousands of IDs in every overview response.
+
+History queries must support the same dates, timezone, beverage, eligibility, weekday/time band and stable profile identity predicates. Detail remains lazy-loaded by shot ID. Existing endpoints remain unchanged; add capabilities rather than changing their response meanings.
+
+Bestpresso owns explanation templates, insight ranking and UI. Decaid owns canonical eligibility, deduplication, aggregation and matching queries so totals and drill-down do not disagree between skins. Do not silently compute an approximate result from a partial client cache if the capability is missing.
+
+### Eligibility and provenance
+
+- Default counts include recorded drink brews; exclude known cleaning, calibration and simulation records. Keep those accessible through an explicit History activity filter later, not consumption totals.
+- A manual stop can be a perfectly valid brew. Do not classify manual stops as failed shots solely by stop reason or short duration. Honour explicit aborted/discarded classification if available; otherwise show the limitation.
+- Unknown category/provenance is reported separately, not guessed from a profile title. Production release is gated on reliable eligibility or an explicit conservative unknown bucket.
+- Deduplicate by stable shot ID. Imports with missing/conflicting identity require backend resolution rather than heuristic merging of similar timestamps.
+- Prefer canonical final yield/confirmed user correction over later scale readings. Missing yield is not zero and does not remove that brew from frequency counts. Never substitute water volume for beverage mass.
+- Profile usage rolls up by stable profile/lineage identity; detail retains the shot-time title and recipe revision. A new revision of the same profile does not create a fake new favourite; separately created copies remain separate unless explicitly linked.
+- If old shots lack stable identity, group by exact immutable snapshot signature and label legacy groups; do not use fuzzy title matching.
+- Historical dose, grind, bean and profile context must be captured at shot time, not looked up from today's settings.
+
+### Dates, comparisons and coverage
+
+Use a persisted reporting timezone, initially the device IANA timezone. Aggregate in calendar dates, not `N × 24 hours`; daylight saving must not shift buckets. A reporting timezone change re-buckets both comparison periods with that timezone.
+
+`Last 7 days` means the seven complete days before today. `Last 28 days` means the 28 complete days before today. The preceding comparison window has the same length and weekday composition. Show zero count on a known empty day, but gaps on dates for which source history is unavailable. Comparison requires both windows to be complete; otherwise show `More history needed for comparison`.
+
+Median calculations use usable finite non-negative values, with yield values rounded only for display. Typical yield needs at least 5 usable records; otherwise show `Not enough yield readings`. Percentage share uses all eligible brews in that exact filtered scope; unknown profiles count in the denominator and are visible as Unknown profile. Use absolute deltas if the previous value is zero—never infinite percentages.
+
+## 6. Loading, privacy and performance
+
+- First load: fixed-height placeholders; keep Last shot and History available independently when possible.
+- Offline: display cached summaries with `Updated …` and `Offline`; never silently present them as fresh.
+- Partial data: show coverage beside the affected metric; suppress unsupported observations.
+- Backend unavailable: `Insights isn't available with this Decaid version yet`, with a working History entry. No invented totals.
+- Empty state: explain what will appear after real brewing; no demo data in production.
+- Fetch summaries on entry and invalidate after a completed shot, edit, delete or import; do not request on each live telemetry packet. A completed-days report will usually not change after today's brew, but its latest-shot shortcut will.
+- Avoid re-requesting fresh summaries for the same scope/revision. Only fetch full telemetry when detail opens. Scrolling and coverflow should stay independent of aggregation work.
+- Local aggregation by default. No cloud export or community comparison. Future per-person views require explicit attribution, never inference from time of day. Shared users should know this is machine-level history.
+
+## 7. Future beans/bags extension
+
+Keep coffee identity, purchased bag/batch and shot association separate. Plan for a shot-time beanBatchId, origin/process/roaster metadata, roast/open dates, grinder ID/setting and optional enjoyment rating.
+
+Then add origin/process mix, repeated purchases, bag × profile usage, roast-age trends, grind evolution within the same grinder and bag, and rated enjoyment by combination. Use association language, not causal taste claims. Blend origins may be multi-valued; avoid double-counting a blend as two entire brews in percentage totals.
+
+Bag depletion and cost estimates need bag weight/price, dose provenance and allowance for unrecorded use, purging and spills. Mark estimates explicitly. Most-used is not most-enjoyed. Unknown beans remain an honest Unknown group. Do not add locked or empty bean panels to the v1 overview.
+
+## 8. Implementation sequence and acceptance
+
+1. Agree canonical aggregate and history predicates with Decaid; obtain fixtures with missing values, eligibility and provenance cases.
+2. Extend the read-only client adapter with the aggregate capability and source revision; preserve current shot-detail routes.
+3. Implement Overview and History together so every chart and observation has evidence. Add the homescreen replacement only after this flow works.
+4. Verify themes, tablet breakpoints, data coverage and navigation; ship behind a development flag until the backend contract passes integration checks.
+
+Acceptance tests:
+
+- Headline totals equal all matching history pages, not just page one; deletions/imports update both.
+- Completed-day bounds, midnight, week boundaries, timezone changes and DST give consistent bucket counts.
+- Excluded/unknown activities, missing scale readings, manual stops, duplicate imports and changed profile names do not create misleading insights.
+- Low sample size and incomplete comparison windows suppress change stories. Zero previous totals never yield Infinity/NaN.
+- Tapping weekday, time band, profile or observation opens the correct scope; clearing only the contextual filter retains the period and beverage choice.
+- Last shot includes today's newest eligible brew; selected period comparison remains completed-days only.
+- Open shot → hold chart → select stage → Back restores query and scroll. Existing chart behaviour is unchanged.
+- At 1194×834 and 1024×768: headline metrics, labels and touch targets do not overlap. Below 1000px stack content; no forced canvas-scale text. Check light and dark; keyboard focus and touch targets at least 44px for primary controls.
+- Summary loading does not block Home, the existing history path or live shot updates. Production bundle excludes prototype/sample records.
+
+## 9. What this branch demonstrates
+
+The separate review entry uses a deterministic 56-day fictional espresso dataset. Counts, medians, comparisons, bar heights, profile shares and filtered lists are computed from the same data. It offers 7/28-day views, Home, Overview, filtered History, search, clear filter, dark/light preview and shot detail using the existing chart/stage components. Full-history pagination, backend/caching/error states, beverage filtering and browser URL restoration remain specified production work, not completed integration.
+
+The preview's curves are explicitly illustrative, rescaled from the existing demo telemetry. They do not validate physical profile execution. No API calls, machine commands or account writes are made. Existing main application entrypoints and homescreen source are untouched. The prototype uses page-local theme selection, not a settings save.
