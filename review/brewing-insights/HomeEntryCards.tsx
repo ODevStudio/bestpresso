@@ -29,7 +29,7 @@ export function HomeEntryCards({ shots, latest, latestDetail, onOpenInsights, on
       aria-describedby="ins-entry-coverage">
       <div className="ins-entry-week" role="img" aria-label={daily.map(d => `${d.name} ${dateLabel(d.date)}: ${d.count} shots`).join('; ')}>
         {daily.map(d => <span className="ins-entry-day" key={d.day} aria-hidden="true">
-          <span className="ins-entry-bar-space"><i data-empty={d.count === 0} style={{ height: d.count ? `${d.count / maximum * 100}%` : '2px', opacity: d.count ? .35 + .65 * d.count / maximum : .3 }}/></span>
+          <span className="ins-entry-bar-space"><i data-empty={d.count === 0} style={{ height: d.count ? `${d.count / maximum * 100}%` : '2px' }}/></span>
           <small>{d.name[0]}</small>
         </span>)}
       </div>

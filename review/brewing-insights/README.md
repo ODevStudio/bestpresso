@@ -62,3 +62,14 @@ Evidence: `detail-full-width-dark.png`, `detail-full-width-light-1024.png`, `sid
 - All 300 tests and the production build passed. Existing bundle-size warning remains. No telemetry, filters or aggregation logic changed.
 
 Evidence: `bars-unified-dark.png`, `bars-unified-light.png`, `bars-unified-light-1024.png`.
+
+## Home bar and period-control consistency
+
+- Removed the remaining home-only opacity scaling. Nonzero bars now share solid theme color, 20px width and 7px rounding with Overview; both use neutral baseline ticks for zero counts.
+- Home remains seven chronological dates; Overview remains weekday aggregates with previous-period comparison. The compact home chart keeps its smaller available height.
+- Period select uses an inset custom chevron (18px from the right before rotation), with space reserved for its label at compact widths. The native select behavior and keyboard focus indication remain.
+- Browser clicks opened the menu, switched 7/28 days and opened Overview from Home. Verified dark/light at 1016×720 and the compact light layout at 640×900; no horizontal overflow at 640px. All 300 tests and the separate preview TypeScript check passed.
+
+Evidence: `bars-matched-home-dark.png`, `bars-matched-home-light.png`, `bars-matched-overview-dark.png`, `period-chevron-light-compact.png`.
+
+Current observation scope: the prototype chooses one profile-share increase story, otherwise a dominant time-band routine summary, otherwise brewing-days fallback. Time-band changes are specified but not implemented. These are deterministic fictional-data examples, not connected machine analytics.
