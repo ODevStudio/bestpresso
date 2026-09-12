@@ -4,6 +4,14 @@ import test from 'node:test'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
+test('overview charts precede the summary and use open sections instead of cards', () => {
+  const preview = read('../review/brewing-insights/preview.tsx')
+  const heatStrip = read('../review/brewing-insights/TimeHeatStrip.tsx')
+  assert.ok(preview.indexOf('className="ins-top-grid"') < preview.indexOf('aria-label="Period summary"'))
+  assert.match(preview, /className="ins-top-grid"><section className="ins-chart-section"/)
+  assert.match(heatStrip, /className="ins-chart-section ins-time-panel"/)
+})
+
 test('Insights and Settings share the brand/close and selected navigation components', () => {
   const preview = read('../review/brewing-insights/preview.tsx')
   const settings = read('../src/features/settings/SettingsScreen.tsx')

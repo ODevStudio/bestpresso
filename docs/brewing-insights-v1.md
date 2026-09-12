@@ -69,8 +69,9 @@ Persistent shell:
 - Compact left rail with the same logo + circular close control as Settings, plus Overview and History. The close control returns Home. Both sidebars share the Insights selected-item surface, green label and thin outline. History is a child destination inside Insights, not a new unrelated top-level feature.
 - Main header: `Your brewing`, selected dates, comparison dates and period selector.
 - Beverage-type filter on the overview in production; hidden when only one drink type exists.
-- Four metrics in one divided surface, not four oversized cards.
-- Weekly rhythm as the main chart; a 24-hour heat strip to its right. Twelve two-hour windows cover midnight through 24:00. Current and preceding periods use the same count-to-color scale, neutral empty cells and filled green cells without outlines. Selecting a cell shows its exact count and a View brews action that opens the matching time-window and period in History. Keep broad time bands available for narrative summaries.
+- Weekly rhythm and When you brew sit directly on the page above the summary, without card backgrounds or outlines. They share one row on wider screens and stack in that order on narrower screens.
+- Four metrics follow the charts in one divided surface, not four oversized cards.
+- Weekly rhythm is the main chart; a 24-hour heat strip sits to its right. Twelve two-hour windows cover midnight through 24:00. Current and preceding periods use the same count-to-color scale, neutral empty cells and filled green cells without outlines. Selecting a cell shows its exact count and a View brews action that opens the matching time-window and period in History. Keep broad time bands available for narrative summaries.
 - Bar charts share rounded ends and solid Bestpresso-green fills, with a muted solid fill for the previous period and matching legend markers. No outlines or gradient strokes on bars. Keep the existing shot-detail telemetry styling separate.
 - Home's profile panel, insight entry and latest-shot entry share one neutral surface in each theme; the selected profile's animated art remains separate. The entry bar chart has a 24px top inset, including short-screen layouts.
 - Profile ranking and one restrained observation card below.

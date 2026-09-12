@@ -18,7 +18,7 @@ export function TimeHeatStrip({ current, previous, onOpen }: TimeHeatStripProps)
   const selectedCount = counts[selection.period][selection.window]
   const selectedWindow = timeWindows[selection.window]
 
-  return <section className="ins-panel ins-time-panel" aria-label="Brewing across 24 hours">
+  return <section className="ins-chart-section ins-time-panel" aria-label="Brewing across 24 hours">
     <header><div><h2>When you brew</h2><p>24 hours · Two-hour windows</p></div></header>
     <div className="ins-heat-rows">
       {counts.map((period, periodIndex) => <div key={periodIndex} className="ins-heat-row">

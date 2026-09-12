@@ -86,3 +86,13 @@ Current observation scope: the prototype chooses one profile-share increase stor
 - This remains a fictional-data design preview on the Insights branch, with no machine connection. Touch targeting on real tablet hardware and backend aggregation are not verified.
 
 Evidence: `heat-strip-dark.png`, `heat-strip-light.png`, `heat-strip-1024.png`, `shared-home-surfaces-dark.png`, `shared-home-surfaces-light.png`, `shared-home-surfaces-1024.png`.
+
+## Open charts above the summary — 13 September 2026
+
+- Weekly rhythm and When you brew now precede the four summary metrics in both visual and document order. Both chart sections have transparent backgrounds and no card outlines; the summary retains its divided card.
+- The two charts use a wider gutter and 28px separation from the summary. Below 1000px they stack before the summary without changing data or filtering behavior.
+- Browser verification checked both themes at 1054×901 and the stacked light layout at 980×800, including scrolling to the summary. No horizontal document overflow at the narrow breakpoint.
+- Actual clicks verified Monday → two matching brews and the previous-period 14:00–16:00 heat cell → three matching brews. All 303 tests, separate preview typecheck, targeted lint and production build passed; the existing bundle-size warning remains.
+- This is still a local fictional-data preview, not a connected-machine or hardware-touch verification.
+
+Evidence: `open-charts-dark.png`, `open-charts-light.png`, `open-charts-light-stacked.png`, `open-charts-light-stacked-summary.png`.
