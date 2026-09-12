@@ -9,10 +9,11 @@ This is a separate entry, not a production route. The normal build does not bund
 
 - Existing coverflow and utilities, with paired seven-day insight and latest-shot entry cards matching the supplied reference.
 - Computed 7/28-day summaries from 56 days of fictional espresso records, anchored to 12 September 2026.
-- Weekday, time-band and profile drill-down; comparison evidence sets; profile search and clear filter.
+- Weekday, two-hour window and profile drill-down; comparison evidence sets; profile search and clear filter.
 - Existing shot-detail graph and stage components; returning retains the contextual filter.
 - Page-local dark/light toggle. No machine connection, commands or settings writes.
-- Shared rounded, solid-fill bars across the home entry, weekday comparison, time bands and profile usage. Previous-period bars and their legend use a muted fill, not an outline; telemetry curves are unchanged.
+- Shared rounded, solid-fill bars across the home entry, weekday comparison and profile usage. Previous-period bars and their legend use a muted fill, not an outline; telemetry curves are unchanged.
+- A 24-hour heat strip compares twelve two-hour windows using the same color scale for current and previous periods.
 
 The detail curves are illustrative demo telemetry, not real measurements for the fictional shots.
 Backend aggregation, beverage filters, pagination, caching, full browser navigation and production integration remain specified work.
@@ -73,3 +74,15 @@ Evidence: `bars-unified-dark.png`, `bars-unified-light.png`, `bars-unified-light
 Evidence: `bars-matched-home-dark.png`, `bars-matched-home-light.png`, `bars-matched-overview-dark.png`, `period-chevron-light-compact.png`.
 
 Current observation scope: the prototype chooses one profile-share increase story, otherwise a dominant time-band routine summary, otherwise brewing-days fallback. Time-band changes are specified but not implemented. These are deterministic fictional-data examples, not connected machine analytics.
+
+## Shared home surfaces and 24-hour heat strip — 13 September 2026
+
+- The neutral home profile panel, insight entry and latest-shot entry share an identical opaque surface per theme. The selected profile's animated gradient art remains unchanged.
+- The insight entry chart has 24px top padding at both regular and short-screen breakpoints.
+- Current and previous heat-strip rows share one count-to-color scale. Empty windows are neutral; selecting a cell shows its exact count. View brews opens that time window in the selected reporting period.
+- Actual browser clicks verified prior-period 14:00–16:00 → 9 brews, switching that filter to the current period → 8 brews, and prior-period 10:00–12:00 → an empty list.
+- Visually checked dark/light at 1194×834 and dark home/overview at 1024×768. Home entry content and the heat strip had no horizontal overflow; top padding remained 24px. Temporary viewport overrides were reset after testing.
+- All 302 tests, production build, separate preview TypeScript check and targeted lint passed. Existing production bundle-size warning remains.
+- This remains a fictional-data design preview on the Insights branch, with no machine connection. Touch targeting on real tablet hardware and backend aggregation are not verified.
+
+Evidence: `heat-strip-dark.png`, `heat-strip-light.png`, `heat-strip-1024.png`, `shared-home-surfaces-dark.png`, `shared-home-surfaces-light.png`, `shared-home-surfaces-1024.png`.

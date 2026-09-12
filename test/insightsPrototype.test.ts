@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { records, getWindow, summarize, matches, observation, median, averageYield } from '../review/brewing-insights/data.ts'
+import { records, getWindow, summarize, matches, observation, median, averageYield, timeWindows, timeWindowCounts, filterName } from '../review/brewing-insights/data.ts'
 
 test('prototype windows partition current and earlier records without overlap', () => {
   for (const days of [7, 28]) {
@@ -29,4 +29,25 @@ test('prototype filtering and insight evidence agree with aggregates', () => {
   assert.ok(totals.yieldCoverage < totals.count)
   assert.equal(median([]), null)
   assert.equal(median([36, 40]), 38)
+})
+
+test('heat strip covers all 24 hours exactly once, including midnight and end-of-day', () => {
+  const hourly = Array.from({ length: 24 }, (_, hour) => ({ ...records[0], hour, minute: 59 }))
+  assert.equal(timeWindows.length, 12)
+  assert.deepEqual(timeWindowCounts(hourly), Array(12).fill(2))
+  assert.deepEqual(timeWindowCounts([]), Array(12).fill(0))
+  assert.equal(filterName({ kind: 'hours', value: '0' }), '00:00–02:00 brews')
+  assert.equal(filterName({ kind: 'hours', value: '11' }), '22:00–24:00 brews')
+  assert.equal(matches({ ...records[0], hour: 2 }, { kind: 'hours', value: '0' }), false)
+  assert.equal(matches({ ...records[0], hour: 2 }, { kind: 'hours', value: '1' }), true)
+})
+
+test('every heat-strip count equals its drill-down in either reporting period', () => {
+  for (const days of [7, 28]) for (const previous of [false, true]) {
+    const shots = getWindow(days, previous)
+    const counts = timeWindowCounts(shots)
+    assert.equal(counts.reduce((sum, count) => sum + count, 0), shots.length)
+    counts.forEach((count, index) => assert.equal(
+      shots.filter(shot => matches(shot, { kind: 'hours', value: String(index) })).length, count))
+  }
 })

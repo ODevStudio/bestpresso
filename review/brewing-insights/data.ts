@@ -13,6 +13,13 @@ export interface InsightShot {
 }
 export const profiles = ['Adaptive V2', 'Best practice light', 'Gentle & sweet']
 export const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+export const timeWindows = Array.from({ length: 12 }, (_, index) => ({
+  start: index * 2,
+  end: index * 2 + 2,
+  label: `${String(index * 2).padStart(2, '0')}:00–${String(index * 2 + 2).padStart(2, '0')}:00`,
+}))
+export const timeWindowCounts = (shots: InsightShot[]) => timeWindows.map(window =>
+  shots.filter(shot => shot.hour >= window.start && shot.hour < window.end).length)
 export const bands = [
   { name: 'Morning', hours: '06:00–12:00', start: 6, end: 12 },
   { name: 'Afternoon', hours: '12:00–18:00', start: 12, end: 18 },
@@ -54,15 +61,19 @@ export function summarize(shots: InsightShot[]) {
     bands: bands.map(b => shots.filter(s => s.hour >= b.start && s.hour < b.end).length),
   }
 }
-export type ShotFilter = { kind: 'weekday' | 'band' | 'profile'; value: string } | null
+export type ShotFilter = { kind: 'weekday' | 'band' | 'profile' | 'hours'; value: string } | null
 export function matches(shot: InsightShot, filter: ShotFilter) {
   if (!filter) return true
   if (filter.kind === 'weekday') return shot.weekday === Number(filter.value)
   if (filter.kind === 'profile') return shot.profile === filter.value
+  if (filter.kind === 'hours') {
+    const window = timeWindows[Number(filter.value)]
+    return !!window && shot.hour >= window.start && shot.hour < window.end
+  }
   const band = bands[Number(filter.value)]
   return shot.hour >= band.start && shot.hour < band.end
 }
-export const filterName = (filter: ShotFilter) => !filter ? 'All brews' : filter.kind === 'profile' ? filter.value : filter.kind === 'weekday' ? `${weekdays[Number(filter.value)]} brews` : `${bands[Number(filter.value)].name} · ${bands[Number(filter.value)].hours}`
+export const filterName = (filter: ShotFilter) => !filter ? 'All brews' : filter.kind === 'profile' ? filter.value : filter.kind === 'hours' ? `${timeWindows[Number(filter.value)].label} brews` : filter.kind === 'weekday' ? `${weekdays[Number(filter.value)]} brews` : `${bands[Number(filter.value)].name} · ${bands[Number(filter.value)].hours}`
 export const dateLabel = (date: string) => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(date))
 export const timeLabel = (shot: InsightShot) => `${String(shot.hour).padStart(2, '0')}:${String(shot.minute).padStart(2, '0')}`
 export function periodLabel(days: number, previous = false) {

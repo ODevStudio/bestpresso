@@ -4,6 +4,7 @@ import { BrewingPanel } from '../../src/features/brew/BrewingPanel'
 import { MachineUtilityCard } from '../../src/features/machine/MachineUtilityCard'
 import { PreviousShotScreen } from '../../src/features/history/PreviousShotScreen'
 import { HomeEntryCards } from './HomeEntryCards'
+import { TimeHeatStrip } from './TimeHeatStrip'
 import { SidebarBrand, SidebarNavItem } from '../../src/components/Sidebar/SidebarNavigation'
 import { ValueAdjustmentContext } from '../../src/components/ValueAdjustment/ValueAdjustmentContext'
 import { brewingFixture, demoLiveBrewFixture } from '../../src/fixtures/brewingFixture'
@@ -15,7 +16,7 @@ import '../../src/styles/index.css'
 import '../../src/styles/cardSurfaces.css'
 import '../../src/styles/lightMode.css'
 import './preview.css'
-import { records, bands, weekdays, getWindow, summarize, periodLabel, observation, matches, filterName, dateLabel, timeLabel, type InsightShot, type ShotFilter } from './data'
+import { records, weekdays, getWindow, summarize, periodLabel, observation, matches, filterName, dateLabel, timeLabel, type InsightShot, type ShotFilter } from './data'
 
 type Page = 'home' | 'overview' | 'history'
 const noop = () => {}
@@ -48,7 +49,7 @@ export function Preview() {
   const story = observation(days)
   const latest = records.at(-1)!
   const history = (previous ? prior : current).filter(s => matches(s, filter) && s.profile.toLowerCase().includes(search.toLowerCase())).sort((a, b) => b.day - a.day || b.hour - a.hour || b.minute - a.minute)
-  const openHistory = (next: ShotFilter = null, compare = false) => { setPage('history'); setFilter(next); setSearch(''); setPrevious(false); setCompareEvidence(compare); savedScroll.current = 0; scroll.current?.scrollTo(0, 0) }
+  const openHistory = (next: ShotFilter = null, compare = false, earlier = false) => { setPage('history'); setFilter(next); setSearch(''); setPrevious(earlier); setCompareEvidence(compare); savedScroll.current = 0; scroll.current?.scrollTo(0, 0) }
   const go = (next: Page) => { setPage(next); savedScroll.current = 0; scroll.current?.scrollTo(0, 0); if (next === 'history') { setFilter(null); setCompareEvidence(false); setPrevious(false); setSearch('') } }
   const openShot = (s: InsightShot) => {
     if (page === 'history') savedScroll.current = scroll.current?.scrollTop ?? 0
@@ -77,7 +78,7 @@ export function Preview() {
       {page === 'overview' ? <>
         <section className="ins-metrics" aria-label="Period summary"><div><label>Brews</label><strong>{summary.count}</strong><small>{signed(summary.count - before.count)} vs previous {days} days</small></div><div><label>Brewing days</label><strong>{summary.days}<em> / {days}</em></strong><small>A day with at least one brew</small></div><div><label>Typical yield</label><strong>{summary.typicalYield?.toFixed(1)}<em> g</em></strong><small>{signed(summary.typicalYield! - before.typicalYield!, 1)} g · {summary.yieldCoverage}/{summary.count} readings</small></div><div><label>Most-used profile</label><strong className="ins-profile-value">{summary.profileCounts[0].name}</strong><small>{summary.profileCounts[0].count} brews · {pct(summary.profileCounts[0].count, summary.count)}% of this period</small></div></section>
         <div className="ins-top-grid"><section className="ins-panel"><header><div><h2>Your weekly rhythm</h2><p>Brews by day of the week</p></div><div className="ins-legend"><span><i/>This period</span><span><i/>Previous</span></div></header><div className="ins-week" aria-label="Brews by weekday">{weekdays.map((name, i) => { const max = Math.max(...summary.weekdays, ...before.weekdays, 1); return <button key={name} onClick={() => openHistory({ kind: 'weekday', value: String(i) })} aria-label={`${name}: ${summary.weekdays[i]} brews, previously ${before.weekdays[i]}. View shots`}><span className="ins-week-value">{summary.weekdays[i]}</span><span className="ins-bar-pair"><i data-empty={before.weekdays[i] === 0} style={{ height: `${before.weekdays[i] / max * 100}%` }}/><b data-empty={summary.weekdays[i] === 0} style={{ height: `${summary.weekdays[i] / max * 100}%` }}/></span><small>{name}</small></button> })}</div><footer>Tap a day to see the brews behind it <span>↗</span></footer></section>
-        <section className="ins-panel"><header><div><h2>When you brew</h2><p>Your daily pattern</p></div></header><div className="ins-bands">{bands.map((b, i) => <button key={b.name} onClick={() => openHistory({ kind: 'band', value: String(i) })}><span>{b.name}<small>{b.hours}</small></span><span className="ins-track"><i style={{ width: `${pct(summary.bands[i], summary.count)}%` }}/></span><strong>{summary.bands[i]}</strong></button>)}</div></section></div>
+        <TimeHeatStrip key={days} current={current} previous={prior} onOpen={(window, earlier) => openHistory({ kind: 'hours', value: String(window) }, true, earlier)}/></div>
         <div className="ins-bottom-grid"><section className="ins-panel"><header><div><h2>Profiles you return to</h2><p>Usage, not a taste ranking</p></div><button className="ins-link" onClick={() => openHistory()}>All brews ↗</button></header><div className="ins-profiles">{summary.profileCounts.map(p => <button key={p.name} onClick={() => openHistory({ kind: 'profile', value: p.name })}><span>{p.name}<small>{p.count} brews · {pct(p.count, summary.count)}%</small></span><span className="ins-track"><i style={{ width: `${pct(p.count, summary.count)}%` }}/></span><span aria-hidden="true">↗</span></button>)}</div></section>
         <section className="ins-story"><small className="ins-eyebrow">{story.compare ? 'WHAT’S CHANGING' : 'YOUR PATTERN'}</small><h2>{story.title}</h2><p>{story.body}</p><small>{story.evidence}</small><button className="ins-link" onClick={() => openHistory(story.filter, story.compare)}>Explore these brews ↗</button></section></div>
         <section className="ins-panel ins-recent"><header><div><h2>Behind the numbers</h2><p>Recent brews in this period</p></div><button className="ins-link" onClick={() => openHistory()}>View all history ↗</button></header>{rows([...current].reverse().slice(0, 3))}</section>

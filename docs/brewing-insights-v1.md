@@ -36,7 +36,7 @@ Four headline measures:
 Three supporting views:
 
 - **Your weekly rhythm:** counts grouped Monday–Sunday. Current and previous periods use the same scale. Tapping a weekday opens its shots in History.
-- **When you brew:** four local time bands: overnight 00:00–05:59, morning 06:00–11:59, afternoon 12:00–17:59, evening 18:00–23:59. Every band is labelled with its count and can filter History.
+- **When you brew:** a 24-hour heat strip with twelve local two-hour windows, compared against the preceding period using one count-to-color scale. Selecting a window shows its count and opens matching History. Retain four broad time bands for narrative summaries: overnight 00:00–05:59, morning 06:00–11:59, afternoon 12:00–17:59, evening 18:00–23:59.
 - **Profiles you return to:** ranked profile counts/shares plus previous-period share. Tapping a row filters History. Preserve profile identity, not just the displayed title.
 
 Use typical duration as a secondary summary in History; no need for another headline card. Yield means beverage output, not coffee beans consumed. Do not combine coffee, tea and unrelated beverage categories for a misleading typical-yield story: overview filters to a beverage type; default Espresso, with other recorded drink types selectable. The home insight card uses the same chosen beverage scope (Espresso in this preview), so its shot count and average refer to the same population. The latest-shot card remains an independent shortcut to the newest eligible drink brew.
@@ -70,8 +70,9 @@ Persistent shell:
 - Main header: `Your brewing`, selected dates, comparison dates and period selector.
 - Beverage-type filter on the overview in production; hidden when only one drink type exists.
 - Four metrics in one divided surface, not four oversized cards.
-- Weekly rhythm as the main chart; time bands to its right.
+- Weekly rhythm as the main chart; a 24-hour heat strip to its right. Twelve two-hour windows cover midnight through 24:00. Current and preceding periods use the same count-to-color scale, neutral empty cells and filled green cells without outlines. Selecting a cell shows its exact count and a View brews action that opens the matching time-window and period in History. Keep broad time bands available for narrative summaries.
 - Bar charts share rounded ends and solid Bestpresso-green fills, with a muted solid fill for the previous period and matching legend markers. No outlines or gradient strokes on bars. Keep the existing shot-detail telemetry styling separate.
+- Home's profile panel, insight entry and latest-shot entry share one neutral surface in each theme; the selected profile's animated art remains separate. The entry bar chart has a 24px top inset, including short-screen layouts.
 - Profile ranking and one restrained observation card below.
 - Recent brews preview and a `View all history` entry point below the overview.
 
@@ -119,11 +120,11 @@ Request an aggregate for an explicit inclusive local start date, exclusive end d
 
 - The interpreted date bounds, source-data revision and generated-at timestamp.
 - Current and previous period totals, active days, median yield/duration and usable sample counts for each metric.
-- Seven weekday buckets, four time-band buckets, and profile identity/count/share buckets for both periods.
+- Seven weekday buckets, twelve two-hour buckets, four narrative time-band buckets, and profile identity/count/share buckets for both periods.
 - Earliest available record, completeness/coverage status and excluded/unknown counts.
 - Filter descriptors that the paginated history query can apply to return exactly the contributing records, for either period. Do not return thousands of IDs in every overview response.
 
-History queries must support the same dates, timezone, beverage, eligibility, weekday/time band and stable profile identity predicates. Detail remains lazy-loaded by shot ID. Existing endpoints remain unchanged; add capabilities rather than changing their response meanings.
+History queries must support the same dates, timezone, beverage, eligibility, weekday/local-hour window and stable profile identity predicates. Hour windows are start-inclusive and end-exclusive, with 24:00 ending the local day. Detail remains lazy-loaded by shot ID. Existing endpoints remain unchanged; add capabilities rather than changing their response meanings.
 
 Bestpresso owns explanation templates, insight ranking and UI. Decaid owns canonical eligibility, deduplication, aggregation and matching queries so totals and drill-down do not disagree between skins. Do not silently compute an approximate result from a partial client cache if the capability is missing.
 
@@ -178,7 +179,7 @@ Acceptance tests:
 - Completed-day bounds, midnight, week boundaries, timezone changes and DST give consistent bucket counts.
 - Excluded/unknown activities, missing scale readings, manual stops, duplicate imports and changed profile names do not create misleading insights.
 - Low sample size and incomplete comparison windows suppress change stories. Zero previous totals never yield Infinity/NaN.
-- Tapping weekday, time band, profile or observation opens the correct scope; clearing only the contextual filter retains the period and beverage choice.
+- Tapping weekday, a heat-strip window's View brews action, profile or observation opens the correct scope; a previous-period heat cell opens that earlier period. Clearing only the contextual filter retains the period and beverage choice.
 - Last shot includes today's newest eligible brew; selected period comparison remains completed-days only.
 - Open shot → hold chart → select stage → Back restores query and scroll. Existing chart behaviour is unchanged.
 - At 1194×834 and 1024×768: headline metrics, labels and touch targets do not overlap. Below 1000px stack content; no forced canvas-scale text. Check light and dark; keyboard focus and touch targets at least 44px for primary controls.
