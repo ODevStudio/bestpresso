@@ -40,6 +40,23 @@ export function regroupHistory(cache: HistoryCache): HistoryCache {
   const records = cache.records.map(r => ({ ...r, profileKey: profileUsageKey(r.profile, r.beverage) }))
   return records.some((r, i) => r.profileKey !== cache.records[i].profileKey) ? { ...cache, records } : cache
 }
+const savedDuration = (detail?: PreviousShot): number | null => {
+  const text = detail?.totalTime?.trim()
+  return text ? finiteMetric(Number(text)) : null
+}
+// Reconcile offline metadata before publishing the cache to the UI. Never
+// fetch graphs here or use a recipe's planned time as a measured duration.
+export function reconcileCachedDurations(cache: HistoryCache): HistoryCache {
+  let changed = false
+  const records = cache.records.map(record => {
+    const detail = cache.details[record.id]
+    const duration = finiteMetric(record.duration) ?? (detail?.id === record.id ? savedDuration(detail) : null)
+    if (duration === record.duration) return record
+    changed = true
+    return { ...record, duration }
+  })
+  return changed ? { ...cache, records } : cache
+}
 export function calendarParts(timestamp: string, timezone: string) {
   const ms = Date.parse(timestamp)
   if (!Number.isFinite(ms)) return null
@@ -84,9 +101,10 @@ export function retainHistoryDetails(cache: HistoryCache, previous: HistoryCache
   const details: Record<string, PreviousShot> = Object.create(null)
   const records = cache.records.map(record => {
     const old = index.get(record.id)
-    if (old?.signature === record.signature && prior && Object.hasOwn(prior.details, record.id)) {
-      details[record.id] = prior.details[record.id]
-      return { ...record, duration: old.duration, yield: record.yield ?? old.yield }
+    if (old?.signature === record.signature && prior) {
+      const detail = prior.details[record.id]
+      if (detail?.id === record.id) details[record.id] = detail
+      return { ...record, duration: finiteMetric(old.duration) ?? (detail?.id === record.id ? savedDuration(detail) : null), yield: record.yield ?? old.yield }
     }
     return record
   })

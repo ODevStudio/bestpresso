@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { displayBrightness } from './displayBrightness'
+import { hotWaterSettings } from '../brew/hotWaterSettings'
 import {
   connectDevice,
   createWakeSchedule,
@@ -22,7 +23,6 @@ import {
   updateMachineSettings,
   updatePresenceSettings,
   updateSettings,
-  updateWorkflow,
   updateWakeSchedule,
   type DecaidPluginManifest,
 } from '../../api/decaid/client'
@@ -110,6 +110,7 @@ export function useUnifiedSettings(enabled: boolean) {
     setBaseline(next)
     setDraft(next)
     setLoading(false)
+    return next
   }, [enabled])
 
   useEffect(() => {
@@ -144,6 +145,8 @@ export function useUnifiedSettings(enabled: boolean) {
       if ('userPresenceEnabled' in presenceChanges) presence.userPresenceEnabled = presenceChanges.userPresenceEnabled
       if ('sleepTimeoutMinutes' in presenceChanges) presence.sleepTimeoutMinutes = presenceChanges.sleepTimeoutMinutes
       const workflow = changedFields(baseline.workflow, draft.workflow)
+      // Do not republish unchanged targets over a newer choice on another device.
+      if (workflow.hotWaterData) workflow.hotWaterData = changedFields(baseline.workflow.hotWaterData ?? {}, draft.workflow.hotWaterData ?? {})
       const requestedBrightness = draft.display.requestedBrightness ?? draft.display.brightness
       const oldBrightness = baseline.display.requestedBrightness ?? baseline.display.brightness
 
@@ -152,11 +155,11 @@ export function useUnifiedSettings(enabled: boolean) {
       if (Object.keys(rea).length) await updateSettings(rea)
       if (Object.keys(machine).length) await updateMachineSettings(machine)
       if (Object.keys(advanced).length) await updateAdvancedMachineSettings(advanced)
-      if (Object.keys(workflow).length) await updateWorkflow(workflow)
+      if (Object.keys(workflow).length) await hotWaterSettings.save(workflow)
       if (Object.keys(presence).length) await updatePresenceSettings(presence)
       if (requestedBrightness !== undefined && requestedBrightness !== oldBrightness) await displayBrightness.choose(requestedBrightness)
-      await reload()
-      window.dispatchEvent(new CustomEvent(UNIFIED_SETTINGS_SAVED_EVENT, { detail: draft }))
+      const refreshed = await reload()
+      window.dispatchEvent(new CustomEvent(UNIFIED_SETTINGS_SAVED_EVENT, { detail: refreshed }))
       setMessage('Settings sent to Decaid. Values refreshed from the machine.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Settings could not be saved.')

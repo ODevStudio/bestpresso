@@ -2,7 +2,8 @@
 
 :root { --chart-pressure:#42c599; --chart-flow:#4286c5; --chart-weight:#8a5638; --chart-temperature:#d65353; --metric-label-color:#878787; --metric-value-color:#f5f5f5; --metric-label-size-large:14px; --metric-label-size-medium:14px; --metric-label-size-small:12px; --metric-value-size-large:32px; --metric-value-size-medium:24px; --metric-value-size-small:17px; --metric-unit-size-large:22px; --metric-unit-size-medium:16px; --metric-unit-size-small:13px; font-family:Inter,system-ui,sans-serif; color:#707070; background:#3c3c3c; font-synthesis:none; text-rendering:optimizeLegibility; }
 * { box-sizing:border-box; }
-#root,#root * { user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+/* Suppress the browser's rectangular tap flash; keep our pressed and focus-visible styles. */
+#root,#root * { user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
 #root img { pointer-events:none; -webkit-user-drag:none; }
 body { margin:0; min-width:320px; min-height:100vh; }
 button { border:0; color:inherit; font:inherit; cursor:pointer; }

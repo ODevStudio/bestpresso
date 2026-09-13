@@ -10,7 +10,7 @@ test('hot water keeps four controls in two balanced columns', () => {
   const lists = [...card.matchAll(/<SectionList>(.*?)<\/SectionList>/g)].map(match => match[1])
   assert.equal(lists.length, 2)
   assert.deepEqual(lists.map(list => (list.match(/<(?:Number|Temperature)Setting /g) || []).length), [2, 2])
-  for (const field of ['Temperature', 'Amount', 'Flow', 'Duration backstop']) assert.equal(card.split(`label="${field}"`).length - 1, 1)
+  for (const field of ['Temperature', 'Amount', 'Flow', 'Max duration']) assert.equal(card.split(`label="${field}"`).length - 1, 1)
 })
 
 test('power controls remain present once, grouped in independent screen and sleep stacks', () => {

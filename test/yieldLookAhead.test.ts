@@ -22,5 +22,6 @@ test('settings save changes only requested fields and exposes independent hot-wa
   assert.match(screen, /label="Hot-water yield"/)
   assert.match(screen, /label="Hot-water yield"[^\n]*step=\{0\.05\} digits=\{2\}/)
   assert.match(screen, /patchRea\(\{ hotWaterFlowMultiplier \}\)/)
-  assert.match(screen, /patchRea\(\{ hotWaterFlowMultiplier: 0\.3 \}\)/)
+  assert.doesNotMatch(screen, /Reset hot-water calibration|patchRea\(\{ hotWaterFlowMultiplier: 0\.3 \}\)/)
+  assert.match(screen, /label="Volume" hint="Shot stopping without a scale"/)
 })
