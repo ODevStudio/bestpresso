@@ -4,6 +4,16 @@ import test from 'node:test'
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
+test('history and recent brew rows show nullable dose in grams immediately before yield', () => {
+  const preview = read('../review/brewing-insights/preview.tsx')
+  const rows = preview.slice(preview.indexOf('const rows ='), preview.indexOf('return <ValueAdjustmentContext'))
+  assert.match(rows, /<span role="columnheader">Dose<\/span><span role="columnheader">Yield<\/span>/)
+  assert.match(rows, /s\.dose === null \? '—' : <>\{s\.dose\}<small className="unit"> g<\/small>/)
+  assert.ok(rows.indexOf('s.dose === null') < rows.indexOf('s.yield === null'))
+  assert.match(preview, /\{rows\(history\)\}/)
+  assert.match(preview, /\{rows\(\[\.\.\.current\]\.reverse\(\)\.slice\(0, 3\)\)\}/)
+})
+
 test('overview charts precede the summary and use open sections instead of cards', () => {
   const preview = read('../review/brewing-insights/preview.tsx')
   const timeChart = read('../review/brewing-insights/TimeCoxcomb.tsx')

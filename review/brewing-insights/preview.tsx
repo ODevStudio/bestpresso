@@ -61,8 +61,15 @@ export function Preview() {
   }
   const sampleAction = () => setNotice('Design preview only — machine controls are not connected.')
   const rows = (shots: InsightShot[]) => <div className="ins-table" role="table" aria-label="Recorded brews">
-    <div role="row" className="ins-table-head"><span role="columnheader">When</span><span role="columnheader">Profile</span><span role="columnheader">Yield</span><span role="columnheader">Duration</span><span role="columnheader" className="ins-sr">Analysis</span></div>
-    {shots.map(s => <button role="row" className="ins-shot" key={s.id} onClick={() => openShot(s)} aria-label={`Analyse ${s.profile}, ${dateLabel(s.date)} at ${timeLabel(s)}`}><span role="cell">{dateLabel(s.date)}<small>{timeLabel(s)}</small></span><span role="cell">{s.profile}</span><span role="cell">{s.yield === null ? '—' : <>{s.yield.toFixed(1)}<small className="unit"> g</small></>}</span><span role="cell">{s.duration}<small className="unit"> s</small></span><span aria-hidden="true">↗</span></button>)}
+    <div role="row" className="ins-table-head"><span role="columnheader">When</span><span role="columnheader">Profile</span><span role="columnheader">Dose</span><span role="columnheader">Yield</span><span role="columnheader">Duration</span><span role="columnheader" className="ins-sr">Analysis</span></div>
+    {shots.map(s => <button role="row" className="ins-shot" key={s.id} onClick={() => openShot(s)} aria-label={`Analyse ${s.profile}, ${dateLabel(s.date)} at ${timeLabel(s)}`}>
+      <span role="cell">{dateLabel(s.date)}<small>{timeLabel(s)}</small></span>
+      <span role="cell">{s.profile}</span>
+      <span role="cell">{s.dose === null ? '—' : <>{s.dose}<small className="unit"> g</small></>}</span>
+      <span role="cell">{s.yield === null ? '—' : <>{s.yield.toFixed(1)}<small className="unit"> g</small></>}</span>
+      <span role="cell">{s.duration}<small className="unit"> s</small></span>
+      <span aria-hidden="true">↗</span>
+    </button>)}
     {!shots.length && <p className="ins-empty">No brews match this view. Try clearing the filter or search.</p>}
   </div>
 

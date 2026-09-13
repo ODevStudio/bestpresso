@@ -131,3 +131,11 @@ Evidence: `tall-weekday-cool-light.png`, `tall-weekday-light-tablet.png`, `tall-
 - Browser-checked This period/Previous switching at 1052×734 and restored the light/current view; verified the dark comparison token was unchanged. All 308 tests passed, including the selected coxcomb contrast check. No layout, data, or machine behavior changed; real-device touch was not tested.
 
 Evidence: `soft-comparison-light.png`, `soft-comparison-previous-light.png`.
+
+## Dose in brew lists — 13 September 2026
+
+- Added Dose immediately before Yield in History and Overview's recent brew list, using each record's dose in grams. Missing dose displays an em dash; units stay attached to their values.
+- Browser clicks verified History → shot analysis → Close returns to History. Visually checked dark at 1052×734 and light at 768×900, 651×844 and 390×844; the added column fits without horizontal content overflow. Restored the default viewport and dark History view.
+- All 309 tests, separate preview typecheck, targeted lint and production build passed. Existing bundle-size warning remains. This is still a fictional-data preview; real-device touch and backend dose data are not verified.
+
+Evidence: `history-dose-dark.png`.
