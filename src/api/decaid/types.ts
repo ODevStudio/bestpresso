@@ -155,5 +155,5 @@ export interface ShotMeasurement {
   }
   scale?: { weight?: number; weightFlow?: number }
 }
-export interface ShotRecord { id?: string; timestamp?: string; workflow?: DecaidWorkflow; measurements?: ShotMeasurement[]; annotations?: { actualYield?: number }; stopReason?: string | null }
+export interface ShotRecord { id?: string; timestamp?: string; workflow?: DecaidWorkflow; measurements?: ShotMeasurement[]; annotations?: { actualYield?: number | null; actualDoseWeight?: number | null; extras?: Record<string, unknown> | null } | null; stopReason?: string | null; metadata?: Record<string, unknown> | null }
 export interface PaginatedShots { items: ShotRecord[]; total: number; limit: number; offset: number }
