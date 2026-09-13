@@ -8,6 +8,9 @@ import profileUseIcon from '../../assets/figma/profile-use.svg'
 import profilesAddIcon from '../../assets/figma/profiles-add.svg'
 import profilesBackIcon from '../../assets/figma/profiles-back.svg'
 import profilesSearchIcon from '../../assets/figma/profiles-search.svg'
+import profileDeleteIcon from '../../assets/figma/builder-stage-delete.svg'
+import { ProfileDeleteDialog } from './ProfileDeleteDialog'
+import './profileDeletion.css'
 import { isCleaningProfile, sortProfilesForDirectory } from '../../api/decaid/adapters'
 import type { BrewProfile, SettingFeedback } from '../../domain/brewing'
 import { ProfileTargetChart } from '../brew/ProfileTargetChart'
@@ -33,10 +36,13 @@ interface ProfilesPanelProps {
   onImportVisualizer?: (shareCode: string) => Promise<void>
   onOpenSettings?: () => void
   onEditProfile?: (profileId: string) => void
+  canDeleteProfile?: (profileId: string) => boolean
+  onDeleteProfile?: (profileId: string) => Promise<void>
 }
 
-export function ProfilesPanel({ profiles, favoriteProfileSlots, activeProfileId, initialProfileId, editingEnabled = false, profileEditMode, feedback, onSelectProfile, onSetFavoriteSlot, onRemoveFavorite, onClose, onStartProfile, onImportProfile, onCheckVisualizer: _onCheckVisualizer, onImportVisualizer, onOpenSettings, onEditProfile }: ProfilesPanelProps) {
-  const [selectedProfileId, setSelectedProfileId] = useState(initialProfileId ?? activeProfileId ?? profiles[0]?.id)
+export function ProfilesPanel({ profiles, favoriteProfileSlots, activeProfileId, initialProfileId, editingEnabled = false, profileEditMode, feedback, onSelectProfile, onSetFavoriteSlot, onRemoveFavorite, onClose, onStartProfile, onImportProfile, onCheckVisualizer: _onCheckVisualizer, onImportVisualizer, onOpenSettings, onEditProfile, canDeleteProfile, onDeleteProfile }: ProfilesPanelProps) {
+  const [deletingProfile, setDeletingProfile] = useState<BrewProfile | null>(null)
+  const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>(initialProfileId ?? activeProfileId ?? profiles[0]?.id)
   const [activeCategory, setActiveCategory] = useState('All')
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -256,7 +262,15 @@ export function ProfilesPanel({ profiles, favoriteProfileSlots, activeProfileId,
       </section>
     </div>}
 
-    {feedback?.status === 'error' && <div className="system-messages"><div className="system-message system-message--error" role="alert">{feedback.message}</div></div>}
+    {deletingProfile && onDeleteProfile && <ProfileDeleteDialog profile={deletingProfile} active={deletingProfile.id === activeProfileId} onClose={() => setDeletingProfile(null)} onDelete={async id => {
+      await onDeleteProfile(id)
+      setSelectedProfileId(undefined)
+      setReplacementProfileId(null)
+      setActiveCategory('All')
+      setSearchQuery('')
+    }} />}
+
+    {feedback && !deletingProfile && <div className="system-messages"><div className={`system-message system-message--${feedback.status}`} role={feedback.status === 'error' ? 'alert' : 'status'}>{feedback.message}</div></div>}
 
     <section className="profiles-workspace">
       <aside className="favorites-panel" aria-label="Favorite profiles">
@@ -304,6 +318,7 @@ export function ProfilesPanel({ profiles, favoriteProfileSlots, activeProfileId,
                 </div>
               </div>
               <p className="profile-detail__description">{selectedProfile.description ?? 'No description provided for this profile.'}</p>
+              {canDeleteProfile?.(selectedProfile.id) && onDeleteProfile && <div className="profile-detail__delete-row"><button className="profile-detail__delete" type="button" disabled={pendingProfileId !== null} onClick={() => setDeletingProfile(selectedProfile)}><img src={profileDeleteIcon} alt="" />Delete profile</button></div>}
             </div>
           </article>}
         </div>
