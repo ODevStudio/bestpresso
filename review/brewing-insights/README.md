@@ -139,3 +139,16 @@ Evidence: `soft-comparison-light.png`, `soft-comparison-previous-light.png`.
 - All 309 tests, separate preview typecheck, targeted lint and production build passed. Existing bundle-size warning remains. This is still a fictional-data preview; real-device touch and backend dose data are not verified.
 
 Evidence: `history-dose-dark.png`.
+
+## Saved-shot integration and offline RC — 13 September 2026
+
+- Integrated the main homescreen, Insights and full-width history detail with Decaid's existing saved-shot endpoints. The fictional design preview stays separate and is not shipped in the RC ZIP.
+- Persisted latest-100 summaries and lazily loaded detail graphs in IndexedDB, partitioned by gateway. Added explicit partial-coverage/offline/storage-failure states, dose provenance, beverage filters, canonical yield handling and refresh/reconciliation for changed or deleted shots.
+- All **324 tests** pass, including corrupt-cache/source isolation, deletion during detail fetch, wrong detail ID, request deduplication, offline restart, summary/detail provenance, DST dates and matching chart/list populations. Production build and targeted lint pass. The existing large-main-chunk warning remains (about 566 kB uncompressed).
+- Browser verification used an isolated origin and a **GET-only local HTTP contract fixture**, with 120 saved-record-shaped entries and real-shaped detail measurements. Verified latest 100, Monday → 2 matching records, 06:00–08:00 → 7 records, 28-day incomplete comparison suppression, Pour-over filtering, today's latest shot, detail Close, and browser Back preserving the hourly filter.
+- Stopped the local API server, reloaded the app and verified persistent list + previously opened graph. An unopened graph showed the reconnect/retry state. Restarted the API and retried successfully, then refreshed summaries without losing unchanged cached graphs.
+- Visually checked dark home/detail at 1024×768 and 1280×720, plus light overview/history at 1024×768 and 390×844. No horizontal content overflow at the checked tablet/phone widths. Light mode was changed through the actual Settings UI in the isolated test origin, not by changing the user's existing preview preferences. Temporary viewport overrides were reset after checks.
+- **Not verified:** actual Decaid runtime, physical machine or tablet-touch operation. No Decaid instance/Flutter runtime was available locally. The RC ZIP is for the user's real-device validation; no public push, merge or release performed.
+- Also served the actual staged production files and clicked Monday → two records → recorded shot detail (30 seconds, 38 g). Verified the ZIP root and manifest use the separate `rc-bestpresso` ID; archive integrity passes. Closed temporary test tabs/servers, leaving the user's existing preview running.
+
+Evidence (contract fixture, not the user's history): `integration-light-1024.png`, `integration-light-phone.png`, `integration-offline-detail.png`, `integration-hour-filter.png`.

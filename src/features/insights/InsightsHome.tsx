@@ -1,0 +1,35 @@
+import { MiniShotChart } from '../history/MiniShotChart'
+import type { ShotInsights } from './useShotInsights'
+import { calendarParts, coversWindow, dateLabel, inWindow, reportingWindow, shiftDate, summarize, timeLabel, weekdays } from './historyData'
+
+export function InsightsHome({ data, onOpen, onLatest }: { data: ShotInsights; onOpen: () => void; onLatest: (id: string) => void }) {
+  const cache = data.cache
+  const timezone = cache?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  const window = reportingWindow(7, timezone, data.now)
+  const shots = cache?.records.filter(r => r.beverage === 'espresso' && inWindow(r, window)) ?? []
+  const latest = cache?.records.find(r => r.beverage !== 'excluded')
+  const detail = latest && cache?.details[latest.id]
+  const summary = summarize(shots)
+  const complete = coversWindow(cache, window)
+  const daily = Array.from({ length: 7 }, (_, i) => {
+    const date = shiftDate(window.start, i)
+    const weekday = calendarParts(`${date}T12:00:00Z`, 'UTC')!.weekday
+    return { date, name: weekdays[weekday], count: shots.filter(s => s.date === date).length }
+  })
+  const max = Math.max(1, ...daily.map(d => d.count))
+  const status = !cache ? data.status === 'loading' ? 'Loading history…' : 'Connect to Decaid to load history' : data.status === 'offline' ? 'Offline · saved on this device' : !complete ? 'Limited history · cached records' : 'Espresso · completed days'
+  return <section className="ins-theme ins-home-entry" aria-label="Brewing insights and latest shot">
+    <button className="ins-entry-card ins-entry-insight" onClick={onOpen} aria-label="Open brewing insights">
+      <div className="ins-entry-week" role="img" aria-label={daily.map(d => `${d.name} ${dateLabel(d.date)}: ${d.count} cached shots`).join('; ')}>
+        {daily.map(d => <span className="ins-entry-day" key={d.date} aria-hidden="true"><span className="ins-entry-bar-space"><i data-empty={!d.count} style={{ height: `${d.count ? d.count / max * 100 : 2}%` }}/></span><small>{d.name[0]}</small></span>)}
+      </div>
+      <div className="ins-entry-summary"><strong>Past 7 days<br/>insight</strong><span className="ins-entry-metric"><span>{cache ? summary.count : '—'}</span><small>{complete ? 'Shots' : 'Cached shots'}</small></span><span className="ins-entry-metric"><span>{summary.averageYield?.toFixed(1) ?? '—'}{summary.averageYield !== null && <small className="ins-entry-unit"> g</small>}</span><small>Avg. yield</small></span></div>
+      <span className="ins-entry-status">{status}</span>
+    </button>
+    <button className="ins-entry-card ins-entry-latest" onClick={() => latest ? onLatest(latest.id) : onOpen()} aria-label={latest ? `Open latest shot: ${latest.profile}` : 'Open brew history'}>
+      <div className="ins-entry-shot-chart" aria-hidden="true">{detail?.points?.length ? <MiniShotChart shot={detail}/> : <span className="ins-entry-placeholder">{latest ? 'Open to load shot graph' : cache ? 'No saved brews yet' : 'Waiting for saved history'}</span>}</div>
+      {latest && <span className="ins-entry-recipe">{latest.dose !== null && <>{latest.dose} → </>}{latest.yield?.toFixed(1) ?? '—'}{latest.yield !== null && <small> g</small>}</span>}
+      <div className="ins-entry-shot-caption"><strong>{latest?.profile ?? 'Brew history'}</strong><time dateTime={latest?.timestamp}>{latest ? `${dateLabel(latest.date)}, ${timeLabel(latest)}` : 'Saved in Decaid'}</time></div>
+    </button>
+  </section>
+}

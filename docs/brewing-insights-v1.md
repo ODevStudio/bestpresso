@@ -1,12 +1,29 @@
 # Brewing insights — first-cut product specification
 
-Status: proposal with an interactive, sample-data prototype. Not connected to a machine, not released.
+Status: integrated RC candidate using Decaid's existing saved-shot API. Local API-contract and browser checks completed; awaiting real-device testing. Not published.
 
 Branch: `feat/brewing-insights-preview`
 
-Preview: `/review/brewing-insights/index.html`
+Integrated app: `/` → Past 7 days insight → Insights. The separate fictional-data design reference remains at `/review/brewing-insights/index.html` and is not included in the test ZIP.
 
 Product destination: **Insights**. Homescreen entry: **Past 7 days insight** + **Latest shot**.
+
+## 0. Approved first test cut — latest 100 records, per device
+
+The user approved starting with the existing local saved history rather than waiting for Decaid aggregation. This section supersedes backend-dependent requirements below for this bounded test build; those remain the longer-term contract.
+
+- **Source of truth:** Decaid's saved-shot database, exposed through `GET /api/v1/shots?limit=100&offset=0&orderBy=timestamp&order=desc`. No new plugin or backend endpoint is required. Insights never writes, deletes or imports shot records.
+- **Offline data:** the latest 100 record summaries are persisted in IndexedDB on each browser/device, separately per gateway. A successful refresh replaces the snapshot and removes cached entries for deleted or aged-out records. Corrections to a shot invalidate its cached detail. Gateway changes do not mix histories.
+- **Scope:** 100 raw records, not necessarily 100 espresso shots. Overview separates Espresso, Pour-over and Other / unknown. History additionally has All activities. Known cleaning, calibration and explicitly simulated/discarded/aborted records are excluded from drink totals. Manual stops are not automatically discarded. Older records may not identify simulations, which the UI explains.
+- **Period integrity:** counts and drill-down use exactly the same cached records. Comparisons and profile-shift claims require coverage of both complete calendar windows; an oldest day cut by the 100-record limit is conservatively incomplete. Partial and stale offline periods are labelled. Today appears in All cached history and Latest shot, not completed-days reports.
+- **Measurements:** list summaries contain neither telemetry nor actual duration. `GET /api/v1/shots/{id}` loads the existing shot-detail chart on demand and saves it for offline reuse. Only the latest shot is also fetched automatically for the home thumbnail; no bulk download of 100 curves. Until a detail is loaded, unknown duration displays `—`. Yield uses the saved annotation, then the existing saved-telemetry adapter only when that annotation is absent; never target yield, water volume or a made-up default.
+- **Dose/profile provenance:** prefer the shot's saved dose annotation, then its historical target dose; the UI says this may be a target rather than a measured dose. Recipe usage groups exact snapshots, labelled as separate saved versions, because a stable lineage ID is not guaranteed. No lookup from today's profile settings.
+- **Refresh:** on entering a history/home view, shortly after a completed shot, on reconnect/tab visibility and every 60 seconds while a relevant view is active. Background, live-shot, utility and sleeping views do not initiate the periodic Insights refresh. Concurrent reads are deduplicated; network failure preserves the prior snapshot. Offline-storage failure is disclosed, with in-memory data still usable.
+- **First-cut presentation:** Home explicitly shows Espresso / seven completed days; Overview has its own beverage selector. Profile-share shift is the only change narrative implemented initially (10 records in each period, 5 uses of the leading profile, at least +15 percentage points). Other narrative templates below are deferred. Missing comparisons and values are not filled with preview data.
+- **Navigation:** home entry, weekday/hour/profile drill-down, search and filtered History are integrated into the main app. Detail reuses the existing full-width chart and stage cards. Close returns to History with the same filter/search and scroll; browser Back follows the route. The old `previous-pull` entry opens Insights History.
+- **Boundaries:** this caches data, not the web app itself. Offline use still requires installed/available skin assets. Browser storage can be evicted or cleared. Reopening a graph offline requires that graph to have loaded once. No cloud sync, lifetime totals or cross-device history merging yet.
+
+See `brewing-insights-test-build.md` for installation and device test steps.
 
 ## 1. Product point of view
 
@@ -83,9 +100,9 @@ Persistent shell:
 
 - Keep the selected insight period and beverage filter on entry from Overview.
 - Display an active context chip, e.g. `Morning · 06:00–12:00`, `Mondays`, or `Adaptive V2`. Include Clear filter.
-- Row fields: time/date, profile, yield, duration. Unknown values display an em dash. Do not download curves for list rows.
-- Search by profile name; newest first; load more in pages of 30.
-- Allow a period choice `All history` in History, in addition to the shared 7/28-day windows. All history includes today's shots; no previous-period comparison is attached to it.
+- Row fields: time/date, profile, dose, yield, duration. Unknown values display an em dash. Do not download curves for list rows.
+- Search by profile name; newest first. The first test cut filters the latest 100 cached records; backend pagination beyond that is future work.
+- Allow a period choice `All cached history` in History, in addition to the shared 7/28-day windows. It includes today's shots; no previous-period comparison is attached to it.
 - Show the current period count and the filtered count; never label a loaded first page as the complete total.
 - A separate accessible row action opens full-width shot analysis. Close returns to this history list, retaining the same query, loaded pages and scroll position. Browser Back follows the same navigation stack in production.
 - Overview may preserve its own scroll independently from History. Returning Home does not change selected brew profile or machine workflow.
@@ -117,7 +134,7 @@ Bestpresso reads shot IDs, timestamps, workflow/profile snapshots, stop reasons,
 
 Decaid's local models already support grinder and bean-batch context, barista/drinker labels, dose/yield annotations, enjoyment and notes. Their presence in a model is not evidence that existing records populate them. In particular, dose annotations can be derived from a target dose: a field named `actualDoseWeight` is not sufficient proof of weighing.
 
-### Minimum new capability (contract to agree with Decaid; not an existing endpoint)
+### Future aggregation capability (not required for the 100-record test cut)
 
 Request an aggregate for an explicit inclusive local start date, exclusive end date, IANA timezone, beverage type and eligibility policy. Return:
 
