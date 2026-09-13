@@ -1,6 +1,6 @@
 import { MiniShotChart } from '../history/MiniShotChart'
 import type { ShotInsights } from './useShotInsights'
-import { calendarParts, coversWindow, dateLabel, inWindow, reportingWindow, shiftDate, summarize, timeLabel, weekdays } from './historyData'
+import { calendarParts, coversWindow, dateLabel, inWindow, reportingWindow, shiftDate, shotRecipeLabel, summarize, timeLabel, weekdays } from './historyData'
 
 export function InsightsHome({ data, onOpen, onLatest }: { data: ShotInsights; onOpen: () => void; onLatest: (id: string) => void }) {
   const cache = data.cache
@@ -32,7 +32,7 @@ export function InsightsHome({ data, onOpen, onLatest }: { data: ShotInsights; o
     <button className="ins-entry-card ins-entry-latest" onClick={() => latest ? onLatest(latest.id) : onOpen()} aria-label={latest ? `Open latest shot: ${latest.profile}` : 'Open brew history'}>
       <div className="ins-entry-latest-content">
       <div className="ins-entry-shot-chart" aria-hidden="true">{detail?.points?.length ? <MiniShotChart shot={detail}/> : <span className="ins-entry-placeholder">{latest ? 'Open to load shot graph' : cache ? 'No saved brews yet' : 'Waiting for saved history'}</span>}</div>
-      {latest && <span className="ins-entry-recipe">{latest.dose !== null && <>{latest.dose} → </>}{latest.yield?.toFixed(1) ?? '—'}{latest.yield !== null && <small> g</small>}</span>}
+      {latest && <span className="ins-entry-recipe">{shotRecipeLabel(latest)}</span>}
       <div className="ins-entry-shot-caption"><strong>{latest?.profile ?? 'Brew history'}</strong><time dateTime={latest?.timestamp}>{latest ? `${dateLabel(latest.date)}, ${timeLabel(latest)}` : 'Saved in Decaid'}</time></div>
       </div>
     </button>

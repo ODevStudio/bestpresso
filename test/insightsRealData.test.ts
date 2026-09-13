@@ -68,13 +68,13 @@ test('home entry has full-width inner layouts and no routine status subtext', ()
   assert.match(component, /status && <span className="ins-entry-status"/)
   for (const selector of ['ins-entry-content', 'ins-entry-week', 'ins-entry-summary', 'ins-entry-latest-content']) assert.match(css, new RegExp(`\\.${selector} \\{[^}]*width:100%`))
 })
-test('reporting windows use calendar dates across DST; 28-day comparison spans 56 days', () => {
+test('reporting windows use calendar dates across DST; 30-day comparison spans 60 days', () => {
   assert.deepEqual(reportingWindow(7, 'America/New_York', new Date('2026-03-09T12:00:00Z')), { start: '2026-03-02', end: '2026-03-09' })
-  assert.deepEqual(reportingWindow(28, 'Asia/Singapore', now, true), { start: '2026-07-19', end: '2026-08-16' })
+  assert.deepEqual(reportingWindow(30, 'Asia/Singapore', now, true), { start: '2026-07-15', end: '2026-08-14' })
   assert.equal(calendarParts('2026-09-12T23:00:00Z', 'Asia/Singapore')!.date, '2026-09-13')
   assert.equal(calendarParts('2026-09-12T23:00:00.123456', 'Asia/Singapore')!.hour, 23)
 })
-test('100-record cutoff and stale offline calendar days cannot masquerade as a complete period', () => {
+test('record cutoff and stale offline calendar days cannot masquerade as a complete period', () => {
   const truncated = cacheOf([shot()], 150)
   const window = reportingWindow(7, 'Asia/Singapore', now)
   assert.equal(coversWindow(truncated, window), false)
@@ -88,7 +88,7 @@ test('bad summaries, duplicate IDs and malformed pages fail safely', () => {
   const badDate = cacheOf([shot('a', { timestamp: 'bad' })])
   assert.equal(badDate.omitted, 1); assert.equal(coversWindow(badDate, reportingWindow(7, 'UTC', now)), false)
   assert.throws(() => cacheOf([shot(), shot()]))
-  assert.throws(() => cacheOf(Array.from({ length: 101 }, (_, i) => shot(String(i)))))
+  assert.throws(() => cacheOf(Array.from({ length: 1001 }, (_, i) => shot(String(i)))))
   assert.throws(() => cacheOf([], 12))
 })
 test('reconciliation removes deleted/aged-out records and invalidates edited details', () => {

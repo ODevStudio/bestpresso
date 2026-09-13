@@ -2,10 +2,12 @@
 // Never included in the skin ZIP. Ctrl-C stops it; restart preserves deterministic IDs.
 import { createServer } from 'node:http'
 const midnight = new Date(); midnight.setHours(0, 0, 0, 0)
-const records = Array.from({ length: 120 }, (_, i) => {
+const recordCount = Number(process.env.INSIGHTS_FIXTURE_RECORDS ?? 1200)
+const port = Number(process.env.INSIGHTS_FIXTURE_PORT ?? 5391)
+const records = Array.from({ length: recordCount }, (_, i) => {
   const date = new Date(midnight); date.setDate(date.getDate() - Math.floor(i / 2)); date.setHours(i % 2 ? 7 : 14, i % 60)
   const beverage = i % 17 === 0 ? 'pourover' : i % 23 === 0 ? 'cleaning' : 'espresso'
-  return { id: `contract-${i}`, timestamp: date.toISOString(), workflow: { profile: { title: beverage === 'pourover' ? 'Tea concentrate' : beverage === 'cleaning' ? 'Cleaning' : i % 3 ? 'Adaptive V2' : 'Gentle & sweet', beverage_type: beverage, steps: [{ name: 'Fill', seconds: 8, pump: { target: 'flow', flow: 4 } }, { name: 'Extraction', seconds: 40, pump: { target: 'pressure', pressure: 9 } }] }, context: { targetDoseWeight: i % 11 ? 20 : null, targetYield: 40 } }, annotations: i % 13 ? { actualYield: 36 + (i % 6) * .6, actualDoseWeight: 20 } : null, stopReason: i % 3 ? 'targetWeight' : 'apiStop' }
+  return { id: `contract-${i}`, timestamp: date.toISOString(), workflow: { profile: { title: beverage === 'pourover' ? 'Tea concentrate' : beverage === 'cleaning' ? 'Cleaning' : i % 3 ? 'Adaptive V2' : 'Gentle & sweet', beverage_type: beverage, steps: [{ name: 'Fill', seconds: 8, pump: { target: 'flow', flow: 4 } }, { name: 'Extraction', seconds: 40, pump: { target: 'pressure', pressure: 9 } }] }, context: { targetDoseWeight: i === 0 || i % 11 ? 20 : null, targetYield: 40 } }, annotations: i === 0 || i % 13 ? { actualYield: 36 + (i % 6) * .6, actualDoseWeight: 20 } : null, stopReason: i % 3 ? 'targetWeight' : 'apiStop' }
 })
 // Routine shot-time overrides must not split one named profile into many groups.
 records.forEach((record, i) => {
@@ -32,4 +34,4 @@ const server = createServer((req, res) => {
   }
   res.writeHead(503); send({ error: 'Fixture only serves saved-shot reads; no machine connected.' })
 })
-server.listen(5391, '127.0.0.1', () => console.log('Read-only Decaid shot fixture on 127.0.0.1:5391'))
+server.listen(port, '127.0.0.1', () => console.log(`Read-only Decaid shot fixture on 127.0.0.1:${port} (${recordCount} records)`))

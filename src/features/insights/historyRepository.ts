@@ -1,11 +1,12 @@
 import type { PaginatedShots, ShotRecord } from '../../api/decaid/types.ts'
 import type { PreviousShot } from '../../domain/brewing.ts'
-import { attachDetail, normalizeShot, reconcileHistory, regroupHistory, validHistoryCache, type HistoryCache } from './historyData.ts'
+import { attachDetail, HISTORY_LIMIT, normalizeShot, retainHistoryDetails, regroupHistory, validHistoryCache, type HistoryCache } from './historyData.ts'
 import type { HistoryStorage } from './historyStorage.ts'
+import { syncHistory } from './historySync.ts'
 
 export interface HistoryState { cache: HistoryCache | null; status: 'loading' | 'ready' | 'offline'; refreshing: boolean; storageWarning: boolean; error: string | null }
 interface Dependencies {
-  storage: HistoryStorage; page: () => Promise<PaginatedShots>; detail: (id: string) => Promise<ShotRecord>
+  storage: HistoryStorage; page: (offset: number) => Promise<PaginatedShots>; detail: (id: string) => Promise<ShotRecord>
   toDetail: (shot: ShotRecord) => PreviousShot; now?: () => Date
 }
 export class HistoryRepository {
@@ -34,14 +35,14 @@ export class HistoryRepository {
     this.writes = this.writes.then(() => this.deps.storage.write(cache)).catch(() => this.update({ storageWarning: true }))
     return this.writes
   }
-  refresh() {
+  refresh(force = false) {
     if (this.refreshing) return this.refreshing
     this.refreshing = (async () => {
       await this.load()
       this.update({ refreshing: true })
       try {
-        const page = await this.deps.page()
-        const cache = reconcileHistory(page, this.state.cache, this.source, this.state.cache?.timezone ?? this.timezone, this.deps.now?.())
+        const next = await syncHistory(this.deps.page, this.state.cache, this.source, this.state.cache?.timezone ?? this.timezone, this.deps.now?.() ?? new Date(), force)
+        const cache = retainHistoryDetails(next, this.state.cache)
         this.update({ cache, status: 'ready', error: null })
         await this.persist(cache)
       } catch (error) {
@@ -57,7 +58,7 @@ export class HistoryRepository {
       await this.load()
       const initial = this.state.cache
       const record = initial?.records.find(r => r.id === id)
-      if (!initial || !record) throw new Error('This shot is not in the latest 100 saved records. Refresh history to check again.')
+      if (!initial || !record) throw new Error(`This shot is not in the latest ${HISTORY_LIMIT.toLocaleString()} saved records. Refresh history to check again.`)
       // Summaries are reconciled on entry/refresh. A cached detail shares that revision.
       if (Object.hasOwn(initial.details, id)) return initial.details[id]
       const raw = await this.deps.detail(id)

@@ -1,7 +1,8 @@
 import type { PaginatedShots, ShotRecord } from '../../api/decaid/types.ts'
 import type { PreviousShot } from '../../domain/brewing.ts'
 
-export const HISTORY_LIMIT = 100
+export const HISTORY_LIMIT = 1000
+export const HISTORY_PAGE_SIZE = 100
 export const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 export const timeWindows = Array.from({ length: 12 }, (_, i) => ({ start: i * 2, end: i * 2 + 2, label: `${String(i * 2).padStart(2, '0')}:00–${String(i * 2 + 2).padStart(2, '0')}:00` }))
 export type Beverage = 'espresso' | 'pourover' | 'other' | 'excluded'
@@ -12,6 +13,7 @@ export interface HistoryRecord {
 }
 export interface HistoryCache {
   version: 1; source: string; timezone: string; syncedAt: string; total: number
+  fullSyncedAt?: string
   records: HistoryRecord[]; details: Record<string, PreviousShot>; omitted: number
 }
 export type InsightFilter = { kind: 'weekday' | 'hours' | 'profile'; value: string } | null
@@ -73,16 +75,35 @@ export function reconcileHistory(page: PaginatedShots, previous: HistoryCache | 
   const records = page.items.map(s => normalizeShot(s, timezone)).filter((s): s is HistoryRecord => s !== null)
   if (new Set(records.map(s => s.id)).size !== records.length) throw new Error('Decaid returned duplicate shot IDs. Please refresh.')
   records.sort((a, b) => b.date.localeCompare(a.date) || b.hour - a.hour || b.minute - a.minute || Date.parse(b.timestamp) - Date.parse(a.timestamp) || b.id.localeCompare(a.id))
+  return retainHistoryDetails({ version: 1, source, timezone, syncedAt: now.toISOString(), fullSyncedAt: now.toISOString(), total: page.total, omitted: page.items.length - records.length, records, details: {} }, prior)
+}
+// Also used at commit time, so a graph opened during a multi-page sync is retained.
+export function retainHistoryDetails(cache: HistoryCache, previous: HistoryCache | null): HistoryCache {
+  const prior = previous?.source === cache.source ? previous : null
+  const index = new Map(prior?.records.map(r => [r.id, r]))
   const details: Record<string, PreviousShot> = Object.create(null)
-  for (const record of records) {
-    const old = prior?.records.find(s => s.id === record.id && s.signature === record.signature)
-    if (old && prior && Object.hasOwn(prior.details, record.id)) {
+  const records = cache.records.map(record => {
+    const old = index.get(record.id)
+    if (old?.signature === record.signature && prior && Object.hasOwn(prior.details, record.id)) {
       details[record.id] = prior.details[record.id]
-      record.duration = old.duration
-      if (record.yield === null) record.yield = old.yield
+      return { ...record, duration: old.duration, yield: record.yield ?? old.yield }
     }
-  }
-  return { version: 1, source, timezone, syncedAt: now.toISOString(), total: page.total, omitted: page.items.length - records.length, records, details }
+    return record
+  })
+  return { ...cache, records, details }
+}
+export function mergeRecentHistory(page: PaginatedShots, prior: HistoryCache, now: Date): HistoryCache | null {
+  if (prior.omitted || prior.records.length !== Math.min(HISTORY_LIMIT, prior.total)) return null
+  const added = page.total - prior.total
+  // Only prepend provably new records; deletions, gaps and large imports need a full scan.
+  if (added < 0 || added >= page.items.length) return null
+  const ids = new Set(prior.records.map(r => r.id))
+  if (page.items.slice(0, added).some(r => typeof r.id !== 'string' || ids.has(r.id))) return null
+  if (!page.items.slice(added).every((r, i) => r.id === prior.records[i]?.id)) return null
+  const head = page.items.map(r => normalizeShot(r, prior.timezone))
+  if (head.some(r => r === null)) return null
+  const records = [...head as HistoryRecord[], ...prior.records.slice(head.length - added)].slice(0, HISTORY_LIMIT)
+  return retainHistoryDetails({ ...prior, records, total: page.total, syncedAt: now.toISOString() }, prior)
 }
 export function attachDetail(cache: HistoryCache, id: string, signature: string, detail: PreviousShot): HistoryCache {
   if (detail.id !== id || !cache.records.some(r => r.id === id && r.signature === signature)) return cache
@@ -102,7 +123,7 @@ export function coversWindow(cache: HistoryCache | null, w: { start: string; end
   if (!cache || cache.omitted || calendarParts(cache.syncedAt, cache.timezone)!.date < w.end) return false
   if (cache.total === cache.records.length) return true
   const earliest = cache.records.map(r => r.date).sort()[0]
-  // The oldest cached calendar day may be cut in half by the 100-record limit.
+  // The oldest cached calendar day may be cut in half by the record limit.
   return !!earliest && earliest < w.start
 }
 export const median = (values: number[]) => { const sorted = values.filter(v => Number.isFinite(v) && v >= 0).sort((a, b) => a - b); return sorted.length ? (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2 : null }
@@ -117,11 +138,13 @@ export function summarize(shots: HistoryRecord[]) {
 }
 export const timeWindowCounts = (shots: HistoryRecord[]) => timeWindows.map(w => shots.filter(s => s.hour >= w.start && s.hour < w.end).length)
 export const matches = (r: HistoryRecord, f: InsightFilter) => !f || (f.kind === 'weekday' ? r.weekday === Number(f.value) : f.kind === 'profile' ? r.profileKey === f.value : r.hour >= Number(f.value) * 2 && r.hour < Number(f.value) * 2 + 2)
-export const dateLabel = (date: string) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${date.slice(0, 10)}T12:00:00Z`))
+export const dateLabel = (date: string, includeYear = false) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', ...(includeYear ? { year: 'numeric' as const } : {}), timeZone: 'UTC' }).format(new Date(`${date.slice(0, 10)}T12:00:00Z`))
 export const timeLabel = (r: HistoryRecord) => `${String(r.hour).padStart(2, '0')}:${String(r.minute).padStart(2, '0')}`
+export const shotRecipeLabel = (r: Pick<HistoryRecord, 'dose' | 'yield' | 'duration'>) => `${r.dose !== null ? `${r.dose} → ` : ''}${r.yield !== null ? `${r.yield.toFixed(1)} g` : '—'} • ${r.duration ?? '—'}s`
 
 export function validHistoryCache(value: unknown, source: string): value is HistoryCache {
   if (!plain(value) || value.version !== 1 || value.source !== source || typeof value.timezone !== 'string' || typeof value.syncedAt !== 'string' || !Number.isFinite(Date.parse(value.syncedAt)) || !Number.isInteger(value.total) || !Number.isInteger(value.omitted) || !Array.isArray(value.records) || value.records.length > HISTORY_LIMIT || !plain(value.details)) return false
+  if (value.fullSyncedAt !== undefined && (typeof value.fullSyncedAt !== 'string' || !Number.isFinite(Date.parse(value.fullSyncedAt)))) return false
   try { new Intl.DateTimeFormat('en', { timeZone: value.timezone }).format() } catch { return false }
   if ((value.total as number) < value.records.length || (value.omitted as number) < 0) return false
   const metric = (v: unknown) => v === null || finiteMetric(v) !== null

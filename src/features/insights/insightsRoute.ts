@@ -1,11 +1,24 @@
-import type { InsightFilter } from './historyData.ts'
+import { coversWindow, reportingWindow, type HistoryCache, type InsightFilter } from './historyData.ts'
 
-export interface InsightsRoute { section: 'overview' | 'history'; days: 0 | 7 | 28; beverage: 'espresso' | 'pourover' | 'other' | 'all'; filter: InsightFilter; search: string; previous: boolean; shotId: string | null }
+export const insightPeriods = [7, 30, 180] as const
+export interface InsightsRoute { section: 'overview' | 'history'; days: 0 | typeof insightPeriods[number]; beverage: 'espresso' | 'pourover' | 'other' | 'all'; filter: InsightFilter; search: string; previous: boolean; shotId: string | null }
 export const defaultInsightsRoute: InsightsRoute = { section: 'overview', days: 7, beverage: 'espresso', filter: null, search: '', previous: false, shotId: null }
+export function availableInsightPeriods(cache: HistoryCache | null, now = new Date()) {
+  if (!cache) return insightPeriods.filter(days => days !== 180)
+  const window = reportingWindow(180, cache.timezone, now)
+  // An entirely fetched but young archive is not 180 days of brewing history.
+  const oldEnough = cache.records.some(r => r.date <= window.start)
+  return insightPeriods.filter(days => days !== 180 || oldEnough && coversWindow(cache, window))
+}
+export function constrainInsightsRoute(route: InsightsRoute, periods: readonly number[]): InsightsRoute {
+  return route.days === 180 && !periods.includes(180) ? { ...route, days: 30, previous: false, filter: null } : route
+}
 const keys = ['insSection', 'insDays', 'insDrink', 'insKind', 'insValue', 'insSearch', 'insPrevious', 'shotId']
 export function readInsightsRoute(params: URLSearchParams): InsightsRoute {
   const section = params.get('insSection') === 'history' || params.get('page') === 'previous-pull' ? 'history' : 'overview'
-  const days = params.get('insDays') === '28' ? 28 : section === 'history' && params.get('insDays') === '0' ? 0 : 7
+  // Preserve older bookmarked monthly views by mapping the former 28-day range.
+  const requested = params.get('insDays') === '28' ? 30 : Number(params.get('insDays'))
+  const days = insightPeriods.find(days => days === requested) ?? (section === 'history' && params.get('insDays') === '0' ? 0 : 7)
   const drink = params.get('insDrink')
   const kind = params.get('insKind')
   const value = params.get('insValue')

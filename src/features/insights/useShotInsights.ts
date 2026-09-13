@@ -8,7 +8,7 @@ import { readHistoryDetail, readHistoryPage } from './historyTransport'
 export function useShotInsights(active: boolean, refreshKey: string) {
   const source = getDecaidEndpoints().apiBase
   const repository = useMemo(() => new HistoryRepository(source, Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', {
-    storage: browserHistoryStorage(), page: () => readHistoryPage(source), detail: id => readHistoryDetail(source, id), toDetail: shotToDomain,
+    storage: browserHistoryStorage(), page: offset => readHistoryPage(source, offset), detail: id => readHistoryDetail(source, id), toDetail: shotToDomain,
   }), [source])
   const state = useSyncExternalStore(repository.subscribe, repository.getSnapshot)
   const [now, setNow] = useState(() => new Date())
