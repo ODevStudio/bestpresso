@@ -93,7 +93,7 @@ test('detail deletion is confirmed, does not purge records, and is wired to libr
   assert.doesNotMatch(client, /\/purge/)
   assert.match(panel, /canDeleteProfile\?\.\(selectedProfile.id\)/)
   const actions = panel.slice(panel.indexOf('<div className="profile-detail__actions">'), panel.indexOf('<p className="profile-detail__description">'))
-  assert.match(actions, /profileDetailEditIcon[\s\S]*?className="profile-detail__delete"[\s\S]*?profile-detail__favorite/)
+  assert.match(actions, /profileDetailEditIcon[\s\S]*?profile-detail__favorite[\s\S]*?className="profile-detail__delete"/)
   assert.doesNotMatch(panel, /profile-detail__delete-row/)
   assert.match(dialog, /element.showModal\(\)/)
   assert.match(dialog, /if \(inFlight.current \|\| active\) return/)

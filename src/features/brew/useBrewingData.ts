@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { playCompletionSound } from '../../audio/completionSound'
 import { deleteProfile, updateSettings } from '../../api/decaid/client'
 import { assertProfileDeletionAllowed, canDeleteProfile, deleteVerifiedUserProfile, favoritesWithoutProfile } from '../profiles/profileDeletion'
-import { hotWaterYieldLookAheadPatch } from '../settings/yieldLookAhead'
+import { hotWaterWeightStoppingPatch } from '../settings/yieldLookAhead'
 import { activeProfileForWorkflow, applyWorkflow, carouselProfiles, favoriteProfileSlots as resolveFavoriteProfileSlots, isCleaningProfile, profileRecordsToDomain, profilesWithParsedTitles, retainedAdHocProfileAtBrewStart, shotStage, shotToDomain, STEAM_HEATER_READY_C, tankMillilitres } from '../../api/decaid/adapters'
 import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, getDevices, getFavoriteAssignments, getLatestShot, getMachineSettings, getProfile, getProfiles, getSettings, getSharedSetting, getShot, getShotHistory, getWorkflow, scanForDevices, setMachineProfile, setMachineState, setSharedSetting, tareScale, updateProfile, updateProfileMetadata, updateWorkflow } from '../../api/decaid/client'
 import { displayBrightness } from '../settings/displayBrightness'
@@ -163,8 +163,7 @@ export function useBrewingData() {
     const enableWeightStopping = async () => {
       try {
         const current = await getSettings()
-        const patch = hotWaterYieldLookAheadPatch(current)
-        if (current.stopHotWaterAtWeight !== true) patch.stopHotWaterAtWeight = true
+        const patch = hotWaterWeightStoppingPatch(current)
         if (!cancelled && Object.keys(patch).length) {
           await updateSettings(patch)
         }
@@ -762,7 +761,7 @@ export function useBrewingData() {
         }
         const session = liveShotSession.current
         const acceptsShotTelemetry = skipObservation.acceptTelemetry || machineState === 'cleaning'
-        const timeline = advanceShotTimeline(now, acceptsShotTelemetry, session.telemetryStartedAt)
+        const timeline = advanceShotTimeline(now, acceptsShotTelemetry, session.telemetryStartedAt, session.points.at(-1)?.elapsedMs)
         session.telemetryStartedAt = timeline.telemetryStartedAt
         const elapsedMs = timeline.elapsedMs
         const lastPoint = session.points.at(-1)
