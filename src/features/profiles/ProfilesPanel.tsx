@@ -8,7 +8,6 @@ import profileUseIcon from '../../assets/figma/profile-use.svg'
 import profilesAddIcon from '../../assets/figma/profiles-add.svg'
 import profilesBackIcon from '../../assets/figma/profiles-back.svg'
 import profilesSearchIcon from '../../assets/figma/profiles-search.svg'
-import profileDeleteIcon from '../../assets/figma/builder-stage-delete.svg'
 import { ProfileDeleteDialog } from './ProfileDeleteDialog'
 import './profileDeletion.css'
 import { isCleaningProfile, sortProfilesForDirectory } from '../../api/decaid/adapters'
@@ -314,11 +313,11 @@ export function ProfilesPanel({ profiles, favoriteProfileSlots, activeProfileId,
                 <div className="profile-detail__actions">
                   <button type="button" disabled={pendingProfileId === selectedProfile.id} onClick={() => void applyProfile(selectedProfile.id)} aria-label={`Use ${selectedProfile.name}`} title="Use profile"><img src={profileUseIcon} alt="" /></button>
                   {editingEnabled && <button type="button" onClick={() => onEditProfile?.(selectedProfile.id)} aria-label={`${editLabel(selectedProfile.id)}: ${selectedProfile.name}`} title={editLabel(selectedProfile.id)}><img src={profileDetailEditIcon} alt="" /></button>}
+                  {canDeleteProfile?.(selectedProfile.id) && onDeleteProfile && <button className="profile-detail__delete" type="button" aria-label="Delete profile" title="Delete profile" disabled={pendingProfileId !== null} onClick={() => setDeletingProfile(selectedProfile)}><span className="profile-detail__delete-icon" aria-hidden="true" /></button>}
                   {!favoriteIdSet.has(selectedProfile.id) && <button className={`profile-detail__favorite${replacementProfileId === selectedProfile.id ? ' profile-detail__favorite--replacing' : ''}`} type="button" disabled={pendingProfileId === selectedProfile.id} aria-pressed="false" onClick={() => void requestFavorite()} aria-label={replacementProfileId === selectedProfile.id ? 'Cancel favorite replacement' : `Favorite ${selectedProfile.name}`} title={replacementProfileId === selectedProfile.id ? 'Cancel replacement' : 'Add to favorites'}><img src={profileFavoriteIcon} alt="" /></button>}
                 </div>
               </div>
               <p className="profile-detail__description">{selectedProfile.description ?? 'No description provided for this profile.'}</p>
-              {canDeleteProfile?.(selectedProfile.id) && onDeleteProfile && <div className="profile-detail__delete-row"><button className="profile-detail__delete" type="button" disabled={pendingProfileId !== null} onClick={() => setDeletingProfile(selectedProfile)}><img src={profileDeleteIcon} alt="" />Delete profile</button></div>}
             </div>
           </article>}
         </div>
