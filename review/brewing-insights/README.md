@@ -152,3 +152,12 @@ Evidence: `history-dose-dark.png`.
 - Also served the actual staged production files and clicked Monday → two records → recorded shot detail (30 seconds, 38 g). Verified the ZIP root and manifest use the separate `rc-bestpresso` ID; archive integrity passes. Closed temporary test tabs/servers, leaving the user's existing preview running.
 
 Evidence (contract fixture, not the user's history): `integration-light-1024.png`, `integration-light-phone.png`, `integration-offline-detail.png`, `integration-hour-filter.png`.
+
+## RC feedback: profile grouping and entry spacing — 13 September 2026
+
+- Replaced recipe-snapshot usage grouping with normalized saved profile name + drink type. Routine recipe/temperature/target changes now share a row. Named variants stay separate. Full shot signatures still protect detail cache invalidation, and old offline groups migrate without dropping saved curves. The UI identifies this as grouping by profile name; it does not claim reliable profile lineage where the saved data lacks it.
+- Moved both home-entry layouts into explicit full-size inner containers, with full-width chart/summary rows. Retained 24px top inset, consistent inner padding, title-left/metrics-right hierarchy and separate latest-shot shortcut. Removed the routine Espresso/completed-days footer; kept conditional loading/offline/incomplete warnings and screen-reader scope/coverage.
+- **326 tests**, targeted lint and production build pass. Added regressions for same-name recipe changes, named variants, beverage separation, old offline-cache migration with graph retention, and home-layout structure/subtext.
+- Browser fixture now varies targets and stage/tank temperatures between shots. Verified one Adaptive V2 row with 9 brews, then clicked it and confirmed 9 matching history records. Inspected light ranking and home, plus dark home; chart/summary widths match and neither overflows at 1440×1000, 1194×834 and 1024×768 (ranking also inspected at 1194×1100). Tablet touch and the user's actual iOS webview remain device checks, not locally verified claims.
+
+Evidence: `grouped-profile-usage-light.png`, `home-entry-spacing-light.png`, `home-entry-spacing-dark-1024.png` (local fixture data).

@@ -27,12 +27,46 @@ test('history retains manual stops and separates pour-over, cleaning and unknown
   assert.equal(normalizeShot(shot('a', { annotations: { extras: { simulated: true } } }), 'UTC')!.beverage, 'excluded')
   assert.equal(normalizeShot(shot('a', { annotations: { extras: {} }, metadata: { simulated: true } }), 'UTC')!.beverage, 'excluded')
 })
-test('legacy recipe snapshots group deterministically, not by coincidentally matching titles', () => {
+test('profile usage combines recipe adjustments under the same name but preserves named variants', () => {
   const a = normalizeShot(shot(), 'UTC')!
   const b = normalizeShot(shot('b', { workflow: { profile: { steps: [{ pressure: 9, seconds: 60 }], beverage_type: 'espresso', title: 'Adaptive' } } }), 'UTC')!
   const c = normalizeShot(shot('c', { workflow: { profile: { title: 'Adaptive', beverage_type: 'espresso', steps: [{ pressure: 6 }] } } }), 'UTC')!
-  assert.equal(a.profileKey, b.profileKey); assert.notEqual(a.profileKey, c.profileKey)
-  assert.equal(summarize([a, b, c]).profileCounts.length, 2)
+  assert.equal(a.profileKey, b.profileKey); assert.equal(a.profileKey, c.profileKey)
+  assert.notEqual(a.signature, c.signature)
+  assert.deepEqual(summarize([a, b, c]).profileCounts.map(p => p.count), [3])
+  const variant = normalizeShot(shot('d', { workflow: { profile: { title: 'Adaptive (x)', beverage_type: 'espresso' } } }), 'UTC')!
+  const gentle = normalizeShot(shot('e', { workflow: { profile: { title: 'Adaptive Gentle', beverage_type: 'espresso' } } }), 'UTC')!
+  const renamedCase = normalizeShot(shot('f', { workflow: { profile: { title: ' adaptive ', beverage_type: 'espresso' } } }), 'UTC')!
+  const tea = normalizeShot(shot('g', { workflow: { profile: { title: 'Adaptive', beverage_type: 'pourover' } } }), 'UTC')!
+  assert.equal(renamedCase.profileKey, a.profileKey)
+  assert.equal(new Set([a, variant, gentle, tea].map(r => r.profileKey)).size, 4)
+  assert.equal([a, b, c, variant].filter(r => matches(r, { kind: 'profile', value: a.profileKey })).length, 3)
+})
+
+test('old offline snapshot groups migrate without discarding cached graphs or shot revisions', async () => {
+  const old = cacheOf([shot('a'), shot('b')])
+  old.records.forEach((r, i) => { r.profileKey = `recipe-old-${i}` })
+  old.details.a = detail('a')
+  old.records.find(r => r.id === 'a')!.duration = 29
+  let saved: HistoryCache | null = null
+  const repo = new HistoryRepository('source-a', 'UTC', {
+    storage: { read: async () => old, write: async cache => { saved = cache } },
+    page: async () => { throw Error('offline') }, detail: async () => { throw Error('offline') }, toDetail: () => detail('a'),
+  })
+  await repo.refresh()
+  assert.equal(repo.state.status, 'offline')
+  assert.deepEqual(summarize(repo.state.cache!.records).profileCounts.map(p => p.count), [2])
+  assert.equal((await repo.detail('a')).totalTime, '29')
+  assert.ok(saved)
+  assert.equal(repo.state.cache!.records[0].signature, old.records[0].signature)
+})
+
+test('home entry has full-width inner layouts and no routine status subtext', () => {
+  const component = readFileSync(new URL('../src/features/insights/InsightsHome.tsx', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../src/features/insights/insights.css', import.meta.url), 'utf8')
+  assert.doesNotMatch(component, /Espresso · completed days/)
+  assert.match(component, /status && <span className="ins-entry-status"/)
+  for (const selector of ['ins-entry-content', 'ins-entry-week', 'ins-entry-summary', 'ins-entry-latest-content']) assert.match(css, new RegExp(`\\.${selector} \\{[^}]*width:100%`))
 })
 test('reporting windows use calendar dates across DST; 28-day comparison spans 56 days', () => {
   assert.deepEqual(reportingWindow(7, 'America/New_York', new Date('2026-03-09T12:00:00Z')), { start: '2026-03-02', end: '2026-03-09' })

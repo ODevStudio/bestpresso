@@ -1,6 +1,6 @@
 import type { PaginatedShots, ShotRecord } from '../../api/decaid/types.ts'
 import type { PreviousShot } from '../../domain/brewing.ts'
-import { attachDetail, normalizeShot, reconcileHistory, validHistoryCache, type HistoryCache } from './historyData.ts'
+import { attachDetail, normalizeShot, reconcileHistory, regroupHistory, validHistoryCache, type HistoryCache } from './historyData.ts'
 import type { HistoryStorage } from './historyStorage.ts'
 
 export interface HistoryState { cache: HistoryCache | null; status: 'loading' | 'ready' | 'offline'; refreshing: boolean; storageWarning: boolean; error: string | null }
@@ -23,9 +23,10 @@ export class HistoryRepository {
   getSnapshot = () => this.state
   private update(patch: Partial<HistoryState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()) }
   load() {
-    this.boot ??= this.deps.storage.read(this.source).then(cache => {
-      const valid = validHistoryCache(cache, this.source) ? cache : null
+    this.boot ??= this.deps.storage.read(this.source).then(async cache => {
+      const valid = validHistoryCache(cache, this.source) ? regroupHistory(cache) : null
       this.update({ cache: valid, status: valid ? 'offline' : 'loading' })
+      if (valid && valid !== cache) await this.persist(valid)
     }).catch(() => this.update({ storageWarning: true }))
     return this.boot
   }

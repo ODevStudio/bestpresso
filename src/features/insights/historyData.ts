@@ -17,17 +17,26 @@ export interface HistoryCache {
 export type InsightFilter = { kind: 'weekday' | 'hours' | 'profile'; value: string } | null
 export const finiteMetric = (v: unknown): number | null => typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null
 const plain = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v)
-// Stable snapshot identity: legacy records have no guaranteed profile ID. Do not merge by title.
+// Full snapshots still identify edits for cached-detail invalidation, not profile usage.
 export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
   if (plain(value)) return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`
   return JSON.stringify(value) ?? 'null'
 }
-function snapshotKey(value: unknown) {
+function identityKey(value: unknown) {
   const text = canonical(value)
   let a = 2166136261, b = 5381
   for (let i = 0; i < text.length; i++) { a = Math.imul(a ^ text.charCodeAt(i), 16777619); b = Math.imul(b, 33) ^ text.charCodeAt(i) }
-  return `recipe-${text.length}-${(a >>> 0).toString(16)}-${(b >>> 0).toString(16)}`
+  return `profile-${text.length}-${(a >>> 0).toString(16)}-${(b >>> 0).toString(16)}`
+}
+// Saved Decaid workflows contain a recipe, not its library/lineage ID. For usage,
+// group exact names within a drink type; keep named variants such as "(x)" intact.
+export function profileUsageKey(name: string, beverage: Beverage) {
+  return identityKey({ name: name.normalize('NFC').trim().replace(/\s+/g, ' ').toLowerCase(), beverage })
+}
+export function regroupHistory(cache: HistoryCache): HistoryCache {
+  const records = cache.records.map(r => ({ ...r, profileKey: profileUsageKey(r.profile, r.beverage) }))
+  return records.some((r, i) => r.profileKey !== cache.records[i].profileKey) ? { ...cache, records } : cache
 }
 export function calendarParts(timestamp: string, timezone: string) {
   const ms = Date.parse(timestamp)
@@ -49,9 +58,10 @@ export function normalizeShot(shot: ShotRecord, timezone: string): HistoryRecord
   const excluded = ['cleaning', 'calibrate', 'calibration'].includes(type ?? '') || profile?.category?.trim().toLowerCase() === 'cleaning'
     || explicitlyExcluded
   const beverage: Beverage = excluded ? 'excluded' : type === 'espresso' ? 'espresso' : type === 'pourover' ? 'pourover' : 'other'
+  const name = profile?.title?.trim() || shot.workflow?.name?.trim() || 'Unknown profile'
   return { id: shot.id, timestamp: shot.timestamp, ...parts,
-    profile: profile?.title?.trim() || shot.workflow?.name?.trim() || 'Unknown profile',
-    profileKey: profile ? snapshotKey(profile) : 'unknown', beverage,
+    profile: name,
+    profileKey: profileUsageKey(name, beverage), beverage,
     dose: finiteMetric(shot.annotations?.actualDoseWeight) ?? finiteMetric(shot.workflow?.context?.targetDoseWeight) ?? finiteMetric(profile?.dose_weight),
     yield: finiteMetric(shot.annotations?.actualYield), duration: null,
     signature: canonical({ timestamp: shot.timestamp, workflow: shot.workflow, annotations: shot.annotations, stopReason: shot.stopReason, metadata: shot.metadata }),

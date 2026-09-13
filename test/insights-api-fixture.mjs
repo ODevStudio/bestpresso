@@ -7,6 +7,12 @@ const records = Array.from({ length: 120 }, (_, i) => {
   const beverage = i % 17 === 0 ? 'pourover' : i % 23 === 0 ? 'cleaning' : 'espresso'
   return { id: `contract-${i}`, timestamp: date.toISOString(), workflow: { profile: { title: beverage === 'pourover' ? 'Tea concentrate' : beverage === 'cleaning' ? 'Cleaning' : i % 3 ? 'Adaptive V2' : 'Gentle & sweet', beverage_type: beverage, steps: [{ name: 'Fill', seconds: 8, pump: { target: 'flow', flow: 4 } }, { name: 'Extraction', seconds: 40, pump: { target: 'pressure', pressure: 9 } }] }, context: { targetDoseWeight: i % 11 ? 20 : null, targetYield: 40 } }, annotations: i % 13 ? { actualYield: 36 + (i % 6) * .6, actualDoseWeight: 20 } : null, stopReason: i % 3 ? 'targetWeight' : 'apiStop' }
 })
+// Routine shot-time overrides must not split one named profile into many groups.
+records.forEach((record, i) => {
+  record.workflow.profile.target_weight = 34 + i % 7
+  record.workflow.profile.tank_temperature = 88 + i % 6
+  record.workflow.profile.steps.forEach(step => { step.temperature = 90 + i % 5 })
+})
 const server = createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*'); res.setHeader('Content-Type', 'application/json')
   if (req.method !== 'GET') { res.writeHead(405); res.end('{}'); return }

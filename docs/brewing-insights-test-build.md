@@ -22,7 +22,7 @@ This build uses your existing Decaid saved shots. It does not modify that histor
 - The 100-record window can cover less than 7/28 days on a busy machine. Partial coverage is labelled, and comparisons are withheld unless both periods are covered.
 - Duration may initially show `—`: the list API does not provide it. Opening the actual graph fills it. Missing yield is also `—`, never a target substituted as an actual result.
 - Dose can be the historical target, not a weighed dose. Older records may lack beverage type or simulation flags; Other / unknown and the provenance note make this explicit.
-- Exact saved recipe versions are counted separately until Decaid supplies reliable profile lineage.
+- Profiles group by saved name within a drink type (case/whitespace normalized), so recipe adjustments no longer create duplicate rows. Named variants remain separate. Without a saved library ID, unrelated profiles with identical names/types cannot be distinguished, and renames are separate. Existing caches regroup automatically, preserving their graphs.
 - Cache is per browser/device and gateway. Clearing browser storage or changing skin origin/gateway can start a fresh cache. This is not an offline install/service worker for the app assets.
 
 ## Verification before packaging

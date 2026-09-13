@@ -137,23 +137,23 @@
 .ins-home .ins-ready { padding:15px 19px; color:var(--ins-accent); background:var(--ins-selection); border-radius:26px; font-size:13px; }
 .ins-home-entry { grid-column:3; grid-row:3; height:100%; min-height:180px; display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:12px; align-self:start; }
 .ins-home .brew-panel::before,.ins-entry-card { background:var(--ins-home-surface); }
-.ins-entry-card { position:relative; width:100%; height:100%; min-width:0; padding:0; border-radius:24px; border:1px solid var(--ins-line); color:var(--ins-fg); overflow:hidden; text-align:left; transition:border-color .15s ease; }
+.ins-entry-card { appearance:none; -webkit-appearance:none; display:block; position:relative; width:100%; height:100%; min-width:0; padding:0; border-radius:24px; border:1px solid var(--ins-line); color:var(--ins-fg); overflow:hidden; text-align:left; transition:border-color .15s ease; }
 .ins-entry-card:hover { border-color:color-mix(in srgb,var(--ins-accent) 45%,transparent); }
 .ins-entry-card:focus-visible { outline-offset:-3px!important; }
-.ins-entry-insight { display:flex; flex-direction:column; padding:24px 24px 20px; gap:18px; }
-.ins-entry-week { flex:1; min-height:76px; max-height:114px; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); column-gap:12px; }
+.ins-entry-content { width:100%; height:100%; display:flex; flex-direction:column; align-items:stretch; padding:24px 24px 20px; gap:18px; }
+.ins-entry-week { width:100%; flex:1; min-height:76px; max-height:114px; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); column-gap:12px; }
 .ins-entry-day { display:flex; flex-direction:column; align-items:center; gap:7px; min-height:0; }
 .ins-entry-bar-space { display:flex; align-items:flex-end; justify-content:center; flex:1; width:100%; min-height:0; }
 .ins-entry-bar-space i { display:block; width:var(--ins-bar-width); }
 .ins-bar-pair>[data-empty="true"],.ins-entry-bar-space i[data-empty="true"] { border-radius:1px; background:var(--ins-muted); }
 .ins-entry-day>small { color:var(--ins-muted); font-size:12px; line-height:16px; }
-.ins-entry-summary { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:end; gap:24px; margin-top:auto; }
+.ins-entry-summary { width:100%; display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:end; gap:24px; margin-top:auto; }
 .ins-entry-summary>strong { font-size:16px; line-height:20px; font-weight:500; }
 .ins-entry-metric { display:flex; flex-direction:column; align-items:flex-end; gap:2px; white-space:nowrap; }
 .ins-entry-metric>span { font-size:16px; line-height:20px; font-variant-numeric:tabular-nums; }
 .ins-entry-metric>small { color:var(--ins-muted); font-size:13px; line-height:18px; }
 .ins-entry-unit { color:var(--ins-muted); font-size:12px; }
-.ins-entry-latest { display:flex; flex-direction:column; }
+.ins-entry-latest-content { width:100%; height:100%; display:flex; flex-direction:column; align-items:stretch; }
 .ins-entry-shot-chart { position:relative; flex:1; min-height:75px; padding-top:12px; overflow:hidden; pointer-events:none; }
 .ins-entry-shot-chart .mini-chart { height:100%; }
 .ins-entry-shot-chart .mini-chart__weight { display:none; }
@@ -167,7 +167,7 @@
 .ins-notice { position:fixed; bottom:25px; left:50%; transform:translateX(-50%); z-index:1000; color:var(--ins-fg); background:var(--ins-input); padding:16px 22px; border:1px solid var(--ins-line); border-radius:20px; }
 @media(max-height:800px) and (min-width:651px) {
   .ins-home-entry { min-height:0; }
-  .ins-entry-insight { padding-block:24px 16px; gap:12px; }
+  .ins-entry-content { padding-block:24px 16px; gap:12px; }
   .ins-entry-week { min-height:48px; max-height:78px; }
 }
 @media(max-width:1100px) {
@@ -179,7 +179,7 @@
   :is(.ins-panel,.ins-chart-section)>header { align-items:flex-start; }
   .ins-legend { flex-direction:column; gap:5px; }
   .ins-table-head,.ins-shot { grid-template-columns:90px minmax(120px,1fr) 64px 70px 75px 15px; gap:12px; }
-  .ins-entry-insight { padding-inline:18px; }
+  .ins-entry-content { padding-inline:18px; }
   .ins-entry-summary { gap:16px; }
   .ins-entry-week { column-gap:8px; }
 }
