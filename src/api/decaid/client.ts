@@ -92,6 +92,17 @@ export async function updateProfile(profileId: string, profile: DecaidProfile, m
   return await response.json() as DecaidProfileRecord
 }
 
+export async function deleteProfile(profileId: string) {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 10000)
+  try {
+    const response = await fetch(`${getDecaidEndpoints().apiBase}/profiles/${encodeURIComponent(profileId)}`, { method: 'DELETE', signal: controller.signal })
+    if (!response.ok) throw await responseError(response, `Decaid profile deletion returned ${response.status}`)
+    const result = await response.json() as { success?: boolean; id?: string }
+    if (result.success !== true || result.id !== profileId) throw new Error('Decaid did not confirm deletion of this profile.')
+  } finally { window.clearTimeout(timeout) }
+}
+
 export async function connectDevice(deviceId: string) {
   const response = await fetch(`${getDecaidEndpoints().apiBase}/devices/connect`, {
     method: 'PUT',

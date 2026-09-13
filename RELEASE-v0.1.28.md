@@ -21,4 +21,11 @@
 
 Insights describes recorded brewing, not personal caffeine consumption. The cache is specific to this browser/device and gateway; 1,000 records do not guarantee a full year. Today is included in latest-shot and all-history views, while reports use completed days.
 
-Install **bestpresso-v0.1.28.zip** in Decaid. Brewing controls, profiles and machine settings are unchanged by this release.
+Install **bestpresso-v0.1.28.zip** in Decaid.
+
+## Profile controls patch
+
+- Delete created and imported profiles from their detail page, with confirmation. Saved shots and graphs remain intact; built-in profiles are protected. Select another profile before deleting the one currently loaded.
+- Sleep is now the leftmost home-screen control, followed by Cleaning and Settings. Resolves [#52](https://github.com/xinghendri/bestpresso/issues/52).
+
+This patch updates the existing download; the version remains **0.1.28**.

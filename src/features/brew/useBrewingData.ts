@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { playCompletionSound } from '../../audio/completionSound'
-import { updateSettings } from '../../api/decaid/client'
+import { deleteProfile, updateSettings } from '../../api/decaid/client'
+import { assertProfileDeletionAllowed, canDeleteProfile, deleteVerifiedUserProfile, favoritesWithoutProfile } from '../profiles/profileDeletion'
 import { hotWaterYieldLookAheadPatch } from '../settings/yieldLookAhead'
 import { activeProfileForWorkflow, applyWorkflow, carouselProfiles, favoriteProfileSlots as resolveFavoriteProfileSlots, isCleaningProfile, profileRecordsToDomain, profilesWithParsedTitles, retainedAdHocProfileAtBrewStart, shotStage, shotToDomain, STEAM_HEATER_READY_C, tankMillilitres } from '../../api/decaid/adapters'
 import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, getDevices, getFavoriteAssignments, getLatestShot, getMachineSettings, getProfile, getProfiles, getSettings, getSharedSetting, getShot, getShotHistory, getWorkflow, scanForDevices, setMachineProfile, setMachineState, setSharedSetting, tareScale, updateProfile, updateProfileMetadata, updateWorkflow } from '../../api/decaid/client'
@@ -185,6 +186,7 @@ export function useBrewingData() {
   const previousReadiness = useRef<MachineReadiness | null>(null)
   const readinessTracker = useRef(createMachineReadinessTracker())
   const profileRecords = useRef<DecaidProfileRecord[]>([])
+  const profileDeletionInFlight = useRef(false)
   const favoriteAssignments = useRef<FavoriteAssignments | null>(null)
   const feedbackTimeout = useRef<number | null>(null)
   const actionErrorTimeout = useRef<number | null>(null)
@@ -1444,8 +1446,54 @@ export function useBrewingData() {
     }
   }
 
+  const deleteSavedProfile = async (profileId: string) => {
+    if (profileDeletionInFlight.current) throw new Error('A profile is already being deleted.')
+    const record = profileRecords.current.find(candidate => candidate.id === profileId)
+    const busy = () => Boolean(liveShotSession.current || demoBrewSession.current || utilityOperationSession.current || pendingCleaningSequence.current)
+    assertProfileDeletionAllowed(record, latestModel.current.activeProfileId, busy())
+    if (connection !== 'connected' && connection !== 'fixture') throw new Error('Connect to Decaid before deleting a profile.')
+    profileDeletionInFlight.current = true
+    try {
+      if (connection === 'connected') {
+        await deleteVerifiedUserProfile(profileId, { read: getProfile, workflow: getWorkflow, remove: deleteProfile, activeId: () => latestModel.current.activeProfileId, busy })
+      }
+      // Do not fall back to the deleted entry if this was the last library item.
+      profileRecords.current = profileRecords.current.map(candidate => candidate.id === profileId ? { ...candidate, visibility: 'deleted' } : candidate)
+      const remaining = allProfilesRef.current.filter(candidate => candidate.id !== profileId)
+      let assignments = favoritesWithoutProfile(favoriteAssignments.current ?? favoriteAssignmentsForSlots(resolveFavoriteProfileSlots(allProfilesRef.current, null)), profileId)
+      allProfilesRef.current = remaining
+      setAllProfiles(remaining)
+      let cleanupFailed = false
+      try {
+        if (connection === 'connected') {
+          // Read fresh assignments so another client's unrelated favorites survive.
+          const latest = await getFavoriteAssignments().catch(error => { if (error instanceof DecaidApiError && error.status === 404) return null; throw error })
+          assignments = favoritesWithoutProfile(latest ?? assignments, profileId)
+          await setSharedSetting('favorite-profiles', assignments)
+          const remembered = await getSharedSetting<unknown>(LAST_SELECTED_PROFILE_SHARED_KEY).catch(error => { if (error instanceof DecaidApiError && error.status === 404) return null; throw error })
+          if (remembered === profileId) await setSharedSetting(LAST_SELECTED_PROFILE_SHARED_KEY, null)
+        } else {
+          window.localStorage.setItem(localFavoriteStorageKey, JSON.stringify(resolveFavoriteProfileSlots(remaining, assignments)))
+        }
+      } catch { cleanupFailed = true }
+      favoriteAssignments.current = assignments
+      if (retainedAdHocProfileId.current === profileId) retainedAdHocProfileId.current = null
+      if (storedLastSelectedProfileId() === profileId) {
+        try { window.localStorage.removeItem(LAST_SELECTED_PROFILE_LOCAL_KEY) } catch { /* A stale ID is ignored when resolving available profiles. */ }
+      }
+      setFavoriteProfileSlots(resolveFavoriteProfileSlots(remaining, assignments))
+      setModel(current => ({ ...current, profiles: carouselProfiles(remaining, assignments, current.activeProfileId, retainedAdHocProfileId.current) }))
+      showSettingFeedback({ status: cleanupFailed ? 'error' : 'saved', message: cleanupFailed
+        ? 'Profile deleted. Some saved shortcuts could not be updated; reconnect to Decaid. Saved shots are unchanged.'
+        : 'Profile deleted from your library and favorites. Saved shots are unchanged.' })
+    } finally { profileDeletionInFlight.current = false }
+  }
+
+  const profileCanBeDeleted = (profileId: string) => canDeleteProfile(profileRecords.current.find(record => record.id === profileId))
+
   const selectProfile = async (profileId: string) => {
     if (liveShotSession.current) return false
+    if (profileDeletionInFlight.current) return false
     const profile = allProfiles.find((candidate) => candidate.id === profileId)
     if (!profile) {
       showSettingFeedback({ status: 'error', message: 'That profile is no longer available.' })
@@ -1505,6 +1553,7 @@ export function useBrewingData() {
   }
 
   const setFavoriteProfileSlot = async (profileId: string, slot: number) => {
+    if (profileDeletionInFlight.current) return false
     const profile = allProfiles.find((candidate) => candidate.id === profileId)
     if (!profile || slot < 0 || slot > 4) {
       showSettingFeedback({ status: 'error', message: 'That favorite slot is not available.' })
@@ -1541,6 +1590,7 @@ export function useBrewingData() {
   }
 
   const removeFavoriteProfile = async (profileId: string) => {
+    if (profileDeletionInFlight.current) return false
     if (connection !== 'connected' && connection !== 'fixture') {
       showSettingFeedback({ status: 'error', message: 'Connect to Decaid before changing favorites.' })
       return false
@@ -1583,5 +1633,5 @@ export function useBrewingData() {
   const dismissLiveBrew = () => setLiveBrew((current) => current.active ? current : { ...current, visible: false })
   const favoriteProfileIds = favoriteProfileSlots.filter((id): id is string => Boolean(id))
 
-  return { model, allProfiles, favoriteProfileIds, favoriteProfileSlots, liveBrew, utilityOperation, previousShotStatus, shotHistory, loadHistoryShot, heatingSeconds, connection, machineConnection, demoPullEnabled, scale, availableScales, scaleConnectPendingId, scaleTarePending, brewStopPending, brewSkipPending, cleaningStartPending, cleaningPreparedProfileId, sleepPending, sleepScreenActive, machineActionError, settingFeedback: settingFeedbackVisible ? settingFeedback : null, settingsDisabled, toggleSleep, wakeMachine, stopEspresso, skipBrewStage, startDemoBrew, prepareCleaningSequence, cancelCleaningSequence, dismissLiveBrew, searchForScale, connectToScale, dismissScalePicker, tareConnectedScale: () => requestScaleTare(false), updateMachineSetting, updateProfileSetting, profileRecordForEditing, saveProfileDraft, selectProfile, setFavoriteProfileSlot, removeFavoriteProfile }
+  return { model, allProfiles, favoriteProfileIds, favoriteProfileSlots, liveBrew, utilityOperation, previousShotStatus, shotHistory, loadHistoryShot, heatingSeconds, connection, machineConnection, demoPullEnabled, scale, availableScales, scaleConnectPendingId, scaleTarePending, brewStopPending, brewSkipPending, cleaningStartPending, cleaningPreparedProfileId, sleepPending, sleepScreenActive, machineActionError, settingFeedback: settingFeedbackVisible ? settingFeedback : null, settingsDisabled, toggleSleep, wakeMachine, stopEspresso, skipBrewStage, startDemoBrew, prepareCleaningSequence, cancelCleaningSequence, dismissLiveBrew, searchForScale, connectToScale, dismissScalePicker, tareConnectedScale: () => requestScaleTare(false), updateMachineSetting, updateProfileSetting, profileRecordForEditing, saveProfileDraft, selectProfile, setFavoriteProfileSlot, removeFavoriteProfile, profileCanBeDeleted, deleteSavedProfile }
 }
