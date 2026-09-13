@@ -13,8 +13,8 @@ export function clockPoint(degrees: number, radius: number) {
 
 export function coxcombSector(index: number, radius: number, gap = 2) {
   if (radius <= COXCOMB.inner) return ''
-  const start = index * 360 / COXCOMB.bins + gap / 2
-  const end = (index + 1) * 360 / COXCOMB.bins - gap / 2
+  const start = index * 360 / COXCOMB.bins + 180 + gap / 2
+  const end = (index + 1) * 360 / COXCOMB.bins + 180 - gap / 2
   const point = (angle: number, r: number) => clockPoint(angle, r).map(n => n.toFixed(3)).join(' ')
   return `M ${point(start, COXCOMB.inner)} L ${point(start, radius)} A ${radius} ${radius} 0 0 1 ${point(end, radius)} L ${point(end, COXCOMB.inner)} A ${COXCOMB.inner} ${COXCOMB.inner} 0 0 0 ${point(start, COXCOMB.inner)} Z`
 }

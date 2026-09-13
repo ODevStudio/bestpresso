@@ -1,9 +1,7 @@
 import type { DecaidSettings } from '../../api/decaid/types'
 
-// Decaid stores separate fields; Bestpresso exposes one universal yield setting.
-export function hotWaterYieldLookAheadPatch(settings: DecaidSettings): Partial<DecaidSettings> {
-  const value = settings.weightFlowMultiplier
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && settings.hotWaterFlowMultiplier !== value
-    ? { hotWaterFlowMultiplier: value }
-    : {}
+// Connecting a scale enables weight stopping, never changes calibration.
+// Decaid deliberately calibrates espresso and hot water independently.
+export function hotWaterWeightStoppingPatch(settings: DecaidSettings): Partial<DecaidSettings> {
+  return settings.stopHotWaterAtWeight === true ? {} : { stopHotWaterAtWeight: true }
 }

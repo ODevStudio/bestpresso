@@ -39,11 +39,13 @@ export function isEspressoMonitoringSnapshot(snapshot: SnapshotWithState, keepSh
   return snapshotState(snapshot) === 'espresso' || keepShotActive
 }
 
-export function advanceShotTimeline(now: number, acceptsTelemetry: boolean, telemetryStartedAt?: number): ShotTimeline {
+export function advanceShotTimeline(now: number, acceptsTelemetry: boolean, telemetryStartedAt?: number, lastSampleElapsedMs = 0): ShotTimeline {
   const startedAt = telemetryStartedAt ?? (acceptsTelemetry ? now : undefined)
   return {
     telemetryStartedAt: startedAt,
-    elapsedMs: startedAt === undefined ? 0 : Math.max(0, now - startedAt),
+    // Keep the lifecycle/start clock intact for skip transitions, but do not
+    // count post-extraction cleanup as brew time in the header or final stage.
+    elapsedMs: startedAt === undefined ? 0 : acceptsTelemetry ? Math.max(0, now - startedAt) : lastSampleElapsedMs,
   }
 }
 

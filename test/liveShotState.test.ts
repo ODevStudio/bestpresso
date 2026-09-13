@@ -23,6 +23,29 @@ test('keeps an active shot alive while Decaid reports the skip-step transition',
   assert.equal(isEspressoExtractionSnapshot({ state: { state: 'skipStep', substate: 'pouring' } }, true), true)
 })
 
+test('freezes displayed time at the last extraction sample throughout cleanup', () => {
+  const startedAt = 100_000
+  const last = advanceShotTimeline(119_000, true, startedAt)
+  for (const substate of ['pouringDone', 'ending', 'idle']) {
+    const snapshot = { state: { state: 'espresso', substate } }
+    assert.equal(isEspressoMonitoringSnapshot(snapshot), true)
+    const cleanup = advanceShotTimeline(122_000, isEspressoExtractionSnapshot(snapshot), startedAt, last.elapsedMs)
+    assert.equal(cleanup.elapsedMs, 19_000)
+    assert.equal(cleanup.telemetryStartedAt, startedAt)
+  }
+})
+
+test('resumes from the original clock after a transient skip without counting cleanup', () => {
+  const start = 100_000
+  const transition = beginSkipTransition(2, 119_000)
+  const idle = observeSkipTransition({ state: { state: 'idle', substate: 'pouringDone' }, profileFrame: 2 }, transition, 119_200, true)
+  assert.equal(idle.keepShotActive, true)
+  assert.equal(advanceShotTimeline(119_200, idle.acceptTelemetry, start, 19_000).elapsedMs, 19_000)
+  const resumed = observeSkipTransition({ state: { state: 'espresso', substate: 'pouring' }, profileFrame: 3 }, idle.transition, 119_400, true)
+  assert.equal(advanceShotTimeline(119_400, resumed.acceptTelemetry, start, 19_000).elapsedMs, 19_400)
+  assert.equal(advanceShotTimeline(120_000, false).elapsedMs, 0)
+})
+
 test('does not let an isolated skip-step snapshot start a new shot', () => {
   assert.equal(isEspressoExtractionSnapshot({ state: { state: 'skipStep', substate: 'pouring' } }), false)
 })

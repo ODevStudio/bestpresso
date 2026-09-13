@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { hotWaterYieldLookAheadPatch } from './yieldLookAhead'
 import { displayBrightness } from './displayBrightness'
 import {
   connectDevice,
@@ -136,7 +135,6 @@ export function useUnifiedSettings(enabled: boolean) {
     setMessage(null)
     try {
       const rea = changedFields(baseline.rea, draft.rea)
-      if ('weightFlowMultiplier' in rea) Object.assign(rea, hotWaterYieldLookAheadPatch(draft.rea))
       const machine = changedFields(baseline.machine, draft.machine)
       const advanced = changedFields(baseline.advanced, draft.advanced)
       const presenceChanges = changedFields(baseline.presence, draft.presence)
