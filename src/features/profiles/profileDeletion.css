@@ -1,8 +1,9 @@
-.profile-detail__delete-row { display:flex; justify-content:flex-end; margin-top:24px; }
-.profile-detail__delete { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:0 16px; border:1px solid rgba(231,137,137,.32); border-radius:24px; color:#f0aeae; background:rgba(127,44,44,.16); font:inherit; font-size:14px; }
-.profile-detail__delete img { width:18px; height:18px; }
-.profile-detail__delete:hover:not(:disabled) { background:rgba(127,44,44,.3); }
-.profile-detail__delete:disabled { opacity:.45; }
+.profile-detail__heading:has(.profile-detail__delete) { flex-wrap:wrap; }
+.profile-detail__heading:has(.profile-detail__delete)>div:first-child { flex:1 1 160px; }
+.profile-detail__actions button.profile-detail__delete { color:#f18b87; border-color:rgba(241,139,135,.65); background:rgba(127,44,44,.16); }
+.profile-detail__delete-icon { display:block; width:20px; height:20px; background:currentColor; -webkit-mask:url('../../assets/figma/builder-stage-delete.svg') center/contain no-repeat; mask:url('../../assets/figma/builder-stage-delete.svg') center/contain no-repeat; }
+.profile-detail__actions button.profile-detail__delete:hover:not(:disabled) { border-color:#f18b87; background:rgba(127,44,44,.3); }
+.profile-detail__actions button.profile-detail__delete:focus-visible { outline-color:currentColor; }
 .profile-delete-dialog { width:min(440px,calc(100vw - 40px)); max-height:calc(100dvh - 48px); box-sizing:border-box; padding:28px; overflow:auto; border:1px solid rgba(255,255,255,.15); border-radius:24px; color:#f3f2f0; background:#302c2a; box-shadow:0 24px 72px rgba(0,0,0,.4); }
 .profile-delete-dialog::backdrop { background:rgba(0,0,0,.6); }
 .profile-delete-dialog h2 { margin:0; font-size:24px; line-height:1.2; font-weight:600; }
@@ -15,9 +16,8 @@
 .profile-delete-dialog__actions .profile-delete-dialog__confirm { color:#ffcece; border-color:rgba(236,134,134,.3); background:#713635; }
 .profile-delete-dialog__actions button:disabled { opacity:.45; cursor:not-allowed; }
 .profile-delete-dialog button:focus-visible,.profile-detail__delete:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
-[data-theme="light"] .profile-detail__delete { color:#a13732; border-color:#d8aaa5; background:#f3e3df; }
-[data-theme="light"] .profile-detail__delete:hover:not(:disabled) { background:#ecd5d0; }
-[data-theme="light"] .profile-detail__delete img { filter:brightness(.6) sepia(.6) saturate(3); }
+[data-theme="light"] .profile-detail__actions button.profile-detail__delete { color:#b4322c; border-color:#cb837d; background:#f3e3df; }
+[data-theme="light"] .profile-detail__actions button.profile-detail__delete:hover:not(:disabled) { border-color:#b4322c; background:#ecd5d0; }
 [data-theme="light"] .profile-delete-dialog { color:#34463a; background:#fafbf6; border-color:#c7cdc4; }
 [data-theme="light"] .profile-delete-dialog p { color:#596358; }
 [data-theme="light"] .profile-delete-dialog .profile-delete-dialog__notice { background:#e8ece3; }
