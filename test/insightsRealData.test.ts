@@ -61,6 +61,49 @@ test('old offline snapshot groups migrate without discarding cached graphs or sh
   assert.equal(repo.state.cache!.records[0].signature, old.records[0].signature)
 })
 
+test('offline cache reconciles graph duration before the first list snapshot without fetching', async () => {
+  const old = cacheOf([shot('a'), shot('b')])
+  old.details.a = detail('a')
+  let requests = 0
+  let persisted: HistoryCache | null = null
+  const repo = new HistoryRepository('source-a', 'UTC', {
+    storage: { read: async () => old, write: async value => { persisted = value } },
+    page: async () => { requests++; throw Error('offline') },
+    detail: async () => { requests++; throw Error('offline') }, toDetail: () => detail('a'),
+  })
+  const seen: (number | null | undefined)[] = []
+  repo.subscribe(() => { seen.push(repo.state.cache?.records.find(r => r.id === 'a')?.duration) })
+  await repo.load()
+  assert.equal(seen[0], 29)
+  assert.equal(repo.state.cache!.records.find(r => r.id === 'b')!.duration, null)
+  assert.equal(requests, 0)
+  assert.ok(persisted)
+  assert.equal(old.records.find(r => r.id === 'a')!.duration, null)
+})
+
+test('known summary duration survives refresh without a graph but not a changed shot revision', () => {
+  const initial = cacheOf([shot('a')])
+  initial.records[0].duration = 29
+  const refreshed = reconcileHistory(page([shot('a')]), initial, 'source-a', 'UTC', now)
+  assert.equal(refreshed.records[0].duration, 29)
+  assert.equal(refreshed.details.a, undefined)
+  const edited = reconcileHistory(page([shot('a', { annotations: { actualYield: 45 } })]), initial, 'source-a', 'UTC', now)
+  assert.equal(edited.records[0].duration, null)
+})
+
+test('cached duration reconciliation preserves zero and rejects missing or invalid graph time', async () => {
+  for (const totalTime of ['0', '29', '—', '', '  ', 'NaN', '-1', 'Infinity']) {
+    const old = cacheOf([shot('a')])
+    old.details.a = { ...detail('a'), totalTime }
+    const repo = new HistoryRepository('source-a', 'UTC', {
+      storage: { read: async () => old, write: async () => {} },
+      page: async () => page([]), detail: async () => shot(), toDetail: () => detail('a'),
+    })
+    await repo.load()
+    assert.equal(repo.state.cache!.records[0].duration, totalTime === '0' ? 0 : totalTime === '29' ? 29 : null)
+  }
+})
+
 test('home entry has full-width inner layouts and no routine status subtext', () => {
   const component = readFileSync(new URL('../src/features/insights/InsightsHome.tsx', import.meta.url), 'utf8')
   const css = readFileSync(new URL('../src/features/insights/insights.css', import.meta.url), 'utf8')

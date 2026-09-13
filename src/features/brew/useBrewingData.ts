@@ -3,6 +3,8 @@ import { playCompletionSound } from '../../audio/completionSound'
 import { deleteProfile, updateSettings } from '../../api/decaid/client'
 import { assertProfileDeletionAllowed, canDeleteProfile, deleteVerifiedUserProfile, favoritesWithoutProfile } from '../profiles/profileDeletion'
 import { hotWaterWeightStoppingPatch } from '../settings/yieldLookAhead'
+import { hotWaterSettings } from './hotWaterSettings'
+import type { HotWaterShotSettings } from './hotWaterSync'
 import { activeProfileForWorkflow, applyWorkflow, carouselProfiles, favoriteProfileSlots as resolveFavoriteProfileSlots, isCleaningProfile, profileRecordsToDomain, profilesWithParsedTitles, retainedAdHocProfileAtBrewStart, shotStage, shotToDomain, STEAM_HEATER_READY_C, tankMillilitres } from '../../api/decaid/adapters'
 import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, getDevices, getFavoriteAssignments, getLatestShot, getMachineSettings, getProfile, getProfiles, getSettings, getSharedSetting, getShot, getShotHistory, getWorkflow, scanForDevices, setMachineProfile, setMachineState, setSharedSetting, tareScale, updateProfile, updateProfileMetadata, updateWorkflow } from '../../api/decaid/client'
 import { displayBrightness } from '../settings/displayBrightness'
@@ -101,6 +103,19 @@ const machineStateForSnapshot = (snapshot: MachineSnapshot) => (typeof snapshot.
 const metricNumber = (model: BrewingScreenModel, utilityId: 'water' | 'steam', label: string) => {
   const value = Number(model.utilities.find((utility) => utility.id === utilityId)?.metrics.find((metric) => metric.label === label)?.value)
   return Number.isFinite(value) ? value : undefined
+}
+
+// Live machine readback wins over an older workflow poll. The workflow is a
+// saved recipe, not proof that the physical device currently holds its values.
+const withHotWaterReadback = (model: BrewingScreenModel): BrewingScreenModel => {
+  const water = hotWaterSettings.readback()
+  return { ...model, utilities: model.utilities.map((utility) => utility.id !== 'water' ? utility : {
+    ...utility,
+    metrics: utility.metrics.map((metric) => {
+      const value = metric.label === 'Volume' ? water.volume : metric.label === 'Temperature' ? water.targetTemperature : undefined
+      return value === undefined ? metric : { ...metric, value: String(value) }
+    }),
+  }) }
 }
 
 const localFavoriteStorageKey = 'bestpresso.favorite-profile-ids.v1'
@@ -371,6 +386,24 @@ export function useBrewingData() {
 
   useEffect(() => {
     let disposed = false
+    let hotWaterMachineState: string | undefined
+    let hotWaterWorkflow: Awaited<ReturnType<typeof getWorkflow>> = {}
+    let hotWaterWorkflowLoaded = false
+    let hotWaterSyncPending = false
+    const reconcileHotWater = () => {
+      if (disposed || hotWaterSyncPending || !hotWaterWorkflowLoaded) return
+      hotWaterSyncPending = true
+      void hotWaterSettings.reconcile(hotWaterWorkflow, () => !disposed && machineConnectionRef.current === 'connected' && hotWaterMachineState === 'idle' && !liveShotSession.current && !cleaningRestoreWorkflow.current)
+        .then((workflow) => {
+          if (disposed || !workflow) return
+          hotWaterWorkflow = workflow
+          setModel((current) => withHotWaterReadback(applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current)))
+        })
+        .catch(() => {
+          if (!disposed) showMachineActionError('Hot water targets could not be synchronised with Decaid. Check the dispenser settings before use.')
+        })
+        .finally(() => { hotWaterSyncPending = false })
+    }
     let timeToReadyEstimate: { deadline: number; receivedAt: number } | null = null
     let latestShotRefreshTimeout: number | null = null
     let preferredScaleId: string | null = null
@@ -411,6 +444,8 @@ export function useBrewingData() {
       machineConnectionRef.current = next
       setMachineConnection(next)
       if (next !== 'connected') {
+        hotWaterMachineState = undefined
+        hotWaterSettings.disconnect()
         previousReadiness.current = null
         readinessTracker.current.reset()
         setHeatingSeconds(null)
@@ -645,7 +680,10 @@ export function useBrewingData() {
         shotHistoryCache.current.clear()
         if (latestDomainShot?.id) shotHistoryCache.current.set(latestDomainShot.id, latestDomainShot)
         setShotHistory(reconciledHistory)
-        setModel((current) => ({ ...applyWorkflow(current, workflow, records, assignments, retainedAdHocProfileId.current), previousShot: latestDomainShot }))
+        setModel((current) => ({ ...withHotWaterReadback(applyWorkflow(current, workflow, records, assignments, retainedAdHocProfileId.current)), previousShot: latestDomainShot }))
+        hotWaterWorkflow = workflow
+        hotWaterWorkflowLoaded = true
+        reconcileHotWater()
         setPreviousShotStatus(latestShot.failed && historyResult.failed ? 'error' : reconciledHistory.length ? 'loaded' : 'empty')
         setConnection('connected')
       })
@@ -674,9 +712,22 @@ export function useBrewingData() {
         }))
       })
 
+    const shotSettings = subscribe<HotWaterShotSettings>('/machine/shotSettings', (frame) => {
+      if (disposed) return
+      if (hotWaterSettings.observe(frame)) {
+        setModel(withHotWaterReadback)
+        reconcileHotWater()
+      }
+    }, (connected) => {
+      if (!connected) hotWaterSettings.disconnect()
+    })
+
     const machine = subscribe<MachineSnapshot>('/machine/snapshot', (snapshot) => {
       if (machineConnectionRef.current !== 'connected') return
       const machineState = (typeof snapshot.state === 'string' ? snapshot.state : snapshot.state?.state)?.toLowerCase()
+      const wasIdle = hotWaterMachineState === 'idle'
+      hotWaterMachineState = machineState
+      if (!wasIdle && machineState === 'idle') reconcileHotWater()
       machineNeedsWater.current = machineState === 'needswater'
       const operationKind = operationKindForSnapshot(snapshot)
       if (operationKind) {
@@ -907,7 +958,7 @@ export function useBrewingData() {
     }, () => undefined)
 
     const heatingCountdown = window.setInterval(() => {
-      if (!timeToReadyEstimate || Date.now() - timeToReadyEstimate.receivedAt > 6000) {
+      if (!timeToReadyEstimate || Date.now() - timeToReadyEstimate.receivedAt > 8000) {
         timeToReadyEstimate = null
         setHeatingSeconds(null)
         return
@@ -917,8 +968,12 @@ export function useBrewingData() {
 
     const refreshWorkflow = window.setInterval(() => {
       getWorkflow().then((workflow) => {
+        if (disposed) return
+        hotWaterWorkflow = workflow
+        hotWaterWorkflowLoaded = true
+        reconcileHotWater()
         if (disposed || liveShotSession.current || (workflow.profile?.beverage_type?.toLowerCase() === 'cleaning' && cleaningRestoreWorkflow.current)) return
-        setModel((current) => applyWorkflow(current, rememberFlushDuration(workflow), profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
+        setModel((current) => withHotWaterReadback(applyWorkflow(current, rememberFlushDuration(workflow), profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current)))
       }).catch(() => undefined)
     }, 15000)
 
@@ -959,7 +1014,7 @@ export function useBrewingData() {
       if (feedbackTimeout.current !== null) window.clearTimeout(feedbackTimeout.current)
       if (actionErrorTimeout.current !== null) window.clearTimeout(actionErrorTimeout.current)
       if (scaleRenderFrame !== null) window.cancelAnimationFrame(scaleRenderFrame)
-      machine.close(); scale.close(); water.close(); timeToReady.close()
+      machine.close(); scale.close(); water.close(); timeToReady.close(); shotSettings.close()
     }
   }, [])
 
@@ -1228,9 +1283,10 @@ export function useBrewingData() {
     const update = settings[setting]
     showSettingFeedback({ status: 'saving', message: `Saving ${update.label}…` })
     try {
-      const workflow = await updateWorkflow(update.patch)
+      const isHotWater = setting === 'hotWaterVolume' || setting === 'hotWaterTemperature'
+      const workflow = await (isHotWater ? hotWaterSettings.save(update.patch) : updateWorkflow(update.patch))
       setModel((current) => applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
-      if ('sharedKey' in update) await setSharedSetting(update.sharedKey, value)
+      if (!isHotWater && 'sharedKey' in update) await setSharedSetting(update.sharedKey, value)
       showSettingFeedback({ status: 'saved', message: `${update.label} saved to Decaid.` })
     } catch {
       showSettingFeedback({ status: 'error', message: `${update.label} could not be saved.` })

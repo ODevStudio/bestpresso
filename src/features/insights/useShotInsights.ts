@@ -4,6 +4,7 @@ import { shotToDomain } from '../../api/decaid/adapters'
 import { browserHistoryStorage } from './historyStorage'
 import { HistoryRepository } from './historyRepository'
 import { readHistoryDetail, readHistoryPage } from './historyTransport'
+import { startLatestChartRetry, type LatestChartStatus } from './latestChartRetry'
 
 export function useShotInsights(active: boolean, refreshKey: string) {
   const source = getDecaidEndpoints().apiBase
@@ -28,9 +29,30 @@ export function useShotInsights(active: boolean, refreshKey: string) {
   const latestId = latest?.id
   const latestSignature = latest?.signature
   const latestCached = !!(latestId && state.cache?.details[latestId])
+  const chartKey = `${latestId ?? ''}:${latestSignature ?? ''}`
+  const [chartState, setChartState] = useState<{ key: string; status: LatestChartStatus } | null>(null)
   useEffect(() => {
-    if (active && state.status === 'ready' && latestId && !latestCached) void repository.detail(latestId).catch(() => undefined)
-  }, [active, repository, state.status, latestId, latestSignature, latestCached]) // one thumbnail, never every history curve
-  return { ...state, now, repository }
+    if (!active || !latestId || latestCached) return
+    const retry = startLatestChartRetry({
+      load: () => repository.detail(latestId),
+      visible: () => document.visibilityState !== 'hidden',
+      changed: status => setChartState({ key: chartKey, status }),
+      schedule: (callback, delay) => {
+        const timer = window.setTimeout(callback, delay)
+        return () => window.clearTimeout(timer)
+      },
+    })
+    window.addEventListener('online', retry.resume)
+    document.addEventListener('visibilitychange', retry.resume)
+    return () => {
+      retry.stop()
+      window.removeEventListener('online', retry.resume)
+      document.removeEventListener('visibilitychange', retry.resume)
+    }
+  }, [active, repository, latestId, chartKey, latestCached])
+  const latestChartStatus: LatestChartStatus = latestCached
+    ? state.cache!.details[latestId!].points?.length ? 'ready' : 'empty'
+    : chartState?.key === chartKey ? chartState.status : 'loading'
+  return { ...state, now, repository, latestChartStatus }
 }
 export type ShotInsights = ReturnType<typeof useShotInsights>

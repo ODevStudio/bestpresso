@@ -9,6 +9,20 @@ const historyScreen = readFileSync(new URL('../src/features/history/PreviousShot
 const styles = readFileSync(new URL('../src/styles/index.css', import.meta.url), 'utf8')
 const utilityIcons = ['hot-water.svg', 'steam.svg', 'scale.svg'].map((name) => readFileSync(new URL(`../src/assets/figma/${name}`, import.meta.url), 'utf8'))
 
+test('suppresses native tap flashes throughout the app without removing keyboard focus styles', () => {
+  assert.match(styles, /#root,#root \*\s*\{[^}]*-webkit-tap-highlight-color:transparent/)
+  assert.match(styles, /\.metric__edit-button:focus-visible\s*\{[^}]*outline:2px solid/)
+})
+
+test('steam duration is visible and editable on the card and in Settings', () => {
+  assert.match(utilityCard, /label === 'Duration'\s*\? 'steamDuration'/)
+  assert.match(utilityCard, /'steamTemperature'/)
+  assert.match(utilityCard, /'steamFlow'/)
+  assert.match(utilityCard, /const metrics = utility\.metrics\.map/)
+  const settings = readFileSync(new URL('../src/features/settings/SettingsScreen.tsx', import.meta.url), 'utf8')
+  assert.match(settings, /label="Duration"[^\n]*patchWorkflow\('steamSettings', \{ duration \}\)/)
+})
+
 test('marks disabled steam heating so its temperature is no longer shown as a warning', () => {
   assert.match(utilityCard, /isSteam && !steamHeatingEnabled \? ' utility-card--steam-off'/)
   assert.match(styles, /\.utility-card--steam\.utility-card--steam-off \.metric:first-child \.metric__reading \{ color:#707070; \}/)
