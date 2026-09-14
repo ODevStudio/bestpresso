@@ -19,6 +19,7 @@ import './styles/index.css'
 import './styles/cardSurfaces.css'
 import './styles/lightMode.css'
 import './styles/settingsLayout.css'
+import './features/machine/drinkUtilityCards.css'
 import './features/insights/insights.css'
 
 type AppPage = 'home' | 'profiles' | 'previous-pull' | 'profile-builder' | 'settings' | 'insights'

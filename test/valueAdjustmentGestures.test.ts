@@ -1,7 +1,22 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { appendNumericKey, gestureIncrement, maximumGesturePointers, normalizedNumericDraft, numericDraftRangeIssue, removeNumericKey } from '../src/components/ValueAdjustment/valueAdjustmentGestures.ts'
+import { appendNumericKey, gestureIncrement, maximumGesturePointers, normalizedAdjustmentValue, normalizedNumericDraft, numericDraftRangeIssue, removeNumericKey } from '../src/components/ValueAdjustment/valueAdjustmentGestures.ts'
 import { VALUE_ADJUSTMENTS } from '../src/domain/valueAdjustments.ts'
+
+test('ruler snapping cannot exceed the Fahrenheit steam temperature bound', () => {
+  const request = { min: 275, max: 338, step: 2, mode: 'integer' as const }
+  assert.equal(normalizedAdjustmentValue(338, request), 338)
+  assert.equal(normalizedAdjustmentValue(400, request), 338)
+  assert.equal(normalizedAdjustmentValue(274, request), 275)
+  assert.equal(normalizedAdjustmentValue(300, request), 301)
+})
+
+test('clamping preserves existing whole-step and decimal adjustments', () => {
+  assert.equal(normalizedAdjustmentValue(35, VALUE_ADJUSTMENTS.hotWaterDuration), 35)
+  assert.equal(normalizedAdjustmentValue(120, VALUE_ADJUSTMENTS.hotWaterDuration), 120)
+  assert.equal(normalizedAdjustmentValue(0.79, VALUE_ADJUSTMENTS.steamFlow), 0.8)
+  assert.equal(normalizedAdjustmentValue(3, VALUE_ADJUSTMENTS.steamFlow), 2.5)
+})
 
 test('one finger follows the selected ruler precision', () => {
   assert.equal(gestureIncrement('decimal', 1, true), 0.1)

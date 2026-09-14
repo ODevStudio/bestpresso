@@ -53,7 +53,7 @@ export const brewingFixture: BrewingScreenModel = {
   readiness: 'ready',
   activeProfileId: 'adaptive-v2',
   utilities: [
-    { id: 'water', label: 'Hot water', metrics: [{ label: 'Volume', value: '50', unit: 'ml' }, { label: 'Temperature', value: '92', unit: '°' }] },
+    { id: 'water', label: 'Hot water', metrics: [{ label: 'Volume', value: '50', unit: 'ml' }, { label: 'Temperature', value: '92', unit: '°' }, { label: 'Max duration', value: '30', unit: 's' }] },
     { id: 'steam', label: 'Steam', enabled: true, metrics: [{ label: 'Current', value: '121', unit: '°', highlight: true }, { label: 'Target', value: '160', unit: '°' }, { label: 'Duration', value: '50', unit: 's' }, { label: 'Flow', value: '0.6', unit: 'ml/s' }] },
     { id: 'scale', label: 'Scale', metrics: [{ label: 'Weight', value: '0.0', unit: 'g' }] },
     { id: 'tank', label: 'Reservoir', metrics: [{ label: 'Current', value: '1,234', unit: 'ml' }] },

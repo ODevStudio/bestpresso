@@ -56,6 +56,14 @@ export const VALUE_ADJUSTMENTS = {
     mode: 'integer',
     suggestions: [150, 155, 160, 165, 170],
   },
+  hotWaterDuration: {
+    title: 'Hot water max duration',
+    min: 5,
+    max: 120,
+    step: 5,
+    mode: 'integer',
+    suggestions: [],
+  },
   steamDuration: {
     title: 'Steam duration',
     min: 0,

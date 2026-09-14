@@ -5,19 +5,13 @@ import { MAX_VALUE_SUGGESTIONS } from '../../domain/valueAdjustments'
 import { NumericKeypad } from './NumericKeypad'
 import { ValueAdjustmentContext } from './ValueAdjustmentContext'
 import type { ValueAdjustmentMode, ValueAdjustmentRequest } from './ValueAdjustmentContext'
-import { appendNumericKey, gestureIncrement, maximumGesturePointers, normalizedNumericDraft, numericDraftRangeIssue, removeNumericKey } from './valueAdjustmentGestures'
+import { appendNumericKey, gestureIncrement, maximumGesturePointers, normalizedAdjustmentValue as normalizedValue, normalizedNumericDraft, numericDraftRangeIssue, removeNumericKey } from './valueAdjustmentGestures'
 
 const SUGGESTION_STORAGE_KEY = 'bestpresso.value-adjustment-suggestions.v2'
 type SuggestionStore = Partial<Record<ValueAdjustmentRequest['suggestionKey'], number[]>>
 
 const formatValue = (value: number, mode: ValueAdjustmentMode) => mode === 'decimal' ? value.toFixed(1) : String(Math.round(value))
 const formatSuggestion = (value: number, mode: ValueAdjustmentMode) => mode === 'decimal' && !Number.isInteger(value) ? value.toFixed(1) : String(value)
-
-const normalizedValue = (value: number, request: ValueAdjustmentRequest) => {
-  const steps = Math.round((Math.min(request.max, Math.max(request.min, value)) - request.min) / request.step)
-  const stepped = request.min + steps * request.step
-  return Number(stepped.toFixed(request.mode === 'decimal' ? 1 : 0))
-}
 
 const clampedValue = (value: number, request: ValueAdjustmentRequest) => Math.min(request.max, Math.max(request.min, value))
 

@@ -26,3 +26,14 @@
 - New profiles record whether they were created or imported. Older recipes without that information appear as Saved rather than being guessed into a source category.
 
 The redesigned screens follow your light/dark theme, temperature unit, and chart line-weight preferences. Light mode remains Beta; dark remains the default. Existing profiles, favorites, shot history, and brewing behavior are preserved.
+
+## Patch 001 — Hot water & steam
+
+- Redesigned expanded hot-water and steam cards with a cleaner layout and a circular steam-temperature indicator.
+- Adjust temperature, amount, flow, and maximum duration through the existing controls, with values kept in sync with Settings.
+- Smoother temperature updates, steam on/off transitions, and expand/collapse animations. Familiar compact summaries remain unchanged.
+- Improved collapsed-card spacing on shorter screens and fixed Fahrenheit adjustments rounding above the temperature limit.
+
+Reservoir, scale, profiles, insights, and history remain unchanged by this patch. Both dark and Light Beta themes are supported.
+
+Install `bestpresso-v0.1.29-patch001.zip` in Decaid.
