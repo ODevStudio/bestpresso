@@ -13,15 +13,16 @@ const targetPath = (points: ProfileTargetPoint[], key: 'pressure' | 'flow' | 'te
   return `${path}${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
 }, '')
 
-function ProfileTargetChartComponent({ profileName, points = [], variant = 'card' }: { profileName: string; points?: ProfileTargetPoint[]; variant?: 'card' | 'detail' }) {
+function ProfileTargetChartComponent({ profileName, points = [], variant = 'card' }: { profileName: string; points?: ProfileTargetPoint[]; variant?: 'card' | 'detail' | 'library' }) {
   const durationMs = Math.max(1, points.at(-1)?.elapsedMs ?? 1)
   const pressurePath = useMemo(() => targetPath(points, 'pressure', 0, 12, durationMs), [points, durationMs])
   const flowPath = useMemo(() => targetPath(points, 'flow', 0, 12, durationMs), [points, durationMs])
   const temperaturePath = useMemo(() => targetPath(points, 'temperature', 20, 110, durationMs), [points, durationMs])
 
-  return <div className={variant === 'detail' ? 'profile-detail-chart' : 'profile-card__chart'}>
-    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={`Expected pressure, flow, and temperature for ${profileName}`}>
+  return <div className={variant === 'library' ? 'pl-chart' : variant === 'detail' ? 'profile-detail-chart' : 'profile-card__chart'}>
+    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={`Expected ${variant === 'detail' ? 'pressure, flow, and temperature' : 'pressure and flow'} for ${profileName}`}>
       {variant === 'detail' && <path className="profile-target-line profile-target-line--temperature" d={temperaturePath} />}
+      {variant === 'library' && points.length > 0 && <path d={pressurePath + ` L${WIDTH},${HEIGHT} L0,${HEIGHT} Z`} fill="var(--chart-pressure)" opacity=".07"/>}
       <path className="profile-target-line profile-target-line--pressure" d={pressurePath} />
       <path className="profile-target-line profile-target-line--flow" d={flowPath} />
     </svg>

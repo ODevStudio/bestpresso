@@ -1,21 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import favoriteRemoveIcon from '../../assets/figma/favorite-remove.svg'
-import favoriteReplaceIcon from '../../assets/figma/favorite-replace.svg'
-import profileChevronIcon from '../../assets/figma/profile-chevron.svg'
-import profileDetailEditIcon from '../../assets/figma/profile-detail-edit.svg'
-import profileFavoriteIcon from '../../assets/figma/profile-favorite.svg'
-import profileUseIcon from '../../assets/figma/profile-use.svg'
-import profilesAddIcon from '../../assets/figma/profiles-add.svg'
-import profilesBackIcon from '../../assets/figma/profiles-back.svg'
-import profilesSearchIcon from '../../assets/figma/profiles-search.svg'
-import { ProfileDeleteDialog } from './ProfileDeleteDialog'
-import './profileDeletion.css'
-import { isCleaningProfile, sortProfilesForDirectory } from '../../api/decaid/adapters'
+import { useEffect, useRef, useState } from 'react'
+import { SidebarBrand, SidebarNavItem } from '../../components/Sidebar/SidebarNavigation'
 import type { BrewProfile, SettingFeedback } from '../../domain/brewing'
+import { formatTemperatureValue } from '../../domain/temperature'
+import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import { ProfileTargetChart } from '../brew/ProfileTargetChart'
-import { isVisualizerShareCode, normalizeVisualizerShareCode, parseProfileImport, type ParsedProfileImport } from './profileImports'
-
-type ProfileEditMode = 'copy' | 'edit'
+import { ProfileDeleteDialog } from './ProfileDeleteDialog'
+import { parseProfileImport, type ParsedProfileImport } from './profileImports'
+import { filterLibraryProfiles, profileLibrarySource, type LibrarySection } from './profileLibraryModel'
+import './profileDeletion.css'
+import './profileLibrary.css'
 
 interface ProfilesPanelProps {
   profiles: BrewProfile[]
@@ -23,305 +16,127 @@ interface ProfilesPanelProps {
   activeProfileId?: string
   initialProfileId?: string
   editingEnabled?: boolean
-  profileEditMode?: (profileId: string) => ProfileEditMode
+  profileEditMode?: (id: string) => 'copy' | 'edit'
   feedback: SettingFeedback | null
-  onSelectProfile: (profileId: string) => Promise<boolean>
-  onSetFavoriteSlot: (profileId: string, slot: number) => Promise<boolean>
-  onRemoveFavorite: (profileId: string) => Promise<boolean>
+  onSelectProfile: (id: string) => Promise<boolean>
+  onSetFavoriteSlot: (id: string, slot: number) => Promise<boolean>
+  onRemoveFavorite: (id: string) => Promise<boolean>
   onClose: () => void
+  onViewProfile: (id?: string) => void
   onStartProfile?: () => void
   onImportProfile?: (profile: ParsedProfileImport) => void
   onCheckVisualizer?: () => Promise<{ ready: boolean; message?: string }>
-  onImportVisualizer?: (shareCode: string) => Promise<void>
+  onImportVisualizer?: (code: string) => Promise<void>
   onOpenSettings?: () => void
-  onEditProfile?: (profileId: string) => void
-  canDeleteProfile?: (profileId: string) => boolean
-  onDeleteProfile?: (profileId: string) => Promise<void>
+  onEditProfile?: (id: string) => void
+  canDeleteProfile?: (id: string) => boolean
+  onDeleteProfile?: (id: string) => Promise<void>
 }
+function Icon({ name }: { name: string }) {
+  if (['star','unfavorite','cup'].includes(name)) return <span className={`pl-star-icon pl-star-icon--${name}`} aria-hidden="true"/>
+  const paths: Record<string,string> = { search:'m16 16 4 4M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0', arrow:'m9 5 7 7-7 7', plus:'M12 4v16M4 12h16', import:'M12 2v13m-5-5 5 5 5-5M3 16v5h18v-5', grid:'M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z', edit:'m4 16-1 5 5-1L21 7l-5-5ZM14 4l6 6', up:'m6 14 6-6 6 6', down:'m6 10 6 6 6-6' }
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]}/></svg>
+}
+function Metric({ label, value, unit }: { label:string; value:string; unit?:string }) {
+  return <div className="pl-metric"><span>{label}</span><strong>{value}{unit && value !== '—' && <small className={unit === '°' ? 'temperature-unit' : undefined}>{unit}</small>}</strong></div>
+}
+function Chart({profile}:{profile:BrewProfile}) { return <ProfileTargetChart profileName={profile.name} points={profile.targetPoints} variant="library"/> }
 
-export function ProfilesPanel({ profiles, favoriteProfileSlots, activeProfileId, initialProfileId, editingEnabled = false, profileEditMode, feedback, onSelectProfile, onSetFavoriteSlot, onRemoveFavorite, onClose, onStartProfile, onImportProfile, onCheckVisualizer: _onCheckVisualizer, onImportVisualizer, onOpenSettings, onEditProfile, canDeleteProfile, onDeleteProfile }: ProfilesPanelProps) {
-  const [deletingProfile, setDeletingProfile] = useState<BrewProfile | null>(null)
-  const [selectedProfileId, setSelectedProfileId] = useState<string | undefined>(initialProfileId ?? activeProfileId ?? profiles[0]?.id)
-  const [activeCategory, setActiveCategory] = useState('All')
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const searchInput = useRef<HTMLInputElement>(null)
-  const directoryItems = useRef(new Map<string, HTMLButtonElement>())
-  const [pendingProfileId, setPendingProfileId] = useState<string | null>(null)
-  const [replacementProfileId, setReplacementProfileId] = useState<string | null>(null)
-  const [scrollTargetProfileId, setScrollTargetProfileId] = useState<string | null>(initialProfileId ?? null)
-  const [addMenuOpen, setAddMenuOpen] = useState(false)
-  const [addError, setAddError] = useState<string | null>(null)
-  const [visualizerOpen, setVisualizerOpen] = useState(false)
-  const [visualizerCode, setVisualizerCode] = useState('')
-  const [visualizerStatus, setVisualizerStatus] = useState<'checking' | 'ready' | 'unavailable' | 'importing'>('checking')
-  const [visualizerMessage, setVisualizerMessage] = useState<string | null>(null)
-  const addMenu = useRef<HTMLDivElement>(null)
-  const profileFileInput = useRef<HTMLInputElement>(null)
-
-  const favoriteIds = favoriteProfileSlots.filter((id): id is string => Boolean(id))
-  const favoriteIdSet = new Set(favoriteIds)
-  const selectedProfile = profiles.find((profile) => profile.id === selectedProfileId)
-    ?? profiles.find((profile) => profile.id === activeProfileId)
-    ?? profiles[0]
-  const availableCategories = useMemo(() => {
-    const categories = profiles
-      .map((profile) => profile.category)
-      .filter((category): category is string => typeof category === 'string' && category.toLowerCase() !== 'popular')
-    return ['All', ...Array.from(new Set(categories)).sort((left, right) => {
-      const leftIsCleaning = profiles.some((profile) => profile.category === left && isCleaningProfile(profile))
-      const rightIsCleaning = profiles.some((profile) => profile.category === right && isCleaningProfile(profile))
-      return Number(leftIsCleaning) - Number(rightIsCleaning)
-    })]
-  }, [profiles])
-  const normalizedQuery = searchQuery.trim().toLowerCase()
-  const visibleProfiles = sortProfilesForDirectory(profiles.filter((profile) => {
-    const matchesCategory = activeCategory === 'All' || profile.category === activeCategory
-    const searchText = `${profile.name} ${profile.category ?? ''} ${profile.description ?? ''}`.toLowerCase()
-    return matchesCategory && (!normalizedQuery || searchText.includes(normalizedQuery))
-  }))
-  const emptyFavoriteSlot = favoriteProfileSlots.findIndex((id) => !id)
-  const replacingFavorite = replacementProfileId !== null
-  const editLabel = (profileId: string) => profileEditMode?.(profileId) === 'edit' ? 'Edit profile' : 'Edit a copy'
-
-  useEffect(() => {
-    if (!searchOpen) return
-    const frame = window.requestAnimationFrame(() => searchInput.current?.focus())
-    return () => window.cancelAnimationFrame(frame)
-  }, [searchOpen])
-
-  useEffect(() => {
-    if (!scrollTargetProfileId) return
-    const frame = window.requestAnimationFrame(() => {
-      directoryItems.current.get(scrollTargetProfileId)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
-      setScrollTargetProfileId((current) => current === scrollTargetProfileId ? null : current)
+export function ProfilesPanel({profiles, favoriteProfileSlots, activeProfileId, initialProfileId, editingEnabled=false, profileEditMode, feedback, onSelectProfile, onSetFavoriteSlot, onRemoveFavorite, onClose, onViewProfile, onStartProfile, onImportProfile, onEditProfile, canDeleteProfile, onDeleteProfile}:ProfilesPanelProps) {
+  const { preferences } = useBestpressoPreferences()
+  const [section,setSection] = useState<LibrarySection>('All profiles')
+  const [query,setQuery] = useState('')
+  const [category,setCategory] = useState('')
+  const [sort,setSort] = useState<'name'|'recent'>('name')
+  const [candidateId,setCandidateId] = useState<string|null>(null)
+  const [deleting,setDeleting] = useState<BrewProfile|null>(null)
+  const [pending,setPending] = useState(false)
+  const [error,setError] = useState<string|null>(null)
+  const inFlight = useRef(false)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const dialog = useRef<HTMLDialogElement>(null)
+  const content = useRef<HTMLElement>(null)
+  const scroll = useRef(0)
+  const returnId = useRef<string|null>(null)
+  const detail = profiles.find(p=>p.id===initialProfileId)
+  const candidate = profiles.find(p=>p.id===candidateId)
+  const favorites = favoriteProfileSlots.flatMap((id,slot)=>{const profile=profiles.find(p=>p.id===id); return profile?[{profile,slot}]:[]})
+  const ids = new Set(favorites.map(f=>f.profile.id))
+  const categories = [...new Set(profiles.map(p=>p.category).filter((c):c is string=>Boolean(c)))].sort((a,b)=>a.localeCompare(b))
+  const sources:LibrarySection[] = ['Created','Imported','Built-in',...(profiles.some(p=>profileLibrarySource(p)==='Saved')?['Saved' as const]:[])]
+  const visible = filterLibraryProfiles(profiles,{section,query,category,sort})
+  const count = (s:LibrarySection)=>s==='All profiles'?profiles.length:s==='Favorites'?favorites.length:profiles.filter(p=>profileLibrarySource(p)===s).length
+  useEffect(()=>{
+    if(!candidateId) return
+    const element=dialog.current
+    if(!element)return
+    const focus=document.activeElement as HTMLElement|null
+    element.showModal()
+    return ()=>{element.close();if(focus?.isConnected)focus.focus()}
+  },[candidateId])
+  useEffect(()=>{
+    if(initialProfileId)return
+    const frame=requestAnimationFrame(()=>{
+      if(content.current)content.current.scrollTop=scroll.current
+      Array.from(content.current?.querySelectorAll<HTMLButtonElement>('[data-profile-id]')??[]).find(b=>b.dataset.profileId===returnId.current)?.focus({preventScroll:true})
     })
-    return () => window.cancelAnimationFrame(frame)
-  }, [scrollTargetProfileId, activeCategory, searchQuery])
-
-  useEffect(() => {
-    if (!addMenuOpen) return
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (!addMenu.current?.contains(event.target as Node)) setAddMenuOpen(false)
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setAddMenuOpen(false)
-    }
-    document.addEventListener('pointerdown', closeOnOutsidePress)
-    window.addEventListener('keydown', closeOnEscape)
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutsidePress)
-      window.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [addMenuOpen])
-
-  useEffect(() => {
-    if (!visualizerOpen) return
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && visualizerStatus !== 'importing') setVisualizerOpen(false)
-    }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [visualizerOpen, visualizerStatus])
-
-  const selectPreview = (profileId: string) => {
-    setSelectedProfileId(profileId)
-    setReplacementProfileId(null)
+    return ()=>cancelAnimationFrame(frame)
+  },[initialProfileId])
+  async function run(action:()=>Promise<boolean>) {
+    if(inFlight.current)return false
+    inFlight.current=true;setPending(true);setError(null)
+    try {const ok=await action();if(!ok)setError('That change could not be saved. Check your connection and try again.');return ok}
+    catch(cause){setError(cause instanceof Error?cause.message:'That change could not be saved. Please try again.');return false}
+    finally{inFlight.current=false;setPending(false)}
   }
-
-  const selectFavoritePreview = (profile: BrewProfile) => {
-    setActiveCategory(profile.category && availableCategories.includes(profile.category) ? profile.category : 'All')
-    setSearchQuery('')
-    setSelectedProfileId(profile.id)
-    setReplacementProfileId(null)
-    setScrollTargetProfileId(profile.id)
+  function navigate(next:LibrarySection){setSection(next);setQuery('');setCategory('');setError(null);scroll.current=0}
+  function open(p:BrewProfile){scroll.current=content.current?.scrollTop??0;returnId.current=p.id;onViewProfile(p.id)}
+  async function favorite(p:BrewProfile) {
+    if(inFlight.current)return
+    if(ids.has(p.id)){await run(()=>onRemoveFavorite(p.id));return}
+    const empty=Array.from({length:5},(_,i)=>i).find(i=>!profiles.some(p=>p.id===favoriteProfileSlots[i]))
+    if(empty!==undefined){await run(()=>onSetFavoriteSlot(p.id,empty));return}
+    setError(null);setCandidateId(p.id)
   }
-
-  const selectCategory = (category: string) => {
-    setActiveCategory(category)
-    setReplacementProfileId(null)
-    const firstProfile = category === 'All' ? profiles[0] : profiles.find((profile) => profile.category === category)
-    if (firstProfile) setSelectedProfileId(firstProfile.id)
+  async function importFile(file:File|undefined){
+    if(!file||inFlight.current)return
+    setError(null)
+    try{onImportProfile?.(parseProfileImport(await file.text()))}
+    catch(cause){setError(cause instanceof Error?cause.message:'That profile could not be imported.')}
   }
-
-  const applyProfile = async (profileId: string) => {
-    setPendingProfileId(profileId)
-    await onSelectProfile(profileId)
-    setPendingProfileId(null)
-  }
-
-  const removeFavorite = async (profileId: string) => {
-    setPendingProfileId(profileId)
-    await onRemoveFavorite(profileId)
-    setPendingProfileId(null)
-  }
-
-  const requestFavorite = async () => {
-    if (!selectedProfile || favoriteIdSet.has(selectedProfile.id)) return
-    if (replacementProfileId === selectedProfile.id) {
-      setReplacementProfileId(null)
-      return
-    }
-    if (emptyFavoriteSlot >= 0) {
-      setPendingProfileId(selectedProfile.id)
-      await onSetFavoriteSlot(selectedProfile.id, emptyFavoriteSlot)
-      setPendingProfileId(null)
-      return
-    }
-    setReplacementProfileId(selectedProfile.id)
-  }
-
-  const replaceFavorite = async (slot: number) => {
-    if (!replacementProfileId) return
-    setPendingProfileId(replacementProfileId)
-    const replaced = await onSetFavoriteSlot(replacementProfileId, slot)
-    setPendingProfileId(null)
-    if (replaced) setReplacementProfileId(null)
-  }
-
-  const chooseJsonProfile = async (file: File | undefined) => {
-    if (!file) return
-    setAddError(null)
-    try {
-      const imported = parseProfileImport(await file.text())
-      setAddMenuOpen(false)
-      onImportProfile?.(imported)
-    } catch (error) {
-      setAddError(error instanceof Error ? error.message : 'That profile could not be imported.')
-      setAddMenuOpen(true)
-    }
-  }
-
-  /* Visualizer add-profile entry point is temporarily withheld from the UI.
-  const openVisualizerImport = async () => {
-    setAddMenuOpen(false)
-    setVisualizerOpen(true)
-    setVisualizerCode('')
-    setVisualizerMessage(null)
-    setVisualizerStatus('checking')
-    const availability = await _onCheckVisualizer?.() ?? { ready: false, message: 'Visualizer import is not available.' }
-    setVisualizerStatus(availability.ready ? 'ready' : 'unavailable')
-    setVisualizerMessage(availability.message ?? null)
-  }
-  */
-
-  const submitVisualizerImport = async () => {
-    if (!isVisualizerShareCode(visualizerCode) || visualizerStatus !== 'ready') return
-    setVisualizerStatus('importing')
-    setVisualizerMessage(null)
-    try {
-      await onImportVisualizer?.(visualizerCode)
-    } catch (error) {
-      setVisualizerStatus('ready')
-      setVisualizerMessage(error instanceof Error ? error.message : 'That share code could not be imported.')
-    }
-  }
-
-  return <main className="app-shell profiles-page">
-    <header className="profiles-header">
-      <div className="profiles-header__title">
-        <button className="profiles-icon-button profiles-back" type="button" onClick={onClose} aria-label="Back to brewing"><img src={profilesBackIcon} alt="" /></button>
-        <h1>Profiles</h1>
-      </div>
-      <div className="profiles-header__actions">
-        <div className={`profiles-search-control${searchOpen ? ' profiles-search-control--open' : ''}`}>
-          <label className="profiles-search-field" aria-hidden={!searchOpen}>
-            <span>Search profiles</span>
-            <input ref={searchInput} id="profiles-search-input" value={searchQuery} placeholder="Try a keyword (eg. turbo, 6 bar)" disabled={!searchOpen} onChange={(event) => setSearchQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') { setSearchOpen(false); setSearchQuery('') } }} />
-          </label>
-          <button className="profiles-icon-button profiles-search" type="button" aria-controls="profiles-search-input" aria-expanded={searchOpen} onClick={() => { setSearchOpen((current) => !current); if (searchOpen) setSearchQuery('') }} aria-label={searchOpen ? 'Close profile search' : 'Search profiles'}><img src={profilesSearchIcon} alt="" /></button>
-        </div>
-        {editingEnabled && <div className="profiles-add-control" ref={addMenu}>
-          <button className="profiles-icon-button profiles-add" type="button" onClick={() => { setAddError(null); setAddMenuOpen((current) => !current) }} aria-label="Add profile" title="Add profile" aria-haspopup="menu" aria-expanded={addMenuOpen}><img src={profilesAddIcon} alt="" /></button>
-          {addMenuOpen && <div className="profiles-add-menu" role="menu" aria-label="Add a profile">
-            <div className="profiles-add-menu__heading"><strong>Add a profile</strong><small>How would you like to begin?</small></div>
-            <button type="button" role="menuitem" onClick={() => profileFileInput.current?.click()}><span className="profiles-add-menu__icon profiles-add-menu__icon--json" aria-hidden="true">{'{ }'}</span><span><strong>Import from .json</strong><small>Choose a profile file</small></span></button>
-            {/* Visualizer import stays implemented, but is intentionally hidden until the flow is ready to return. */}
-            {/* <button type="button" role="menuitem" onClick={() => void openVisualizerImport()}><span className="profiles-add-menu__icon" aria-hidden="true">↗</span><span><strong>Import from Visualizer</strong><small>Use a 4-digit share code</small></span></button> */}
-            <button type="button" role="menuitem" onClick={() => { setAddMenuOpen(false); onStartProfile?.() }}><span className="profiles-add-menu__icon" aria-hidden="true">＋</span><span><strong>Start from scratch</strong><small>Build a new profile</small></span></button>
-            {addError && <p className="profiles-add-menu__error" role="alert">{addError}</p>}
-          </div>}
-          <input ref={profileFileInput} className="profiles-file-input" type="file" accept=".json,application/json" tabIndex={-1} onChange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; void chooseJsonProfile(file) }} />
-        </div>}
-      </div>
-    </header>
-
-    {visualizerOpen && <div className="profiles-import-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget && visualizerStatus !== 'importing') setVisualizerOpen(false) }}>
-      <section className="profiles-import-modal" role="dialog" aria-modal="true" aria-labelledby="visualizer-import-title">
-        <div className="profiles-import-modal__heading"><div><small>ADD PROFILE</small><h2 id="visualizer-import-title">Import from Visualizer</h2></div><button type="button" disabled={visualizerStatus === 'importing'} onClick={() => setVisualizerOpen(false)} aria-label="Close Visualizer import">×</button></div>
-        <p>Enter the four-digit share code from visualizer.coffee.</p>
-        <label className="profiles-share-code"><span>Share code</span><input autoFocus inputMode="numeric" pattern="[0-9]*" autoComplete="one-time-code" maxLength={4} value={visualizerCode} disabled={visualizerStatus !== 'ready'} placeholder="0000" onChange={(event) => setVisualizerCode(normalizeVisualizerShareCode(event.target.value))} onKeyDown={(event) => { if (event.key === 'Enter') void submitVisualizerImport() }} /></label>
-        {visualizerStatus === 'checking' && <p className="profiles-import-modal__status">Checking your Visualizer connection…</p>}
-        {visualizerMessage && <p className="profiles-import-modal__status profiles-import-modal__status--error" role="alert">{visualizerMessage}</p>}
-        <div className="profiles-import-modal__actions">
-          {visualizerStatus === 'unavailable' && <button type="button" className="profiles-import-modal__settings" onClick={onOpenSettings}>Open Decaid settings</button>}
-          <button type="button" className="profiles-import-modal__cancel" disabled={visualizerStatus === 'importing'} onClick={() => setVisualizerOpen(false)}>Cancel</button>
-          <button type="button" className="profiles-import-modal__submit" disabled={visualizerStatus !== 'ready' || !isVisualizerShareCode(visualizerCode)} onClick={() => void submitVisualizerImport()}>{visualizerStatus === 'importing' ? 'Importing…' : 'Import profile'}</button>
-        </div>
-      </section>
-    </div>}
-
-    {deletingProfile && onDeleteProfile && <ProfileDeleteDialog profile={deletingProfile} active={deletingProfile.id === activeProfileId} onClose={() => setDeletingProfile(null)} onDelete={async id => {
-      await onDeleteProfile(id)
-      setSelectedProfileId(undefined)
-      setReplacementProfileId(null)
-      setActiveCategory('All')
-      setSearchQuery('')
-    }} />}
-
-    {feedback && !deletingProfile && <div className="system-messages"><div className={`system-message system-message--${feedback.status}`} role={feedback.status === 'error' ? 'alert' : 'status'}>{feedback.message}</div></div>}
-
-    <section className="profiles-workspace">
-      <aside className="favorites-panel" aria-label="Favorite profiles">
-        <div className="favorites-panel__heading"><h2>Favorites</h2></div>
-        <div className="favorites-list">
-          {Array.from({ length: 5 }, (_, slot) => {
-            const profileId = favoriteProfileSlots[slot]
-            const profile = profiles.find((candidate) => candidate.id === profileId)
-            if (!profile) return <div className="favorite-slot favorite-slot--empty" key={`empty-${slot}`}><span>Empty</span></div>
-            const pending = pendingProfileId === profile.id || (replacementProfileId !== null && pendingProfileId === replacementProfileId)
-            return <article className={`favorite-slot${replacingFavorite ? ' favorite-slot--replace' : ''}`} key={profile.id}>
-              <button className="favorite-slot__profile" type="button" onClick={() => selectFavoritePreview(profile)} aria-label={`View and locate ${profile.name} in the profile list`}>
-                <strong>{profile.name}</strong><img src={profileChevronIcon} alt="" />
-              </button>
-              {replacingFavorite
-                ? <button className="favorite-slot__replace" type="button" disabled={pending} onClick={() => void replaceFavorite(slot)}><img src={favoriteReplaceIcon} alt="" /><span>{pending ? 'Replacing…' : 'Replace favorite'}</span></button>
-                : <div className="favorite-slot__actions">
-                  <button type="button" disabled={pending} onClick={() => void removeFavorite(profile.id)}><img src={favoriteRemoveIcon} alt="" /><span>{pending ? 'Removing…' : 'Remove'}</span></button>
-                </div>}
-            </article>
-          })}
-        </div>
+  const message=error??feedback?.message
+  const isError=Boolean(error)||feedback?.status==='error'
+  const feedbackView=message&&<div className={`pl-library-feedback${isError?' pl-library-feedback--error':''}`} role={isError?'alert':'status'}>{message}</div>
+  const temperature=(p:BrewProfile)=>formatTemperatureValue(p.temperature,preferences.temperatureUnit)
+  const ratio=detail&&Number(detail.dose)>0&&Number(detail.targetYield)>0?`1:${Number((Number(detail.targetYield)/Number(detail.dose)).toFixed(1))}`:'—'
+  return <div className="ins-theme pl-app">
+    {!initialProfileId?<div className="ins-shell">
+      <aside className="ins-rail"><SidebarBrand onClose={onClose} closeLabel="Close profiles"/>
+        <span className="ins-eyebrow">LIBRARY</span><nav aria-label="Profile library">{(['All profiles','Favorites'] as const).map(s=><SidebarNavItem key={s} active={section===s} onClick={()=>navigate(s)}><Icon name={s==='Favorites'?'star':'grid'}/>{s}<small>{count(s)}</small></SidebarNavItem>)}</nav>
+        <span className="ins-eyebrow pl-source-label">SOURCE</span><nav aria-label="Profile source">{sources.map(s=><SidebarNavItem key={s} active={section===s} onClick={()=>navigate(s)}><span className="pl-nav-dot"/>{s}<small>{count(s)}</small></SidebarNavItem>)}</nav>
       </aside>
-
-      <section className="profile-browser">
-        <nav className="profile-categories" aria-label="Profile categories">
-          {availableCategories.map((category) => <button className={activeCategory === category ? 'profile-category profile-category--active' : 'profile-category'} type="button" key={category} aria-pressed={activeCategory === category} onClick={() => selectCategory(category)}>{category}</button>)}
-        </nav>
-
-        <div className="profile-catalog">
-          <div className="profile-directory" role="listbox" aria-label="Profiles">
-            {visibleProfiles.map((profile) => <button ref={(element) => { if (element) directoryItems.current.set(profile.id, element); else directoryItems.current.delete(profile.id) }} className={selectedProfile?.id === profile.id ? 'profile-directory__item profile-directory__item--selected' : 'profile-directory__item'} type="button" role="option" aria-selected={selectedProfile?.id === profile.id} key={profile.id} onClick={() => selectPreview(profile.id)}><strong>{profile.name}</strong>{profile.category && <small>{profile.category}</small>}</button>)}
-            {!visibleProfiles.length && <p className="profile-directory__empty">No profiles found here.</p>}
-          </div>
-
-          {selectedProfile && <article className="profile-detail">
-            <ProfileTargetChart profileName={selectedProfile.name} points={selectedProfile.targetPoints} variant="detail" />
-            <div className="profile-detail__body">
-              <div className="profile-detail__heading">
-                <div><h2>{selectedProfile.name}</h2>{selectedProfile.category && <p>{selectedProfile.category}</p>}</div>
-                <div className="profile-detail__actions">
-                  <button type="button" disabled={pendingProfileId === selectedProfile.id} onClick={() => void applyProfile(selectedProfile.id)} aria-label={`Use ${selectedProfile.name}`} title="Use profile"><img src={profileUseIcon} alt="" /></button>
-                  {editingEnabled && <button type="button" onClick={() => onEditProfile?.(selectedProfile.id)} aria-label={`${editLabel(selectedProfile.id)}: ${selectedProfile.name}`} title={editLabel(selectedProfile.id)}><img src={profileDetailEditIcon} alt="" /></button>}
-                  {!favoriteIdSet.has(selectedProfile.id) && <button className={`profile-detail__favorite${replacementProfileId === selectedProfile.id ? ' profile-detail__favorite--replacing' : ''}`} type="button" disabled={pendingProfileId === selectedProfile.id} aria-pressed="false" onClick={() => void requestFavorite()} aria-label={replacementProfileId === selectedProfile.id ? 'Cancel favorite replacement' : `Favorite ${selectedProfile.name}`} title={replacementProfileId === selectedProfile.id ? 'Cancel replacement' : 'Add to favorites'}><img src={profileFavoriteIcon} alt="" /></button>}
-                  {canDeleteProfile?.(selectedProfile.id) && onDeleteProfile && <button className="profile-detail__delete" type="button" aria-label="Delete profile" title="Delete profile" disabled={pendingProfileId !== null} onClick={() => setDeletingProfile(selectedProfile)}><span className="profile-detail__delete-icon" aria-hidden="true" /></button>}
-                </div>
-              </div>
-              <p className="profile-detail__description">{selectedProfile.description ?? 'No description provided for this profile.'}</p>
-            </div>
-          </article>}
-        </div>
-      </section>
-    </section>
-  </main>
+      <main className="ins-content" ref={content}>
+        <header className="pl-heading"><h1>{section}</h1>{editingEnabled&&<div className="pl-actions"><button className="pl-button" disabled={pending||!onImportProfile} onClick={()=>fileInput.current?.click()}><Icon name="import"/>Import</button><button className="pl-button pl-primary" disabled={pending||!onStartProfile} onClick={onStartProfile}><Icon name="plus"/>Create profile</button></div>}</header>
+        {feedbackView}
+        {section==='Favorites'?<><div className="pl-section-intro"><p>Your home shortcuts, in your order.</p></div><div className="pl-favorites">{favorites.map(({profile:p},index)=><article className="pl-favorite" key={p.id}>
+          <button className="pl-favorite-preview" data-profile-id={p.id} onClick={()=>open(p)} aria-label={`View ${p.name}`}><Chart profile={p}/><h2>{p.name}</h2><span className="pl-muted">{p.category}</span></button>
+          <footer><div><button className="pl-round" disabled={pending||index===0} aria-label={`Move ${p.name} earlier`} onClick={()=>void run(()=>onSetFavoriteSlot(p.id,favorites[index-1].slot))}><Icon name="up"/></button><button className="pl-round" disabled={pending||index===favorites.length-1} aria-label={`Move ${p.name} later`} onClick={()=>void run(()=>onSetFavoriteSlot(p.id,favorites[index+1].slot))}><Icon name="down"/></button></div><button className="pl-text pl-unfavorite" disabled={pending} aria-label={`Unfavorite ${p.name}`} onClick={()=>void run(()=>onRemoveFavorite(p.id))}><Icon name="unfavorite"/>Unfavorite</button></footer>
+        </article>)}{favorites.length<5&&<button className="pl-empty-slot" onClick={()=>navigate('All profiles')}><Icon name="plus"/><strong>Add a favorite</strong><span>Choose from your library</span></button>}</div></>:<>
+          <div className="pl-toolbar"><label className="pl-search"><Icon name="search"/><input aria-label="Search profiles" placeholder="Search name or category" value={query} onChange={e=>setQuery(e.target.value)}/>{query&&<button aria-label="Clear search" onClick={()=>setQuery('')}>×</button>}</label><label className="ins-period"><select aria-label="Filter category" value={category} onChange={e=>setCategory(e.target.value)}><option value="">All categories</option>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label className="ins-period"><select aria-label="Sort profiles" value={sort} onChange={e=>setSort(e.target.value as 'name'|'recent')}><option value="name">Name A–Z</option><option value="recent">Recently added</option></select></label></div>
+          <div className="pl-list-meta"><span>{visible.length} profiles</span><span>Open a profile to explore its recipe</span></div>
+          <section className="pl-list" aria-label="Profiles"><div className="pl-list-header"><span>Profile</span><span>Recipe</span><span>Temp.</span><span className="pl-desktop-source">Source</span><span/></div>
+            {visible.map(p=><article className="pl-row" key={p.id}><button className="pl-row-open" data-profile-id={p.id} onClick={()=>open(p)} aria-label={`View ${p.name}`}><span className="pl-profile-cell"><span className="pl-thumbnail"><Chart profile={p}/></span><span><strong>{p.name}</strong><span className="pl-row-sub">{p.category}</span></span></span><span className="pl-recipe">{p.dose}{p.dose!=='—'&&<small>g</small>}<span className="pl-recipe-arrow">→</span>{p.targetYield}{p.targetYield!=='—'&&<small>g</small>}</span><span className="pl-temperature">{temperature(p)}{temperature(p)!=='—'&&'°'}</span><span className="pl-desktop-source pl-muted">{profileLibrarySource(p)}</span></button><button className={`pl-fav-button ${ids.has(p.id)?'is-favorite':''}`} disabled={pending} aria-label={`${ids.has(p.id)?'Unfavorite':'Favorite'} ${p.name}`} aria-pressed={ids.has(p.id)} onClick={()=>void favorite(p)}><Icon name="star"/></button></article>)}
+            {!visible.length&&<div className="pl-no-results"><h2>{profiles.length?'No matching profiles':'No profiles yet'}</h2><p>{profiles.length?'Try another name, source or category.':'Create or import a profile to get started.'}</p>{profiles.length>0&&<button className="pl-button" onClick={()=>navigate('All profiles')}>Clear filters</button>}</div>}
+          </section>
+        </>}
+      </main>
+    </div>:detail?<main className="pl-detail">
+      <section className="pl-detail-hero" aria-label="Profile graph header"><Chart profile={detail}/><header className="pl-detail-header"><button className="pl-round pl-close" aria-label="Close profile detail" onClick={()=>onViewProfile()}>×</button><h1>{detail.name}</h1><div className="pl-actions"><button className="pl-button pl-primary" disabled={pending} onClick={()=>void run(()=>onSelectProfile(detail.id))}><Icon name="cup"/>{pending?'Saving…':'Select'}</button><button className={`pl-button ${ids.has(detail.id)?'pl-selected':''}`} disabled={pending} onClick={()=>void favorite(detail)}><Icon name={ids.has(detail.id)?'unfavorite':'star'}/>{ids.has(detail.id)?'Unfavorite':'Favorite'}</button>{editingEnabled&&onEditProfile&&<button className="pl-button" disabled={pending} onClick={()=>onEditProfile(detail.id)}><Icon name="edit"/>{profileEditMode?.(detail.id)==='edit'?'Edit':'Edit a copy'}</button>}{canDeleteProfile?.(detail.id)&&onDeleteProfile&&<button className="pl-button pl-danger" disabled={pending} onClick={()=>setDeleting(detail)}>Delete</button>}</div></header></section>
+      <section className="pl-detail-metrics" aria-label="Overall targets"><Metric label="Temperature" value={temperature(detail)} unit="°"/><Metric label="Dose" value={detail.dose} unit="g"/><Metric label="Target yield" value={detail.targetYield} unit="g"/><Metric label="Ratio" value={ratio}/></section>{feedbackView}
+      <section className="pl-metadata"><article><h2>Profile details</h2><dl><div><dt>Category</dt><dd>{detail.category||'—'}</dd></div><div><dt>Type</dt><dd>{detail.beverageType==='pourover'?'Pour over':detail.beverageType||'—'}</dd></div><div><dt>Source</dt><dd>{profileLibrarySource(detail)}</dd></div>{detail.version&&<div><dt>Version</dt><dd>{detail.version}</dd></div>}{detail.author&&<div><dt>Author</dt><dd>{detail.author}</dd></div>}<div><dt>Grind size</dt><dd>{detail.grindSetting}</dd></div></dl></article><article><h2>About this recipe</h2><p>{detail.description||'No description provided for this profile.'}</p></article></section>
+    </main>:<main className="pl-detail"><h1>Profile unavailable</h1><p>This profile may have been removed or is still loading.</p><button className="pl-button" onClick={()=>onViewProfile()}>Back to profiles</button></main>}
+    <input className="pl-file-input" ref={fileInput} type="file" accept=".json,application/json" aria-label="Import profile JSON" onChange={e=>{const file=e.currentTarget.files?.[0];e.currentTarget.value='';void importFile(file)}}/>
+    {candidate&&<dialog className="pl-dialog" ref={dialog} aria-labelledby="favorite-replacement-title" onCancel={e=>{e.preventDefault();if(!inFlight.current)setCandidateId(null)}}><div className="pl-dialog-body"><header><span className="pl-eyebrow">HOME FAVORITES</span><button className="pl-round" disabled={pending} aria-label="Close favorite replacement" onClick={()=>setCandidateId(null)}>×</button></header><h2 id="favorite-replacement-title">Make room for {candidate.name}</h2><p>Your five home slots are full. Choose one to replace. The replaced profile stays in your library.</p>{error&&<p role="alert">{error}</p>}<div className="pl-replace-list">{favorites.map(({profile:p,slot})=><button key={slot} disabled={pending} aria-label={`Replace ${p.name}`} onClick={()=>void run(()=>onSetFavoriteSlot(candidate.id,slot)).then(ok=>{if(ok)setCandidateId(null)})}><strong>{p.name}</strong><span>Replace</span><Icon name="arrow"/></button>)}</div></div></dialog>}
+    {deleting&&onDeleteProfile&&<ProfileDeleteDialog profile={deleting} active={deleting.id===activeProfileId} onClose={()=>setDeleting(null)} onDelete={async id=>{await onDeleteProfile(id);onViewProfile()}}/>}
+  </div>
 }

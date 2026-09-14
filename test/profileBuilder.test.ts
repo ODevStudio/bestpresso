@@ -26,8 +26,8 @@ test('profile builder routes and entry points are available in normal releases',
   assert.match(app, /page === 'profiles' \|\| page === 'previous-pull' \|\| page === 'profile-builder'/)
   assert.match(app, /editingEnabled profileEditMode=/)
   assert.doesNotMatch(app, /profileBuilderEnabled|enableProfileBuilderForSession/)
-  assert.match(profilesPanel, /editingEnabled = false/)
-  assert.match(profilesPanel, /editingEnabled && <div className="profiles-add-control"/)
+  assert.match(profilesPanel, /editingEnabled\s*=\s*false/)
+  assert.match(profilesPanel, /editingEnabled\s*&&\s*<div className="pl-actions"/)
 })
 
 test('the Decent logo is no longer a hidden profile-builder gesture', () => {
@@ -42,12 +42,11 @@ test('profile builder entry points support create, import, safe copy, and user-o
   assert.match(app, /onCheckVisualizer=\{checkVisualizerImport\}/)
   assert.match(app, /onImportVisualizer=\{importFromVisualizer\}/)
   assert.match(app, /profileEditMode=\{\(selectedProfileId\) => data\.profileRecordForEditing\(selectedProfileId\)\?\.isDefault === false \? 'edit' : 'copy'\}/)
-  assert.match(profilesPanel, /aria-label="Add profile"/)
-  assert.match(profilesPanel, /Import from \.json/)
-  assert.match(profilesPanel, /Visualizer import stays implemented, but is intentionally hidden/)
-  assert.match(profilesPanel, /\{\/\* <button[^\n]+Import from Visualizer[^\n]+ \*\/\}/)
-  assert.match(profilesPanel, /Start from scratch/)
-  assert.match(profilesPanel, /profileEditMode\?\.\(profileId\) === 'edit' \? 'Edit profile' : 'Edit a copy'/)
+  assert.match(profilesPanel, /onClick=\{onStartProfile\}[\s\S]*?Create profile/)
+  assert.match(profilesPanel, /aria-label="Import profile JSON"/)
+  assert.match(profilesPanel, /parseProfileImport\(await file.text\(\)\)/)
+  assert.doesNotMatch(profilesPanel, />Import from Visualizer</)
+  assert.match(profilesPanel, /profileEditMode\?\.\(detail.id\)==='edit'\?'Edit':'Edit a copy'/)
 })
 
 test('cancel protects a changed profile draft while leaving an untouched draft immediately closable', () => {
@@ -59,9 +58,18 @@ test('cancel protects a changed profile draft while leaving an untouched draft i
 })
 
 test('existing profiles only become saveable after a real draft change', () => {
-  assert.match(screen, /const saveDisabled = saving \|\| !validation\.canSave \|\| Boolean\(initialRecord\) && !hasUnsavedChanges/)
+  assert.match(screen, /const saveDisabled = saving \|\| !validation\.canSave \|\| Boolean\(initialRecord\?\.id\) && !hasUnsavedChanges/)
   assert.match(screen, /disabled=\{saveDisabled\}/)
-  assert.match(screen, /if \(!onSave \|\| saving \|\| Boolean\(initialRecord\) && !hasUnsavedChanges\) return/)
+  assert.match(screen, /if \(!onSave \|\| saving \|\| Boolean\(initialRecord\?\.id\) && !hasUnsavedChanges\) return/)
+})
+
+test('unsaved JSON imports can be saved immediately without being forced into copy naming', () => {
+  assert.match(screen, /mode: initialRecord.id \? 'edit' : 'import'/)
+  assert.match(screen, /copyName: Boolean\(initialRecord.id\) && !overwriteSource/)
+  const imported = app.slice(app.indexOf('const editImportedProfile'), app.indexOf('const checkVisualizerImport'))
+  assert.match(imported, /deduplicateImportedProfileTitle\(profile, existingTitles\)/)
+  assert.match(imported, /bestpressoSource: 'imported'/)
+  assert.doesNotMatch(imported, /id: /)
 })
 
 test('validation uses an issue-count warning icon after Save and has no ready status', () => {
@@ -78,11 +86,10 @@ test('validation issue text stays legible on the tablet display', () => {
 })
 
 test('favorite rows omit editing while the selected profile detail keeps it', () => {
-  const favorites = profilesPanel.slice(profilesPanel.indexOf('<aside className="favorites-panel"'), profilesPanel.indexOf('<section className="profile-browser">'))
+  const favorites = profilesPanel.slice(profilesPanel.indexOf('<div className="pl-favorites">'), profilesPanel.indexOf('<div className="pl-toolbar">'))
+  assert.ok(favorites.length > 0)
   assert.doesNotMatch(favorites, /onEditProfile/)
-  assert.doesNotMatch(profilesPanel, /profileEditIcon/)
-  assert.match(profilesPanel, /profileDetailEditIcon/)
-  assert.match(profilesPanel, /onEditProfile\?\.\(selectedProfile\.id\)/)
+  assert.match(profilesPanel, /onClick=\{\(\)=>onEditProfile\(detail.id\)\}/)
 })
 
 test('edit-copy authorship uses a logged-in username and a privacy-safe fallback', () => {
@@ -277,7 +284,7 @@ test('editing a user-owned profile keeps its name so it can overwrite the existi
 
   assert.equal(draft.title, 'My daily profile')
   assert.match(screen, /const overwriteSource = initialRecord\?\.isDefault === false/)
-  assert.match(screen, /copyName: !overwriteSource/)
+  assert.match(screen, /copyName: Boolean\(initialRecord.id\) && !overwriteSource/)
   assert.match(brewingData, /const shouldOverwrite = overwriteSource && sourceRecord\?\.isDefault === false/)
   assert.match(brewingData, /updateProfile\(sourceProfileId, authoredProfile, metadata\)/)
 })

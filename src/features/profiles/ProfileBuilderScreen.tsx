@@ -545,7 +545,7 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
   const openAdjustment = useValueAdjustment()
   const overwriteSource = initialRecord?.isDefault === false
   const [initialDraft] = useState(() => initialRecord?.profile?.steps?.length
-    ? profileDraftFromDecaidProfile(initialRecord.profile, { mode: 'edit', sourceProfileId: initialRecord.id, sourceMetadata: initialRecord.metadata, existingTitles, copyName: !overwriteSource })
+    ? profileDraftFromDecaidProfile(initialRecord.profile, { mode: initialRecord.id ? 'edit' : 'import', sourceProfileId: initialRecord.id, sourceMetadata: initialRecord.metadata, existingTitles, copyName: Boolean(initialRecord.id) && !overwriteSource })
     : createDefaultProfileDraft())
   const [draft, setDraft] = useState(initialDraft)
   const [activeStage, setActiveStage] = useState<number | null>(null)
@@ -578,7 +578,7 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
   const validation = useMemo(() => validateProfileDraft(draft), [draft])
   const volumeFallbackActive = typeof draft.targetVolume === 'number' && draft.targetVolume > 0
   const hasUnsavedChanges = JSON.stringify(draft) !== JSON.stringify(initialDraft)
-  const saveDisabled = saving || !validation.canSave || Boolean(initialRecord) && !hasUnsavedChanges
+  const saveDisabled = saving || !validation.canSave || Boolean(initialRecord?.id) && !hasUnsavedChanges
   const profileFieldSeverity = (field: string) => validation.issues.some((issue) => !issue.stageId && issue.field === field && issue.severity === 'error')
     ? 'error'
     : validation.issues.some((issue) => !issue.stageId && issue.field === field) ? 'warning' : undefined
@@ -895,7 +895,7 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
     onSave: (value: number) => void
   }) => openAdjustment({ label, value, unit, ...definition, suggestionKey, onSave: save })
   const saveProfile = async (allowWarnings = false) => {
-    if (!onSave || saving || Boolean(initialRecord) && !hasUnsavedChanges) return
+    if (!onSave || saving || Boolean(initialRecord?.id) && !hasUnsavedChanges) return
     if (!validation.canSave) {
       setValidationOpen(true)
       return
