@@ -14,6 +14,7 @@
 }
 .pl-app .pl-star-icon--star { mask-image: url('../../src/assets/figma/profile-favorite.svg'); -webkit-mask-image: url('../../src/assets/figma/profile-favorite.svg'); }
 .pl-app .pl-star-icon--unfavorite { mask-image: url('../../src/assets/figma/favorite-remove.svg'); -webkit-mask-image: url('../../src/assets/figma/favorite-remove.svg'); }
+.pl-app .pl-star-icon--cup { mask-image: url('../../src/assets/figma/profile-use.svg'); -webkit-mask-image: url('../../src/assets/figma/profile-use.svg'); width: 22px; flex-basis: 22px; }
 .pl-app button.pl-round {
   --round-size: 36px;
   width: var(--round-size);
@@ -84,7 +85,7 @@
   position: relative;
   z-index: 1;
   padding: 28px 40px 34px;
-  background: linear-gradient(var(--ins-bg) 20%, color-mix(in srgb, var(--ins-bg) 85%, transparent) 70%, transparent);
+  background: linear-gradient(color-mix(in srgb, var(--ins-bg) 70%, transparent) 20%, color-mix(in srgb, var(--ins-bg) 70%, transparent) 70%, transparent);
 }
 .pl-app .pl-detail-header h1 { margin: 0; }
 .pl-app .pl-detail-header>.pl-actions { margin-left: auto; }
@@ -92,7 +93,7 @@
 .pl-app .pl-detail-metrics { margin-bottom: 20px; }
 .pl-app .pl-metadata {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 20px;
 }
 .pl-app .pl-metadata article {

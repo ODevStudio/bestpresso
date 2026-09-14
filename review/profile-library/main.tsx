@@ -19,7 +19,7 @@ const samples: Profile[] = [
   { id: 9, name: 'Cleaning cycle', category: 'Cleaning', source: 'Built-in', dose: 0, yield: 0, temp: 90, description: 'A built-in cleaning profile. Keep separate from your drink recipes.' },
 ]
 function Icon({ name }: { name: string }) {
-  if (name === 'star' || name === 'unfavorite') return <span className={`pl-star-icon pl-star-icon--${name}`} aria-hidden="true"/>
+  if (name === 'star' || name === 'unfavorite' || name === 'cup') return <span className={`pl-star-icon pl-star-icon--${name}`} aria-hidden="true"/>
   const paths: Record<string,string> = { search:'m16 16 4 4M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0', arrow:'m9 5 7 7-7 7', plus:'M12 4v16M4 12h16', import:'M12 2v13m-5-5 5 5 5-5M3 16v5h18v-5', grid:'M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z', edit:'m4 16-1 5 5-1L21 7l-5-5ZM14 4l6 6', up:'m6 14 6-6 6 6', down:'m6 10 6 6 6-6', check:'m4 12 5 5L20 6' }
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.grid}/></svg>
 }
@@ -87,7 +87,7 @@ function App() {
       </main>
     </div> : <main className="pl-detail">
       <section className="pl-detail-hero" aria-label="Profile graph header"><Chart seed={detail.id} large/>
-        <header className="pl-detail-header"><button className="pl-round pl-close" onClick={()=>setDetail(null)} aria-label="Close profile detail">×</button><h1>{detail.name}</h1><div className="pl-actions"><button className="pl-button pl-primary" onClick={()=>{setLoaded(detail.id);setNotice('Preview only · no machine changes')}}><Icon name="check"/>Use profile</button><button className={`pl-button ${favorites.includes(detail.id)?'pl-selected':''}`} onClick={()=>favorite(detail)}><Icon name={favorites.includes(detail.id)?'unfavorite':'star'}/>{favorites.includes(detail.id)?'Unfavorite':'Favorite'}</button><button className="pl-button" onClick={()=>setModal('edit')}><Icon name="edit"/>{detail.source==='Built-in'?'Edit a copy':'Edit'}</button>{detail.source!=='Built-in' && <button className="pl-button pl-danger" onClick={()=>setModal('delete')}>Delete</button>}</div></header>
+        <header className="pl-detail-header"><button className="pl-round pl-close" onClick={()=>setDetail(null)} aria-label="Close profile detail">×</button><h1>{detail.name}</h1><div className="pl-actions"><button className="pl-button pl-primary" onClick={()=>{setLoaded(detail.id);setNotice('Preview only · no machine changes')}}><Icon name="cup"/>Select</button><button className={`pl-button ${favorites.includes(detail.id)?'pl-selected':''}`} onClick={()=>favorite(detail)}><Icon name={favorites.includes(detail.id)?'unfavorite':'star'}/>{favorites.includes(detail.id)?'Unfavorite':'Favorite'}</button><button className="pl-button" onClick={()=>setModal('edit')}><Icon name="edit"/>{detail.source==='Built-in'?'Edit a copy':'Edit'}</button>{detail.source!=='Built-in' && <button className="pl-button pl-danger" onClick={()=>setModal('delete')}>Delete</button>}</div></header>
       </section>
       <h2 className="pl-overall-heading">Overall targets</h2>
       <section className="pl-detail-metrics"><Metric label="Temperature" value={detail.temp} unit="°"/><Metric label="Dose" value={detail.dose || '—'} unit={detail.dose?'g':undefined}/><Metric label="Target yield" value={detail.yield || '—'} unit={detail.yield?'g':undefined}/><Metric label="Ratio" value={detail.dose?`1:${(detail.yield/detail.dose).toFixed(1)}`:'—'}/></section>
