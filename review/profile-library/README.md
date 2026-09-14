@@ -4,7 +4,18 @@ Branch: `design/profile-library-experience`
 
 Preview: `/review/profile-library/index.html` on the existing Vite server. Add `?theme=light` to start in light mode. The production Profiles page and home cover flow are unchanged.
 
-## Direction
+## Current revision — compact favorites and graph-led detail
+
+- Favorites are approximately 236×176 at the desktop review size, down from approximately 317×255. No card numbering or home-selection badges remain.
+- The sidebar and list also omit the currently chosen home recipe. Use profile remains an explicit action without persistent chosen-state feedback.
+- Stars replace hearts throughout. Unfavorite uses the existing crossed-out star asset and explicit text.
+- Reorder controls are fixed 32×32 circles; detail close is a fixed 44×44 circle. Padding, flex sizing and aspect ratio are explicitly constrained.
+- Detail starts with a full-bleed illustrative graph behind the title/actions. Axes, grid lines, legend and stage cards are removed.
+- Overall targets precede two metadata cards: classification/source and recipe description. Metadata stacks only on phones.
+- Browser verified: favorite reorder, unfavorite, detail open/close, zero stage cards/grid lines/legend/selection badges, circular geometry, dark/light detail and phone layout.
+- All interactions remain sample-data-only. Production profile management and home cover flow are unchanged.
+
+## Initial direction (superseded where noted above)
 
 Separate three jobs rather than compressing them into simultaneous columns:
 
