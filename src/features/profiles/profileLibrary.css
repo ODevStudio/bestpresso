@@ -74,17 +74,24 @@
 .pl-app .pl-favorite { border-radius: 20px; }
 .pl-app .pl-favorite-preview {
   height: 126px;
-  padding: 70px 16px 12px;
-  background: transparent;
+  padding: 16px 18px 72px;
+  justify-content: flex-start;
+  align-items: flex-start;
+  text-align: left;
+  background: radial-gradient(circle at 22% 78%,rgba(73,225,157,.36) 0,rgba(65,183,134,.22) 24%,transparent 49%),radial-gradient(circle at 78% 22%,rgba(76,166,204,.34) 0,rgba(62,126,160,.18) 25%,transparent 50%),#24312d;
+}
+[data-theme="light"] .pl-app .pl-favorite-preview {
+  background: radial-gradient(circle at 22% 78%,rgba(93,184,132,.38) 0,rgba(129,201,156,.22) 24%,transparent 49%),radial-gradient(circle at 78% 22%,rgba(102,164,195,.34) 0,rgba(142,188,209,.2) 25%,transparent 50%),#f7faf7;
 }
 .pl-app .pl-favorite-preview .pl-chart {
-  top: 0;
-  bottom: auto;
+  top: auto;
+  bottom: 8px;
   height: 60px;
 }
 .pl-app .pl-favorite h2 {
-  font-size: 15px;
-  line-height: 1.35;
+  font-size: 18px;
+  line-height: 1.2;
+  flex-shrink: 0;
   margin-bottom: 5px;
 }
 .pl-app .pl-favorite footer { padding: 8px 10px; }
@@ -158,7 +165,7 @@
 }
 @media (max-width: 760px) {
   .pl-app .pl-favorites { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-  .pl-app .pl-favorite-preview { height: 116px; padding-top: 62px; }
+  .pl-app .pl-favorite-preview { height: 116px; padding-top: 16px; }
   .pl-app .pl-favorite-preview .pl-chart { height: 54px; }
   .pl-app .pl-detail-hero { height: 275px; margin: 0 -16px; }
   .pl-app .pl-detail-header { padding: 20px 16px 35px; }
