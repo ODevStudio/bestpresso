@@ -63,7 +63,7 @@ export function ProfilesPanel({profiles, favoriteProfileSlots, activeProfileId, 
   const favorites = favoriteProfileSlots.flatMap((id,slot)=>{const profile=profiles.find(p=>p.id===id); return profile?[{profile,slot}]:[]})
   const ids = new Set(favorites.map(f=>f.profile.id))
   const categories = [...new Set(profiles.map(p=>p.category).filter((c):c is string=>Boolean(c)))].sort((a,b)=>a.localeCompare(b))
-  const sources:LibrarySection[] = ['Created','Imported','Built-in',...(profiles.some(p=>profileLibrarySource(p)==='Saved')?['Saved' as const]:[])]
+  const sources:LibrarySection[] = ['Preloaded','Imported','My profiles']
   const visible = filterLibraryProfiles(profiles,{section,query,category,sort})
   const count = (s:LibrarySection)=>s==='All profiles'?profiles.length:s==='Favorites'?favorites.length:profiles.filter(p=>profileLibrarySource(p)===s).length
   useEffect(()=>{

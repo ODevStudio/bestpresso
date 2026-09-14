@@ -2,13 +2,15 @@ import type { BrewProfile } from '../../domain/brewing'
 import type { DecaidProfileRecord } from '../../api/decaid/types'
 
 export type ProfileSource = 'Created' | 'Imported' | 'Built-in' | 'Saved'
-export type LibrarySection = 'All profiles' | 'Favorites' | ProfileSource
+export type LibrarySource = 'Preloaded' | 'Imported' | 'My profiles'
+export type LibrarySection = 'All profiles' | 'Favorites' | LibrarySource
 export function sourceForRecord(record: DecaidProfileRecord): ProfileSource {
   if (record.isDefault === true) return 'Built-in'
   const origin = record.metadata?.bestpressoSource
   return origin === 'created' ? 'Created' : origin === 'imported' ? 'Imported' : 'Saved'
 }
-export const profileLibrarySource = (profile: BrewProfile): ProfileSource => profile.source ?? 'Saved'
+export const profileLibrarySource = (profile: BrewProfile): LibrarySource =>
+  profile.source === 'Built-in' ? 'Preloaded' : profile.source === 'Imported' ? 'Imported' : 'My profiles'
 export function librarySaveMetadata(metadata: Record<string, unknown> | null | undefined, source: DecaidProfileRecord | undefined, overwrite: boolean, now: string) {
   const merged = { ...source?.metadata, ...metadata }
   if (overwrite) return merged
