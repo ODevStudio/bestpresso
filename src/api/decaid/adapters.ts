@@ -1,4 +1,5 @@
 import type { BrewProfile, BrewingScreenModel, PreviousShot } from '../../domain/brewing.ts'
+import { sourceForRecord } from '../../features/profiles/profileLibraryModel.ts'
 import { isSteamHeatingEnabled } from '../../features/machine/steamHeating.ts'
 import { profileStepsToTargetPoints } from './profileTargetPoints.ts'
 import { profileConfiguredTargetYield, profileTargetYield } from './profileWorkflow.ts'
@@ -72,6 +73,9 @@ export function profileRecordsToDomain(records: DecaidProfileRecord[], workflow:
     const chartSteps = profile.steps?.length ? profile.steps : isActive ? workflow.profile?.steps : undefined
     return {
       id: record.id || profile.title || crypto.randomUUID(),
+      source: sourceForRecord(record),
+      createdAt: textValue(metadata.bestpressoCreatedAt),
+      author: textValue(profile.author),
       name: parsedTitle.name,
       category: parsedTitle.category ?? textValue(profile.category),
       version: profile.version === null || profile.version === undefined ? undefined : String(profile.version),

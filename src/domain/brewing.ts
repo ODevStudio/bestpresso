@@ -57,6 +57,9 @@ export interface ProfileTargetPoint {
 
 export interface BrewProfile {
   id: string
+  source?: 'Created' | 'Imported' | 'Built-in' | 'Saved'
+  createdAt?: string
+  author?: string
   name: string
   category?: string
   version?: string

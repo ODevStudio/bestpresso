@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { playCompletionSound } from '../../audio/completionSound'
 import { deleteProfile, updateSettings } from '../../api/decaid/client'
+import { librarySaveMetadata } from '../profiles/profileLibraryModel'
 import { assertProfileDeletionAllowed, canDeleteProfile, deleteVerifiedUserProfile, favoritesWithoutProfile } from '../profiles/profileDeletion'
 import { hotWaterWeightStoppingPatch } from '../settings/yieldLookAhead'
 import { hotWaterSettings } from './hotWaterSettings'
@@ -1394,6 +1395,7 @@ export function useBrewingData() {
       const authoredProfile = { ...profile, author }
       const sourceRecord = sourceProfileId ? profileRecords.current.find((candidate) => candidate.id === sourceProfileId) : undefined
       const shouldOverwrite = overwriteSource && sourceRecord?.isDefault === false
+      metadata = librarySaveMetadata(metadata, sourceRecord, shouldOverwrite, new Date().toISOString())
       if (overwriteSource && !shouldOverwrite) {
         throw new Error('This protected profile must be saved as a copy.')
       }
