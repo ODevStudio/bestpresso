@@ -1,11 +1,13 @@
 // In-memory REST + receive-only WebSocket fixture. Never contacts hardware.
 import { createServer } from 'node:http'
 import { createHash } from 'node:crypto'
-let workflow = { hotWaterData: { targetTemperature: 60, volume: 20, duration: 30, flow: 7 } }
+let workflow = { hotWaterData: { targetTemperature: 60, volume: 20, duration: 30, flow: 7 }, steamSettings: { targetTemperature: 160, duration: 50, flow: 0.7 } }
 let settings = { weightFlowMultiplier: 1, hotWaterFlowMultiplier: 0.3, stopHotWaterAtWeight: true }
 let physical = { targetHotWaterVolume: 20, targetHotWaterTemp: 60, targetHotWaterDuration: 30 }
 let state = 'idle'
 let failStore = false
+let failWorkflow = false
+let steamTemperature = 45
 const store = { 'last-hot-water-volume': 20, 'last-hot-water-temp': 60 }
 const writes = []
 const sockets = new Map()
@@ -17,7 +19,7 @@ function send(socket, value) {
 function broadcast(path, value) {
   for (const [socket, channel] of sockets) if (channel === path) send(socket, value)
 }
-const snapshot = () => ({ state: { state, substate: state === 'idle' ? 'ready' : 'pouring' }, pressure: 0, flow: 0, mixTemperature: 60 })
+const snapshot = () => ({ state: { state, substate: state === 'idle' ? 'ready' : 'pouring' }, pressure: 0, flow: 0, mixTemperature: 60, steamTemperature })
 const server = createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
@@ -31,6 +33,8 @@ const server = createServer(async (req, res) => {
   if (path === '/test-control' && req.method === 'POST') {
     if (body.state) state = body.state
     if ('failStore' in body) failStore = body.failStore
+    if ('failWorkflow' in body) failWorkflow = body.failWorkflow
+    if (typeof body.steamTemperature === 'number') steamTemperature = body.steamTemperature
     broadcast('/ws/v1/machine/snapshot', snapshot())
     if (body.physical) {
       physical = { ...physical, ...body.physical }
@@ -53,8 +57,9 @@ const server = createServer(async (req, res) => {
   }
   if (path === '/api/v1/workflow') {
     if (req.method === 'PUT') {
+      if (failWorkflow) { res.writeHead(503); return res.end('{}') }
       writes.push([path, body])
-      workflow = { ...workflow, ...body, hotWaterData: { ...workflow.hotWaterData, ...body.hotWaterData } }
+      workflow = { ...workflow, ...body, hotWaterData: { ...workflow.hotWaterData, ...body.hotWaterData }, steamSettings: { ...workflow.steamSettings, ...body.steamSettings } }
       physical = { targetHotWaterVolume: workflow.hotWaterData.volume, targetHotWaterTemp: workflow.hotWaterData.targetTemperature, targetHotWaterDuration: workflow.hotWaterData.duration }
       broadcast('/ws/v1/machine/shotSettings', physical)
     }

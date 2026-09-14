@@ -3,7 +3,7 @@ import type { FixedValueSuggestion, ValueAdjustmentKey } from '../../domain/valu
 import { useValueAdjustment } from '../ValueAdjustment/ValueAdjustmentContext'
 import type { ValueAdjustmentMode } from '../ValueAdjustment/ValueAdjustmentContext'
 
-interface MetricEdit {
+export interface MetricEdit {
   min: number
   max: number
   step: number

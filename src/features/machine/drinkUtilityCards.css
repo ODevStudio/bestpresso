@@ -1,0 +1,108 @@
+/* Approved utility-card layout. All selectors stay scoped to hot water/steam;
+   the surrounding grid (and therefore the scale width) retains its timing. */
+.app-shell .utility-card.drink-card {
+  --drink-motion:.52s;
+  --drink-ease:cubic-bezier(.22,.72,.28,1);
+  --drink-separator:rgba(192,192,192,.16);
+  --drink-heating:#e5d55e;
+  --drink-ready:#9ac5a9;
+  --drink-track:#3a3732;
+  position:relative;display:block;padding:0;overflow:hidden;
+  animation:none;transition:width var(--drink-motion) var(--drink-ease);
+}
+.app-shell .drink-card .drink-card__face {position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .16s ease;animation:none}
+.app-shell .drink-card .drink-card__expanded {width:var(--utility-panel-expanded-width);display:grid;grid-template-rows:clamp(42px,7.2vh,60px) minmax(0,1fr);container-type:inline-size}
+.app-shell .drink-card .drink-card__compact {width:100%;animation:none;transition:opacity .16s ease}
+.app-shell .drink-card:not(.is-compact) .drink-card__expanded,.app-shell .drink-card.is-compact .drink-card__compact {opacity:1;pointer-events:auto;transition:opacity .38s .14s ease}
+.app-shell .drink-card .drink-card__face header,.app-shell .drink-card .drink-card__face .utility-card__metrics,.app-shell .drink-card .drink-card__compact .metric__reading,.app-shell .drink-card .drink-card__compact header>img,.app-shell .drink-card .utility-card__steam-connector {animation:none}
+.drink-card__expand {position:absolute;inset:0;z-index:3;padding:0;background:transparent;border-radius:24px}
+.drink-card__expand:focus-visible {outline:2px solid #53d68e;outline-offset:-3px}
+.drink-card__compact .utility-card__metrics,.drink-card__compact header {pointer-events:none}
+.app-shell .drink-card .drink-card__compact .utility-card__metrics {margin:0}
+.app-shell .drink-card__expanded>header {position:static;min-width:0;display:flex;align-items:center;gap:9px;margin:0 12px;padding:0 11px;border-bottom:1px solid var(--drink-separator)}
+.drink-card__expanded>header h2 {margin:0;font-size:16px;font-weight:500;line-height:24px;color:var(--metric-value-color)}
+.app-shell .drink-card__expanded>header>img {width:25px;height:28px;object-fit:contain;opacity:.85}
+.drink-card__toggle {margin-left:auto;padding:3px;width:44px;height:24px;flex:0 0 44px;border-radius:99px;background:#365340;transition:background-color .32s ease}
+.drink-card__toggle>span {display:block;width:18px;height:18px;border-radius:50%;background:#8fbca0;transform:translateX(20px);transition:transform .32s cubic-bezier(.22,.72,.28,1),background-color .32s ease}
+.drink-card__toggle[aria-checked=false] {background:#46423e}
+.drink-card__toggle[aria-checked=false]>span {transform:none;background:#aaa39b}
+.drink-card__toggle:disabled {cursor:not-allowed;opacity:.5}
+.drink-card__toggle:focus-visible {outline:2px solid #53d68e;outline-offset:3px}
+.drink-card__water-settings {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;margin:10px 12px 14px;min-height:0}
+.drink-card__water-settings>div {display:grid;align-content:center;min-width:0;height:100%;padding:4px}
+.drink-card__water-settings>div+div {border-left:1px solid var(--drink-separator)}
+.app-shell .drink-card__expanded .metric {position:static;width:100%;min-height:48px;align-items:center;justify-content:center;gap:5px;padding:0;text-align:center}
+.app-shell .drink-card__expanded .metric__label {position:static;font-size:12px;font-weight:400;gap:4px;letter-spacing:0;color:var(--metric-label-color)}
+.app-shell .drink-card__expanded .metric>.metric__reading {font-size:20px;font-weight:300;line-height:24px;letter-spacing:-.45px;color:var(--metric-value-color)}
+.app-shell .drink-card__expanded .metric__unit {font-size:14px;font-weight:300;margin-left:3px;letter-spacing:-.3px;color:inherit}
+.app-shell .drink-card__expanded .metric__unit--degree {font-size:1em;margin-left:0;vertical-align:baseline}
+.drink-card__steam-settings {min-height:0;display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:13px;padding:13px 25px 13px 19px;align-items:center}
+.drink-card__gauge {position:relative;width:100%;max-width:216px;aspect-ratio:197 / 138;justify-self:center;--gauge-color:var(--drink-ready)}
+.drink-card__gauge.is-heating {--gauge-color:var(--drink-heating)}
+.drink-card__gauge-art {display:block;width:100%;height:100%;overflow:visible;pointer-events:none}
+.drink-card__gauge-track,.drink-card__gauge-fill {fill:none;stroke-width:9;stroke-linecap:round}
+.drink-card__gauge-track {stroke:var(--drink-track)}
+.drink-card__gauge-fill {stroke:var(--gauge-color);opacity:1;transition:stroke-dashoffset .24s linear,opacity .34s ease,stroke .34s ease}
+.drink-card__gauge-fill[data-empty=true],.utility-card--steam-off .drink-card__gauge-fill {opacity:0}
+.drink-card__gauge-marker {transform:rotate(var(--gauge-target-angle));transform-origin:98.5px 98.5px;transition:transform .32s cubic-bezier(.22,.72,.28,1),opacity .32s ease}
+.drink-card__gauge-marker line {stroke:var(--metric-value-color);stroke-width:1.5;stroke-linecap:round}
+.utility-card--steam-off .drink-card__gauge-marker {opacity:.5}
+.app-shell .drink-card__temperature {position:absolute;top:32.6%;left:0;width:100%;max-width:none;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0;text-align:center;min-height:74px}
+.drink-card__temperature-pair {display:inline-grid;grid-template-columns:max-content 26px max-content;column-gap:2px;height:46px;white-space:nowrap;transform:translateX(-6px)}
+.app-shell .drink-card__current.metric__reading {display:grid;align-self:start;transform:translateX(14px);font-size:16px;font-weight:300;line-height:20px;letter-spacing:-.3px;color:var(--metric-value-color);pointer-events:none;transition:color .32s ease}
+.app-shell .drink-card__gauge.is-heating .drink-card__current {color:var(--drink-heating)}
+.drink-card__current-live,.drink-card__current-off {grid-area:1/1;transition:opacity .24s ease}
+.drink-card__current-off {opacity:0}
+.utility-card--steam-off .drink-card__current-live {opacity:0}
+.utility-card--steam-off .drink-card__current-off {opacity:1}
+.app-shell .utility-card--steam-off .drink-card__current {color:var(--metric-label-color)}
+.drink-card__slash {align-self:center;width:26px;height:26px;pointer-events:none;fill:none;stroke:var(--metric-value-color);stroke-width:1;transition:opacity .32s ease}
+.utility-card--steam-off .drink-card__slash {opacity:.45}
+.app-shell .drink-card__target.metric__reading {align-self:end;font-size:28px;font-weight:300;line-height:32px;letter-spacing:-.7px;color:var(--metric-value-color)}
+.drink-card__steam-secondary {min-width:0;height:100%;max-height:150px;display:grid;grid-template-rows:1fr 1fr}
+.drink-card__steam-secondary>div {display:grid;align-items:center;min-width:0}
+.drink-card__steam-secondary>div+div {border-top:1px solid var(--drink-separator)}
+.drink-card .temperature-digits {position:relative;display:inline-grid;font-variant-numeric:tabular-nums}
+.drink-card .temperature-digits>span {grid-area:1/1}
+.drink-card .temperature-digits__out {position:absolute;inset:0;opacity:0;animation:drink-temperature-out .14s linear both;pointer-events:none}
+.drink-card .temperature-digits__in {animation:drink-temperature-in .14s linear both}
+@keyframes drink-temperature-out {from{opacity:1}to{opacity:0}}
+@keyframes drink-temperature-in {from{opacity:0}to{opacity:1}}
+[data-theme="light"] .app-shell .drink-card {--drink-separator:rgba(37,65,49,.14);--drink-track:#d9ddd4;--drink-heating:#a57219;--drink-ready:#6aab83}
+[data-theme="light"] .app-shell .drink-card.is-compact {background:var(--light-home-control)}
+[data-theme="light"] .drink-card__toggle {background:#b7d4bf}
+[data-theme="light"] .drink-card__toggle>span {background:#27794c}
+[data-theme="light"] .drink-card__toggle[aria-checked=false] {background:#c4cbc2}
+[data-theme="light"] .drink-card__toggle[aria-checked=false]>span {background:#f7f8f4}
+@container (max-width:330px) {
+  .app-shell .drink-card__expanded .metric__label {font-size:11px;gap:3px}
+  .drink-card__water-settings {margin-inline:8px}
+  .drink-card__water-settings>div {padding-inline:1px}
+  .drink-card__steam-settings {gap:8px;padding:10px 14px 12px}
+  .drink-card__steam-secondary .metric__label {font-size:10px!important}
+  .drink-card__temperature-pair {height:40px}
+  .app-shell .drink-card__target.metric__reading {font-size:24px;line-height:28px}
+  .app-shell .drink-card__current.metric__reading {font-size:14px;line-height:18px}
+}
+@container (max-width:275px) {
+  .app-shell .drink-card__expanded .metric__label {font-size:10px;gap:2px}
+  .drink-card__steam-settings {gap:6px;padding-inline:10px;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr)}
+  .app-shell .drink-card__temperature .metric__label {font-size:10px}
+  .app-shell .drink-card__temperature {gap:4px}
+  .drink-card__temperature-pair {grid-template-columns:max-content 22px max-content;column-gap:0;transform:translateX(-4px)}
+  .drink-card__slash {width:22px;height:22px}
+  .app-shell .drink-card__target.metric__reading {font-size:22px}
+}
+@media(max-height:650px) and (min-width:761px) {
+  .drink-card__steam-settings {padding-block:8px}
+  .drink-card__gauge {max-width:170px}
+  .drink-card__water-settings {margin-block:6px 10px}
+  .app-shell .drink-card .drink-card__compact.utility-card--water .utility-card__metrics {inset:50px 0 8px;row-gap:4px}
+  .app-shell .drink-card .drink-card__compact.utility-card--water header {top:18px}
+}
+@media(max-width:760px) {
+  .app-shell .drink-card .drink-card__expanded {width:100%}
+}
+@media(prefers-reduced-motion:reduce) {
+  .app-shell .utility-card.drink-card,.drink-card *,.drink-card *::before,.drink-card *::after {transition:none!important;animation:none!important}
+}

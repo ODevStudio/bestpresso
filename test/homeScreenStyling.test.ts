@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const utilityCard = readFileSync(new URL('../src/features/machine/MachineUtilityCard.tsx', import.meta.url), 'utf8')
+const drinkCard = readFileSync(new URL('../src/features/machine/DrinkUtilityCard.tsx', import.meta.url), 'utf8')
 const brewingPanel = readFileSync(new URL('../src/features/brew/BrewingPanel.tsx', import.meta.url), 'utf8')
 const liveScreen = readFileSync(new URL('../src/features/brew/LiveBrewingScreen.tsx', import.meta.url), 'utf8')
 const historyScreen = readFileSync(new URL('../src/features/history/PreviousShotScreen.tsx', import.meta.url), 'utf8')
@@ -24,7 +25,7 @@ test('steam duration is visible and editable on the card and in Settings', () =>
 })
 
 test('marks disabled steam heating so its temperature is no longer shown as a warning', () => {
-  assert.match(utilityCard, /isSteam && !steamHeatingEnabled \? ' utility-card--steam-off'/)
+  assert.match(drinkCard, /steam && !enabled \? ' utility-card--steam-off'/)
   assert.match(styles, /\.utility-card--steam\.utility-card--steam-off \.metric:first-child \.metric__reading \{ color:#707070; \}/)
 })
 
@@ -44,7 +45,8 @@ test('defines reusable large, medium, and small metric typography', () => {
   assert.match(styles, /\.metric-scale--large,\.metric--large \{ --metric-context-label-size:var\(--metric-label-size-large\);/)
   assert.match(styles, /\.metric-scale--medium,\.metric--medium \{ --metric-context-label-size:var\(--metric-label-size-medium\);/)
   assert.match(styles, /\.metric-scale--small,\.metric--small \{ --metric-context-label-size:var\(--metric-label-size-small\);/)
-  assert.match(utilityCard, /size=\{isScale \|\| !compact \? 'large' : 'small'\}/)
+  assert.match(utilityCard, /metric=\{metric\} compact size="large"/)
+  assert.match(drinkCard, /<Metric size="small"/)
 })
 
 test('reflows the collapsed scale name and anchors its weight to the card bottom', () => {

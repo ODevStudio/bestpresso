@@ -141,7 +141,17 @@ export function applyWorkflow(model: BrewingScreenModel, workflow: DecaidWorkflo
   const active = activeProfileForWorkflow(allProfiles, records, workflow)
   const profiles = carouselProfiles(allProfiles, assignments, active?.id, retainedAdHocProfileId)
   const utilities = model.utilities.map((utility) => {
-    if (utility.id === 'water') return { ...utility, metrics: utility.metrics.map((metric) => metric.label === 'Volume' ? { ...metric, value: numberString(workflow.hotWaterData?.volume, metric.value) } : { ...metric, value: numberString(workflow.hotWaterData?.targetTemperature, metric.value) }) }
+    if (utility.id === 'water') {
+      const waterMetrics = utility.metrics.some(metric => metric.label === 'Max duration')
+        ? utility.metrics
+        : [...utility.metrics, { label: 'Max duration', value: '—', unit: 's' }]
+      return { ...utility, metrics: waterMetrics.map(metric => {
+        const value = metric.label === 'Volume' ? workflow.hotWaterData?.volume
+          : metric.label === 'Temperature' ? workflow.hotWaterData?.targetTemperature
+          : metric.label === 'Max duration' ? workflow.hotWaterData?.duration : undefined
+        return { ...metric, value: numberString(value, metric.value) }
+      }) }
+    }
     if (utility.id === 'steam') {
       const targetTemperature = finiteNumber(workflow.steamSettings?.targetTemperature)
       const enabled = targetTemperature === undefined ? utility.enabled ?? true : isSteamHeatingEnabled(targetTemperature)

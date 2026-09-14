@@ -113,7 +113,7 @@ const withHotWaterReadback = (model: BrewingScreenModel): BrewingScreenModel => 
   return { ...model, utilities: model.utilities.map((utility) => utility.id !== 'water' ? utility : {
     ...utility,
     metrics: utility.metrics.map((metric) => {
-      const value = metric.label === 'Volume' ? water.volume : metric.label === 'Temperature' ? water.targetTemperature : undefined
+      const value = metric.label === 'Volume' ? water.volume : metric.label === 'Temperature' ? water.targetTemperature : metric.label === 'Max duration' ? water.duration : undefined
       return value === undefined ? metric : { ...metric, value: String(value) }
     }),
   }) }
@@ -1277,6 +1277,7 @@ export function useBrewingData() {
     const settings = {
       hotWaterVolume: { label: 'Hot water yield', patch: { hotWaterData: { volume: value } }, sharedKey: 'last-hot-water-volume' },
       hotWaterTemperature: { label: 'Hot water temperature', patch: { hotWaterData: { targetTemperature: value } }, sharedKey: 'last-hot-water-temp' },
+      hotWaterDuration: { label: 'Hot water max duration', patch: { hotWaterData: { duration: value } } },
       steamTemperature: { label: 'Steam temperature', patch: { steamSettings: { targetTemperature: value } } },
       steamDuration: { label: 'Steam duration', patch: { steamSettings: { duration: value } }, sharedKey: 'last-steam-duration' },
       steamFlow: { label: 'Steam flow', patch: { steamSettings: { flow: value } }, sharedKey: 'last-steam-flow' },
@@ -1284,7 +1285,7 @@ export function useBrewingData() {
     const update = settings[setting]
     showSettingFeedback({ status: 'saving', message: `Saving ${update.label}…` })
     try {
-      const isHotWater = setting === 'hotWaterVolume' || setting === 'hotWaterTemperature'
+      const isHotWater = setting === 'hotWaterVolume' || setting === 'hotWaterTemperature' || setting === 'hotWaterDuration'
       const workflow = await (isHotWater ? hotWaterSettings.save(update.patch) : updateWorkflow(update.patch))
       setModel((current) => applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
       if (!isHotWater && 'sharedKey' in update) await setSharedSetting(update.sharedKey, value)

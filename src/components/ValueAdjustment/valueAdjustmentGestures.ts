@@ -1,5 +1,13 @@
 import type { ValueAdjustmentMode } from '../../domain/valueAdjustments'
 
+export function normalizedAdjustmentValue(value: number, request: { min: number; max: number; step: number; mode?: ValueAdjustmentMode }) {
+  const steps = Math.round((Math.min(request.max, Math.max(request.min, value)) - request.min) / request.step)
+  const stepped = Number((request.min + steps * request.step).toFixed(request.mode === 'decimal' ? 1 : 0))
+  // Converted Fahrenheit bounds do not always fall on a whole step. Clamp
+  // after rounding too, so an End key, drag, or preset can never exceed max.
+  return Math.min(request.max, Math.max(request.min, stepped))
+}
+
 export function gestureIncrement(mode: ValueAdjustmentMode, pointerCount: number, allowThreeFinger: boolean) {
   if (pointerCount === 1) return mode === 'decimal' ? 0.1 : 1
   if (pointerCount === 2) return 10

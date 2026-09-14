@@ -1,9 +1,6 @@
-import type { CSSProperties, KeyboardEvent } from 'react'
-import hotWaterIcon from '../../assets/figma/hot-water.svg'
+import type { CSSProperties } from 'react'
 import reservoirIcon from '../../assets/figma/reservoir.svg'
 import scaleIcon from '../../assets/figma/scale.svg'
-import steamCompactConnector from '../../assets/figma/steam-compact-connector.svg'
-import steamIcon from '../../assets/figma/steam.svg'
 import { Metric } from '../../components/Metric/Metric'
 import { scaleWeightCanTare, WATER_TANK_CAPACITY_ML } from '../../domain/brewing'
 import { formatTemperatureValue, temperatureBoundToDisplay, temperatureFromDisplay, temperatureStepToDisplay, temperatureUnitLabel, type TemperatureUnit } from '../../domain/temperature'
@@ -12,8 +9,7 @@ import type { EditableMachineSetting, MachineUtility, ScaleConnection } from '..
 import { VALUE_ADJUSTMENTS } from '../../domain/valueAdjustments'
 import { scalePresentationForDevice } from './scaleArtwork'
 import { steamTargetForToggle } from './steamHeating'
-
-const icons = { water: hotWaterIcon, steam: steamIcon, scale: scaleIcon }
+import { DrinkUtilityCard } from './DrinkUtilityCard'
 
 const withoutGenericScaleSuffix = (name: string | undefined) => {
   const title = name?.replace(/\s+scale$/i, '').trim()
@@ -38,6 +34,8 @@ const editForMetric = (utility: MachineUtility, label: string, temperatureUnit: 
     ? 'hotWaterVolume'
     : utility.id === 'water' && label === 'Temperature'
       ? 'hotWaterTemperature'
+      : utility.id === 'water' && label === 'Max duration'
+        ? 'hotWaterDuration'
       : utility.id === 'steam' && label === 'Target'
         ? 'steamTemperature'
         : utility.id === 'steam' && label === 'Duration'
@@ -89,7 +87,6 @@ export function MachineUtilityCard({ utility, compact = false, scale, onExpand, 
   }
 
   const isScale = utility.id === 'scale'
-  const isSteam = utility.id === 'steam'
   const steamHeatingEnabled = utility.enabled !== false
   const steamTarget = Number(utility.metrics.find((metric) => metric.label === 'Target')?.value)
   const scaleConnected = isScale && scale?.status === 'connected'
@@ -103,28 +100,26 @@ export function MachineUtilityCard({ utility, compact = false, scale, onExpand, 
       || (utility.id === 'steam' && (metric.label === 'Current' || metric.label === 'Target'))
     return isTemperature ? { ...metric, value: formatTemperatureValue(metric.value, temperatureUnit), unit: temperatureUnitLabel(temperatureUnit) } : metric
   })
-  const cardClassName = `utility-card utility-card--${utility.id}${isSteam && !steamHeatingEnabled ? ' utility-card--steam-off' : ''}${compact ? ' utility-card--compact' : ''}${scalePresentation?.imageSrc ? ' utility-card--scale-with-art' : ''}`
+  if (utility.id === 'water' || utility.id === 'steam') return <DrinkUtilityCard
+    utility={utility} metrics={metrics} compact={compact} temperatureUnit={temperatureUnit}
+    onExpand={onExpand} disabled={settingsDisabled || !onUpdateSetting}
+    getEdit={label => editForMetric(utility, label, temperatureUnit, onUpdateSetting, settingsDisabled)}
+    onToggleSteam={() => onUpdateSetting?.('steamTemperature', steamTargetForToggle(!steamHeatingEnabled, steamTarget))}
+  />
+  const cardClassName = `utility-card utility-card--scale${compact ? ' utility-card--compact' : ''}${scalePresentation?.imageSrc ? ' utility-card--scale-with-art' : ''}`
   const expandLabel = `Expand utility panels to view ${title}`
-  const sectionIsExpandControl = compact && !isScale
-  const expandWithKeyboard = (event: KeyboardEvent<HTMLElement>) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    event.preventDefault()
-    onExpand?.()
-  }
 
-  return <section className={cardClassName} data-layout={compact ? 'compact' : 'expanded'} data-scale-model={scalePresentation?.id} data-scale-image={scalePresentation?.imageName} role={sectionIsExpandControl ? 'button' : undefined} tabIndex={sectionIsExpandControl ? 0 : undefined} aria-label={sectionIsExpandControl ? expandLabel : undefined} onClick={sectionIsExpandControl ? onExpand : undefined} onKeyDown={sectionIsExpandControl ? expandWithKeyboard : undefined}>
-    {compact && isScale && <button className="utility-card__expand-surface" type="button" aria-label={expandLabel} onClick={onExpand} />}
-    <header><img src={icons[utility.id]} alt="" /><span>{title}</span></header>
-    {!compact && isSteam && <button className={`steam-heating-toggle${steamHeatingEnabled ? ' steam-heating-toggle--enabled' : ''}`} type="button" role="switch" aria-checked={steamHeatingEnabled} aria-label={steamHeatingEnabled ? 'Disable steam heating' : 'Enable steam heating'} title={steamHeatingEnabled ? 'Disable steam heating' : 'Enable steam heating'} disabled={settingsDisabled || !onUpdateSetting} onClick={() => onUpdateSetting?.('steamTemperature', steamTargetForToggle(!steamHeatingEnabled, steamTarget))}><span /></button>}
-    {isScale && !scaleConnected
+  return <section className={cardClassName} data-layout={compact ? 'compact' : 'expanded'} data-scale-model={scalePresentation?.id} data-scale-image={scalePresentation?.imageName}>
+    {compact && <button className="utility-card__expand-surface" type="button" aria-label={expandLabel} onClick={onExpand} />}
+    <header><img src={scaleIcon} alt="" /><span>{title}</span></header>
+    {!scaleConnected
       ? <button className={compact ? 'scale-search scale-compact-summary' : 'scale-search'} type="button" onClick={onSearchScale} disabled={scale?.status === 'searching'}>{scale?.status === 'searching' ? 'Searching…' : 'Search'}</button>
       : <div className="utility-card__metrics">{metrics.map((metric) => scaleCanTare
         ? <button className={`scale-tare-control${scaleTarePending ? ' scale-tare-control--pending' : ''}`} key={metric.label} type="button" aria-label={`Tare scale, current weight ${metric.value}${metric.unit ?? ''}`} title="Tare scale" disabled={scaleTarePending} onClick={onTareScale}>
           <Metric metric={metric} compact size="large" />
           <svg className="scale-tare-control__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M6.1 9a7 7 0 0 1 11.6-2.6L20 8.8M4 15.2l2.3 2.4A7 7 0 0 0 17.9 15" /></svg>
         </button>
-        : <Metric key={metric.label} metric={metric} compact size={isScale || !compact ? 'large' : 'small'} edit={compact ? undefined : editForMetric(utility, metric.label, temperatureUnit, onUpdateSetting, settingsDisabled)} />)}</div>}
-    {compact && utility.id === 'steam' && <span className="utility-card__steam-connector" aria-hidden="true"><img src={steamCompactConnector} alt="" /></span>}
+        : <Metric key={metric.label} metric={metric} compact size="large" />)}</div>}
     {scalePresentation?.imageSrc && <span className="scale-device-art" aria-hidden="true"><img src={scalePresentation.imageSrc} alt="" /></span>}
   </section>
 }
