@@ -29,6 +29,31 @@ test('screensaver brightness is not capped to the default and wake restores norm
   }
   assert.deepEqual(writes, [0, 60, 3, 60, 45, 60, 100, 60])
 })
+test('wake uses the saved screen setting instead of a temporary Decaid snapshot', async () => {
+  for (const snapshot of [7, 20, 100]) {
+    const { policy, writes, saved } = fixture(snapshot, 45)
+    await policy.dim(7)
+    await policy.restore()
+    assert.deepEqual(writes, [7, 45])
+    assert.equal(saved(), 45)
+  }
+})
+test('reloading while dimmed preserves normal brightness across repeated sleep cycles', async () => {
+  const { policy, writes } = fixture(7, 60)
+  await policy.dim(7)
+  await policy.restore()
+  await policy.dim(12)
+  await policy.restore()
+  assert.deepEqual(writes, [7, 60, 12, 60])
+})
+test('a saved zero or OS-managed value wins over the snapshot on wake', async () => {
+  for (const saved of [0, 100]) {
+    const { policy, writes } = fixture(7, saved)
+    await policy.dim(12)
+    await policy.restore()
+    assert.deepEqual(writes, [12, saved])
+  }
+})
 test('rapid sleep/wake is ordered and preserves the requested brightness despite battery cap', async () => {
   const { policy, writes, saved } = fixture()
   await Promise.all([policy.dim(5), policy.restore(), policy.restore()])
