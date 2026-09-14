@@ -1,6 +1,6 @@
 import type { PaginatedShots, ShotRecord } from '../../api/decaid/types.ts'
 import type { PreviousShot } from '../../domain/brewing.ts'
-import { attachDetail, HISTORY_LIMIT, normalizeShot, retainHistoryDetails, regroupHistory, reconcileCachedDurations, validHistoryCache, type HistoryCache } from './historyData.ts'
+import { attachDetail, HISTORY_LIMIT, normalizeShot, retainHistoryDetails, regroupHistory, reconcileCachedDurations, savedDuration, validHistoryCache, type HistoryCache } from './historyData.ts'
 import type { HistoryStorage } from './historyStorage.ts'
 import { syncHistory } from './historySync.ts'
 
@@ -19,6 +19,8 @@ export class HistoryRepository {
   private refreshing: Promise<void> | null = null
   private writes: Promise<void> = Promise.resolve()
   private loadingDetails = new Map<string, Promise<PreviousShot>>()
+  private rawDetails = new Map<string, Promise<ShotRecord>>()
+  private durationBatch: Promise<boolean> | null = null
   constructor(source: string, timezone: string, dependencies: Dependencies) { this.source = source; this.timezone = timezone; this.deps = dependencies }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
   getSnapshot = () => this.state
@@ -51,6 +53,63 @@ export class HistoryRepository {
     })()
     return this.refreshing
   }
+  private readDetail(id: string) {
+    const pending = this.rawDetails.get(id)
+    if (pending) return pending
+    const request = Promise.resolve().then(() => this.deps.detail(id)).then(raw => {
+      if (raw.id !== id || !Array.isArray(raw.measurements)) throw new Error('Decaid did not return the measurements for this shot.')
+      return raw
+    }).finally(() => this.rawDetails.delete(id))
+    this.rawDetails.set(id, request)
+    return request
+  }
+  // Migration v1: small, resumable batches. Keep only the duration, not 1,000 graphs.
+  // The per-record marker also remembers genuinely missing data and survives releases.
+  reconcileDurationBatch(canContinue: () => boolean = () => true): Promise<boolean> {
+    if (this.durationBatch) return this.durationBatch
+    this.durationBatch = (async () => {
+      await this.load()
+      const initial = this.state.cache
+      if (!initial) return false
+      const pending = initial.records.filter(r => r.duration === null && r.durationReconciled !== 1).slice(0, 5)
+      const results = new Map<string, { signature: string; duration: number | null }>()
+      try {
+        for (const record of pending) {
+          if (!canContinue()) break
+          let duration: number | null = null
+          const cached = this.state.cache?.details[record.id]
+          if (cached) duration = savedDuration(cached)
+          else {
+            try {
+              const raw = await this.readDetail(record.id)
+              const normalized = normalizeShot(raw, initial.timezone)
+              // Don't attach measurements to a different revision; refresh will reconcile it.
+              if (normalized?.signature !== record.signature) throw new Error('Saved shot changed during duration reconciliation.')
+              duration = savedDuration(this.deps.toDetail(raw))
+            } catch (error) {
+              // Deleted records must not block the rest of the archive. Transient failures retry.
+              if (!(error instanceof Error && 'status' in error && error.status === 404)) throw error
+            }
+          }
+          results.set(record.id, { signature: record.signature, duration })
+        }
+      } finally {
+        const current = this.state.cache
+        if (current && results.size) {
+          const cache = { ...current, records: current.records.map(record => {
+            const result = results.get(record.id)
+            return result?.signature === record.signature
+              ? { ...record, duration: record.duration ?? result.duration, durationReconciled: 1 as const }
+              : record
+          }) }
+          this.update({ cache })
+          await this.persist(cache)
+        }
+      }
+      return !this.state.cache?.records.some(r => r.duration === null && r.durationReconciled !== 1)
+    })().finally(() => { this.durationBatch = null })
+    return this.durationBatch
+  }
   detail(id: string) {
     const inFlight = this.loadingDetails.get(id)
     if (inFlight) return inFlight
@@ -61,8 +120,7 @@ export class HistoryRepository {
       if (!initial || !record) throw new Error(`This shot is not in the latest ${HISTORY_LIMIT.toLocaleString()} saved records. Refresh history to check again.`)
       // Summaries are reconciled on entry/refresh. A cached detail shares that revision.
       if (Object.hasOwn(initial.details, id)) return initial.details[id]
-      const raw = await this.deps.detail(id)
-      if (raw.id !== id || !Array.isArray(raw.measurements)) throw new Error('Decaid did not return the measurements for this shot.')
+      const raw = await this.readDetail(id)
       const normalized = normalizeShot(raw, initial.timezone)
       if (!normalized) throw new Error('This saved shot is missing its date or identity.')
       const detail = this.deps.toDetail(raw)

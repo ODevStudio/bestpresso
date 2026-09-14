@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { getDecaidEndpoints } from '../../api/decaid/config'
 import { shotToDomain } from '../../api/decaid/adapters'
 import { browserHistoryStorage } from './historyStorage'
 import { HistoryRepository } from './historyRepository'
 import { readHistoryDetail, readHistoryPage } from './historyTransport'
 import { startLatestChartRetry, type LatestChartStatus } from './latestChartRetry'
+import { createHistoryRefresh } from './historyRefresh'
+import { startDurationBackfill } from './durationBackfill'
 
-export function useShotInsights(active: boolean, refreshKey: string) {
+export function useShotInsights(active: boolean, shotId: string) {
   const source = getDecaidEndpoints().apiBase
   const repository = useMemo(() => new HistoryRepository(source, Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', {
     storage: browserHistoryStorage(), page: offset => readHistoryPage(source, offset), detail: id => readHistoryDetail(source, id), toDetail: shotToDomain,
@@ -14,17 +16,64 @@ export function useShotInsights(active: boolean, refreshKey: string) {
   const state = useSyncExternalStore(repository.subscribe, repository.getSnapshot)
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
+    if (!active) return
+    // Advance date windows across midnight without requesting history from Decaid.
+    const clock = window.setInterval(() => setNow(new Date()), 60000)
+    return () => window.clearInterval(clock)
+  }, [active])
+  const refreshController = useRef<ReturnType<typeof createHistoryRefresh> | null>(null)
+  const previousShotId = useRef(shotId)
+  const refreshHistory = useCallback((force = true) => refreshController.current?.request(force), [])
+  useEffect(() => {
     void repository.load()
     if (!active) return
-    const refresh = () => { setNow(new Date()); if (document.visibilityState !== 'hidden') void repository.refresh() }
-    refresh()
-    const interval = window.setInterval(refresh, 60000)
-    // A finished shot may reach storage shortly after the live view closes.
-    const settled = window.setTimeout(refresh, 4000)
-    window.addEventListener('online', refresh)
+    const controller = createHistoryRefresh({
+      refresh: async force => {
+        setNow(new Date())
+        await repository.refresh(force)
+        return repository.state.status === 'ready'
+      },
+      visible: () => document.visibilityState !== 'hidden',
+      schedule: (callback, delay) => {
+        const timer = window.setTimeout(callback, delay)
+        return () => window.clearTimeout(timer)
+      },
+    })
+    refreshController.current = controller
+    const refresh = () => { void controller.request() }
+    // Only a changed shot gets a settling delay; don't double-fetch on every entry.
+    const newShot = !!shotId && previousShotId.current !== shotId
+    previousShotId.current = shotId
+    const settled = newShot ? window.setTimeout(refresh, 4000) : undefined
+    if (!newShot) refresh()
+    window.addEventListener('online', controller.retryFailed)
     document.addEventListener('visibilitychange', refresh)
-    return () => { window.clearInterval(interval); window.clearTimeout(settled); window.removeEventListener('online', refresh); document.removeEventListener('visibilitychange', refresh) }
-  }, [repository, active, refreshKey])
+    return () => {
+      controller.stop()
+      refreshController.current = null
+      window.clearTimeout(settled)
+      window.removeEventListener('online', controller.retryFailed)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [repository, active, shotId])
+  useEffect(() => {
+    if (!active || state.status !== 'ready') return
+    const backfill = startDurationBackfill({
+      batch: canContinue => repository.reconcileDurationBatch(canContinue),
+      visible: () => document.visibilityState !== 'hidden',
+      schedule: (callback, delay) => {
+        const timer = window.setTimeout(callback, delay)
+        return () => window.clearTimeout(timer)
+      },
+    })
+    window.addEventListener('online', backfill.resume)
+    document.addEventListener('visibilitychange', backfill.resume)
+    return () => {
+      backfill.stop()
+      window.removeEventListener('online', backfill.resume)
+      document.removeEventListener('visibilitychange', backfill.resume)
+    }
+  }, [repository, active, state.status, state.cache?.syncedAt, shotId])
   const latest = state.cache?.records.find(r => r.beverage !== 'excluded')
   const latestId = latest?.id
   const latestSignature = latest?.signature
@@ -53,6 +102,6 @@ export function useShotInsights(active: boolean, refreshKey: string) {
   const latestChartStatus: LatestChartStatus = latestCached
     ? state.cache!.details[latestId!].points?.length ? 'ready' : 'empty'
     : chartState?.key === chartKey ? chartState.status : 'loading'
-  return { ...state, now, repository, latestChartStatus }
+  return { ...state, now, repository, latestChartStatus, refreshHistory }
 }
 export type ShotInsights = ReturnType<typeof useShotInsights>

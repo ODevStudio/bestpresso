@@ -10,6 +10,7 @@ export interface HistoryRecord {
   id: string; timestamp: string; profile: string; profileKey: string; beverage: Beverage
   dose: number | null; yield: number | null; duration: number | null
   signature: string; date: string; weekday: number; hour: number; minute: number
+  durationReconciled?: 1
 }
 export interface HistoryCache {
   version: 1; source: string; timezone: string; syncedAt: string; total: number
@@ -40,7 +41,7 @@ export function regroupHistory(cache: HistoryCache): HistoryCache {
   const records = cache.records.map(r => ({ ...r, profileKey: profileUsageKey(r.profile, r.beverage) }))
   return records.some((r, i) => r.profileKey !== cache.records[i].profileKey) ? { ...cache, records } : cache
 }
-const savedDuration = (detail?: PreviousShot): number | null => {
+export const savedDuration = (detail?: PreviousShot): number | null => {
   const text = detail?.totalTime?.trim()
   return text ? finiteMetric(Number(text)) : null
 }
@@ -104,7 +105,7 @@ export function retainHistoryDetails(cache: HistoryCache, previous: HistoryCache
     if (old?.signature === record.signature && prior) {
       const detail = prior.details[record.id]
       if (detail?.id === record.id) details[record.id] = detail
-      return { ...record, duration: finiteMetric(old.duration) ?? (detail?.id === record.id ? savedDuration(detail) : null), yield: record.yield ?? old.yield }
+      return { ...record, duration: finiteMetric(old.duration) ?? (detail?.id === record.id ? savedDuration(detail) : null), durationReconciled: old.durationReconciled, yield: record.yield ?? old.yield }
     }
     return record
   })

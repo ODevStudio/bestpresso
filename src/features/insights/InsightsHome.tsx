@@ -1,5 +1,6 @@
 import { MiniShotChart } from '../history/MiniShotChart'
 import { latestChartMessage } from './latestChartRetry'
+import { historyStatus } from './historyStatus'
 import type { ShotInsights } from './useShotInsights'
 import { calendarParts, coversWindow, dateLabel, inWindow, reportingWindow, shiftDate, shotRecipeLabel, summarize, timeLabel, weekdays } from './historyData'
 
@@ -18,10 +19,7 @@ export function InsightsHome({ data, onOpen, onLatest }: { data: ShotInsights; o
     return { date, name: weekdays[weekday], count: shots.filter(s => s.date === date).length }
   })
   const max = Math.max(1, ...daily.map(d => d.count))
-  const status = data.refreshing || data.status === 'loading' || (data.status === 'offline' && !data.error)
-    ? cache ? 'Syncing history…' : 'Loading history…'
-    : !cache ? 'History unavailable · retrying automatically'
-      : data.status === 'offline' ? 'Showing saved history · retrying automatically' : !complete ? 'Limited history · cached records' : null
+  const status = historyStatus(!!cache, !!data.error, complete)
   return <section className="ins-theme ins-home-entry" aria-label="Brewing insights and latest shot">
     <button className="ins-entry-card ins-entry-insight" onClick={onOpen} aria-label="Open brewing insights" aria-describedby="ins-home-period-context">
       <span id="ins-home-period-context" className="ins-sr">Espresso brews from the previous seven complete days. Average yield uses {summary.yieldCoverage} of {summary.count} saved readings.</span>
