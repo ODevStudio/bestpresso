@@ -36,7 +36,7 @@ export default function App() {
   const [, setPage] = useState(0)
   const page = data.utilityOperation ? 'home' : currentPage()
   const utilityOperationKind = data.utilityOperation?.kind
-  const insights = useShotInsights(!data.liveBrew.visible && !data.utilityOperation && !data.sleepScreenActive && ['home', 'insights', 'previous-pull'].includes(page), `${page}:${data.model.previousShot?.id ?? ''}:${data.previousShotStatus}`)
+  const insights = useShotInsights(!data.liveBrew.visible && !data.utilityOperation && !data.sleepScreenActive && ['home', 'insights', 'previous-pull'].includes(page), data.model.previousShot?.id ?? '')
   const insightsRoute = readInsightsRoute(new URLSearchParams(window.location.search))
   const navigateInsights = (next: InsightsRoute, replace = false) => {
     const url = writeInsightsRoute(new URL(window.location.href), next)
