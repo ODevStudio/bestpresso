@@ -133,13 +133,20 @@ export function shiftDate(date: string, days: number) {
   value.setUTCDate(value.getUTCDate() + days)
   return value.toISOString().slice(0, 10)
 }
-export function reportingWindow(days: number, timezone: string, now = new Date(), previous = false) {
+export function reportingWindow(days: number, timezone: string, now = new Date(), previous = false, includeToday = false) {
   const today = calendarParts(now.toISOString(), timezone)!.date
-  return { start: shiftDate(today, -days * (previous ? 2 : 1)), end: shiftDate(today, previous ? -days : 0) }
+  const end = includeToday ? shiftDate(today, 1) : today
+  return { start: shiftDate(end, -days * (previous ? 2 : 1)), end: shiftDate(end, previous ? -days : 0) }
+}
+export function rollingWeekdays(timezone: string, now = new Date()) {
+  const today = calendarParts(now.toISOString(), timezone)!.weekday
+  return Array.from({ length: 7 }, (_, offset) => (today + offset + 1) % 7)
 }
 export const inWindow = (r: HistoryRecord, w: { start: string; end: string }) => r.date >= w.start && r.date < w.end
-export function coversWindow(cache: HistoryCache | null, w: { start: string; end: string }) {
-  if (!cache || cache.omitted || calendarParts(cache.syncedAt, cache.timezone)!.date < w.end) return false
+export function coversWindow(cache: HistoryCache | null, w: { start: string; end: string }, throughToday?: Date) {
+  const today = cache && throughToday ? calendarParts(throughToday.toISOString(), cache.timezone)!.date : null
+  const requiredEnd = today && w.end === shiftDate(today, 1) ? today : w.end
+  if (!cache || cache.omitted || calendarParts(cache.syncedAt, cache.timezone)!.date < requiredEnd) return false
   if (cache.total === cache.records.length) return true
   const earliest = cache.records.map(r => r.date).sort()[0]
   // The oldest cached calendar day may be cut in half by the record limit.
