@@ -36,16 +36,22 @@ test('target line is radial at every point on the arc', () => {
     assert.ok(Math.abs((target.markerStart.top + target.markerEnd.top) / 2 - target.top) < 1e-9)
   }
 })
-test('arc is a true circle with symmetric endpoints and its midpoint at the top', () => {
+test('arc is a true upper semicircle with level endpoints and its midpoint at the top', () => {
   const start = gaugePointAtAngle(GAUGE_START_DEG)
   const end = gaugePointAtAngle(GAUGE_START_DEG + GAUGE_SWEEP_DEG)
   const midpoint = gaugePointAtAngle(GAUGE_START_DEG + GAUGE_SWEEP_DEG / 2)
+  assert.equal(GAUGE_SWEEP_DEG, 180)
+  assert.ok(Math.abs(start.top - GAUGE_CENTER) < 1e-9)
+  assert.ok(Math.abs(end.top - GAUGE_CENTER) < 1e-9)
+  assert.equal(start.left, GAUGE_CENTER - GAUGE_RADIUS)
+  assert.equal(end.left, GAUGE_CENTER + GAUGE_RADIUS)
   assert.ok(Math.abs(start.top - end.top) < 1e-9)
   assert.ok(Math.abs(start.left + end.left - 2 * GAUGE_CENTER) < 1e-9)
   assert.ok(Math.abs(midpoint.left - GAUGE_CENTER) < 1e-9)
   assert.equal(midpoint.top, GAUGE_CENTER - GAUGE_RADIUS)
   for (let fraction = 0; fraction <= 1; fraction += .05) {
     const point = gaugePointAtAngle(GAUGE_START_DEG + fraction * GAUGE_SWEEP_DEG)
+    assert.ok(point.top <= GAUGE_CENTER + 1e-9)
     assert.ok(Math.abs(Math.hypot(point.left - GAUGE_CENTER, point.top - GAUGE_CENTER) - GAUGE_RADIUS) < 1e-9)
   }
 })
@@ -56,7 +62,7 @@ test('track and progress use the same circular path with no fill below range', (
   assert.equal(gaugeArcPath(1), GAUGE_TRACK_PATH)
   assert.equal(gaugeArcPath(2), GAUGE_TRACK_PATH)
   assert.match(gaugeArcPath(.5), / A 94 94 0 0 1 /)
-  assert.match(GAUGE_TRACK_PATH, / A 94 94 0 1 1 /)
+  assert.match(GAUGE_TRACK_PATH, / A 94 94 0 0 1 /)
   for (const value of [45, 50, 105, 140, 150, 164, 170]) {
     const tip = gaugeGeometry(value, GAUGE_MIN_C, 170)
     assert.ok(gaugeArcPath(tip.fraction).endsWith(`${tip.left} ${tip.top}`))

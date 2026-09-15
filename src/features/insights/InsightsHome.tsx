@@ -29,7 +29,7 @@ export function InsightsHome({ data, onOpen, onLatest }: { data: ShotInsights; o
       <div className="ins-entry-week" role="img" aria-label={daily.map(d => `${d.name} ${dateLabel(d.date)}: ${d.count} cached shots`).join('; ')}>
         {daily.map(d => <span className="ins-entry-day" key={d.date} aria-hidden="true"><span className="ins-entry-bar-space"><i data-empty={!d.count} style={{ height: `${d.count ? d.count / max * 100 : 2}%` }}/></span><small>{d.name[0]}</small></span>)}
       </div>
-      <div className="ins-entry-summary"><strong>Past 7 days<br/>insight</strong><span className="ins-entry-metric"><span>{cache ? summary.count : '—'}</span><small>{complete ? 'Shots' : 'Cached shots'}</small></span><span className="ins-entry-metric"><span>{summary.averageYield?.toFixed(1) ?? '—'}{summary.averageYield !== null && <small className="ins-entry-unit"> g</small>}</span><small>Avg. yield</small></span></div>
+      <div className="ins-entry-summary"><strong>Past 7 days<br/>{' '}insight</strong><span className="ins-entry-metric"><span>{cache ? summary.count : '—'}</span><small>{complete ? 'Shots' : 'Cached shots'}</small></span><span className="ins-entry-metric"><span>{summary.averageYield?.toFixed(1) ?? '—'}{summary.averageYield !== null && <small className="ins-entry-unit"> g</small>}</span><small>Avg. yield</small></span></div>
       {status && <span className="ins-entry-status">{status}</span>}
       </div>
     </button>

@@ -53,10 +53,10 @@ export function DrinkUtilityCard({ utility, metrics, compact, temperatureUnit, d
     </div>
     <div className="drink-card__face drink-card__expanded" inert={compact} aria-hidden={compact}>
       <header><img src={icon} alt="" /><h2>{utility.label}</h2>{steam && <button className="drink-card__toggle" type="button" role="switch" aria-checked={enabled} aria-label={enabled ? 'Disable steam heating' : 'Enable steam heating'} disabled={disabled} onClick={onToggleSteam}><span /></button>}</header>
-      {!steam ? <div className="drink-card__water-settings"><div>{displayMetric('Temperature')}</div><div>{displayMetric('Volume')}</div><div>{displayMetric('Max duration')}</div></div>
+      {!steam ? <div className="drink-card__water-settings"><div>{displayMetric('Temperature')}</div><div>{displayMetric('Volume')}</div></div>
         : <div className="drink-card__steam-settings">
           <div className={`drink-card__gauge${heating ? ' is-heating' : ''}`} style={{ '--gauge-target-angle': `${marker.angle}deg` } as CSSProperties}>
-            <svg className="drink-card__gauge-art" viewBox="0 0 197 138" role="meter" aria-label="Steam temperature" aria-valuemin={temperatureBoundToDisplay(GAUGE_MIN_C, temperatureUnit)} aria-valuemax={temperatureBoundToDisplay(maxC, temperatureUnit)} aria-valuenow={currentValid ? temperatureBoundToDisplay(Math.max(GAUGE_MIN_C, Math.min(maxC, currentC)), temperatureUnit) : undefined} aria-valuetext={enabled ? `${currentText} current, ${targetText} target` : 'Steam heating off'}>
+            <svg className="drink-card__gauge-art" viewBox="0 0 197 110" role="meter" aria-label="Steam temperature" aria-valuemin={temperatureBoundToDisplay(GAUGE_MIN_C, temperatureUnit)} aria-valuemax={temperatureBoundToDisplay(maxC, temperatureUnit)} aria-valuenow={currentValid ? temperatureBoundToDisplay(Math.max(GAUGE_MIN_C, Math.min(maxC, currentC)), temperatureUnit) : undefined} aria-valuetext={enabled ? `${currentText} current, ${targetText} target` : 'Steam heating off'}>
               <path className="drink-card__gauge-track" d={GAUGE_TRACK_PATH} />
               <path className="drink-card__gauge-fill" d={GAUGE_TRACK_PATH} pathLength={1} strokeDasharray="1 1" strokeDashoffset={1 - fraction} data-empty={!currentValid || fraction === 0} />
               <g className="drink-card__gauge-marker" visibility={targetValid ? undefined : 'hidden'}><line x1={GAUGE_CENTER} y1={GAUGE_CENTER - GAUGE_RADIUS + 7.5} x2={GAUGE_CENTER} y2={GAUGE_CENTER - GAUGE_RADIUS - 7.5} /></g>
