@@ -3,8 +3,8 @@
 export const GAUGE_MIN_C = 40
 export const GAUGE_CENTER = 98.5
 export const GAUGE_RADIUS = 94
-export const GAUGE_SWEEP_DEG = 210
-// Symmetrical circular arc, centered on twelve o'clock. Geometry is generated
+export const GAUGE_SWEEP_DEG = 180
+// True upper semicircle, from nine to three o'clock. Geometry is generated
 // from one circle, independent of the hand-drawn design path.
 export const GAUGE_START_DEG = 360 - GAUGE_SWEEP_DEG / 2
 

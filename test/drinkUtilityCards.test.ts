@@ -34,9 +34,18 @@ test('steam on/off preserves target, flow, duration, and actual heater reading',
   assert.deepEqual(on.utilities[1].metrics, model.utilities[1].metrics)
 })
 
-test('home hot-water max duration uses the same adjustment range as Settings', () => {
+test('hot-water duration remains supported with the same adjustment range as Settings', () => {
   const { min, max, step } = VALUE_ADJUSTMENTS.hotWaterDuration
   assert.deepEqual({ min, max, step }, SETTINGS_PROTOCOL.hotWater.duration)
+})
+
+test('only the home hot-water duration shortcut is removed, not the Settings limit', () => {
+  const source = readFileSync(new URL('../src/features/machine/DrinkUtilityCard.tsx', import.meta.url), 'utf8')
+  const waterCard = source.split('!steam ? <div className="drink-card__water-settings">')[1].split(': <div className="drink-card__steam-settings">')[0]
+  assert.deepEqual([...waterCard.matchAll(/displayMetric\('([^']+)'\)/g)].map(match => match[1]), ['Temperature', 'Volume'])
+  const settings = readFileSync(new URL('../src/features/settings/SettingsScreen.tsx', import.meta.url), 'utf8')
+  assert.match(settings, /NumberSetting label="Max duration" value=\{numberValue\(settings\.draft\.workflow\.hotWaterData\?\.duration\)\}/)
+  assert.match(settings, /onChange=\{\(duration\) => settings\.patchWorkflow\('hotWaterData', \{ duration \}\)\}/)
 })
 
 test('collapsed cards keep their original summaries and hidden controls cannot receive focus', () => {
@@ -45,7 +54,7 @@ test('collapsed cards keep their original summaries and hidden controls cannot r
   assert.match(source, /inert=\{!compact\} aria-hidden=\{!compact\}/)
   assert.match(source, /inert=\{compact\} aria-hidden=\{compact\}/)
   assert.match(source, /displayMetric\('Duration', 'Max duration'\)/)
-  assert.match(source, /displayMetric\('Max duration'\)/)
+  assert.doesNotMatch(source, /displayMetric\('Max duration'\)/)
   assert.match(source, /metric__edit-indicator/)
 })
 
@@ -60,4 +69,43 @@ test('motion uses CSS interpolation, the shared 520ms card timing, and reduced-m
   assert.match(css, /inset:50px 0 8px;row-gap:4px/)
   const digits = readFileSync(new URL('../src/features/machine/TemperatureReading.tsx', import.meta.url), 'utf8')
   assert.doesNotMatch(digits, /requestAnimationFrame|setInterval/)
+})
+
+test('narrow cards reflow controls without reducing label or temperature sizes', () => {
+  const css = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
+  const narrow = css.split('@container (max-width:340px) {')[1].split('@media(max-width:760px)')[0]
+  assert.match(css, /water-settings \{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/)
+  assert.match(narrow, /water-settings \{grid-template-rows:minmax\(48px,1fr\);margin:6px 12px 10px/)
+  assert.doesNotMatch(css, /drink-card__water-duration/)
+  assert.match(narrow, /steam-settings \{grid-template-columns:minmax\(0,1fr\)/)
+  assert.match(narrow, /grid-template-rows:minmax\(0,1fr\) 64px;gap:8px;padding:6px 12px 4px/)
+  assert.match(narrow, /steam-secondary \{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/)
+  assert.match(narrow, /steam-secondary>div\+div \{border-top:0;border-left:1px/)
+  assert.match(narrow, /steam-secondary \.metric \{min-height:48px;gap:5px\}/)
+  assert.doesNotMatch(narrow, /font-size|transform:scale/)
+})
+
+test('tablet grid reserves space for controls and keeps one shared row layout when collapsed', () => {
+  const css = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
+  const tablet = css.split('@media(min-width:761px) and (max-width:1180px) {')[1].split('@media(min-width:761px) and (max-width:899px)')[0]
+  assert.match(tablet, /--utility-panel-expanded-width:clamp\(244px,32vw,340px\)/)
+  assert.match(tablet, /grid-template-rows:minmax\(122px,\.8fr\) minmax\(226px,1\.6fr\) minmax\(114px,\.95fr\)/)
+  assert.match(tablet, /--drink-header-height:48px/)
+  assert.doesNotMatch(tablet, /drink-card\.utility-card--(?:water|steam) \{--drink-header-height:/)
+  assert.match(css, /grid-template-rows:minmax\(122px,\.8fr\) minmax\(226px,1\.6fr\) minmax\(134px,\.95fr\)/)
+  assert.match(tablet, /inset:40px 0 6px;row-gap:0/)
+  assert.doesNotMatch(tablet, /--utility-panel-width:|app-shell--utilities-collapsed/)
+  assert.match(tablet, /utility-card--scale\.utility-card--compact \.utility-card__metrics \{top:auto;bottom:12px/)
+  assert.match(tablet, /ins-home-entry \{min-height:0\}/)
+  assert.match(tablet, /ins-entry-card \{container-type:inline-size\}/)
+  assert.match(tablet, /ins-entry-shot-caption>strong \{font-size:14px;line-height:18px\}/)
+})
+
+test('semicircle uses a shorter matching viewport without squashing the arc or its labels', () => {
+  const source = readFileSync(new URL('../src/features/machine/DrinkUtilityCard.tsx', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
+  assert.match(source, /viewBox="0 0 197 110" role="meter"/)
+  assert.match(css, /aspect-ratio:197 \/ 110/)
+  assert.match(css, /max-height:110px;min-height:0/)
+  assert.doesNotMatch(source, /preserveAspectRatio="none"/)
 })
