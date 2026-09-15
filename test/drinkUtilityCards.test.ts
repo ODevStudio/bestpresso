@@ -140,7 +140,7 @@ test('only steam temperature places its adjustment label after the values', () =
 test('steam temperature block shifts independently from the arc and target value', () => {
   const css = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
   assert.match(css, /\.drink-card__temperature \{[^}]*transform:translate\(4px,12px\)/)
-  assert.match(css, /\.drink-card__target\.metric__reading \{[^}]*transform:translateX\(-4px\)/)
+  assert.match(css, /\.drink-card__target\.metric__reading \{[^}]*transform:translate\(-12px,-4px\)/)
   assert.match(css, /\.drink-card__gauge \{[^}]*transform:translateY\(8px\)/)
 })
 
@@ -155,4 +155,12 @@ test('taller arc lifts the temperature block eight pixels without changing the s
   const css = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
   assert.match(css, /\[data-tall=true\] \.drink-card__temperature \{top:35%;transform:translate\(4px,4px\)/)
   assert.match(css, /\.drink-card__temperature \{[^}]*transform:translate\(4px,12px\)/)
+})
+
+test('steam gauge emphasizes the current reading while keeping the target secondary', () => {
+  const css = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
+  assert.match(css, /\.drink-card__current\.metric__reading \{[^}]*font-size:28px;[^}]*line-height:32px/)
+  assert.match(css, /\.drink-card__target\.metric__reading \{[^}]*font-size:16px;[^}]*line-height:20px/)
+  assert.match(css, /\.drink-card__temperature-pair \{[^}]*height:46px/)
+  assert.match(css, /\.drink-card__temperature-pair \{[^}]*transform:translateX\(-3px\)/)
 })

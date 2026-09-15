@@ -53,8 +53,8 @@
 .drink-card__gauge-marker line {stroke:var(--metric-value-color);stroke-width:1.5;stroke-linecap:round}
 .utility-card--steam-off .drink-card__gauge-marker {opacity:.5}
 .app-shell .drink-card__temperature {position:absolute;top:26%;left:0;width:100%;max-width:none;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0;text-align:center;min-height:74px;transform:translate(4px,12px)}
-.drink-card__temperature-pair {display:inline-grid;grid-template-columns:max-content 26px max-content;column-gap:2px;height:46px;white-space:nowrap;transform:translateX(-6px)}
-.app-shell .drink-card__current.metric__reading {display:grid;align-self:start;transform:translateX(14px);font-size:16px;font-weight:300;line-height:20px;letter-spacing:-.3px;color:var(--metric-value-color);pointer-events:none;transition:color .32s ease}
+.drink-card__temperature-pair {display:inline-grid;grid-template-columns:max-content 26px max-content;column-gap:2px;height:46px;white-space:nowrap;transform:translateX(-3px)}
+.app-shell .drink-card__current.metric__reading {display:grid;align-self:start;transform:translateX(14px);font-size:28px;font-weight:300;line-height:32px;letter-spacing:-.7px;color:var(--metric-value-color);pointer-events:none;transition:color .32s ease}
 .app-shell .drink-card__gauge.is-heating .drink-card__current {color:var(--drink-heating)}
 .drink-card__current-live,.drink-card__current-off {grid-area:1/1;transition:opacity .24s ease}
 .drink-card__current-off {opacity:0}
@@ -63,7 +63,7 @@
 .app-shell .utility-card--steam-off .drink-card__current {color:var(--metric-label-color)}
 .drink-card__slash {align-self:center;width:26px;height:26px;pointer-events:none;fill:none;stroke:var(--metric-value-color);stroke-width:1;transition:opacity .32s ease}
 .utility-card--steam-off .drink-card__slash {opacity:.45}
-.app-shell .drink-card__target.metric__reading {align-self:end;font-size:28px;font-weight:300;line-height:32px;letter-spacing:-.7px;color:var(--metric-value-color);transform:translateX(-4px)}
+.app-shell .drink-card__target.metric__reading {align-self:end;font-size:16px;font-weight:300;line-height:20px;letter-spacing:-.3px;color:var(--metric-value-color);transform:translate(-12px,-4px)}
 .drink-card__steam-secondary {min-width:0;height:var(--drink-metric-height);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--drink-separator)}
 .drink-card__steam-secondary>div {display:grid;align-items:center;min-width:0}
 .drink-card__steam-secondary>div+div {border-left:1px solid var(--drink-separator)}
