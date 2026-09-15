@@ -111,6 +111,13 @@ test('home entry has full-width inner layouts and no routine status subtext', ()
   assert.match(component, /status && <span className="ins-entry-status"/)
   for (const selector of ['ins-entry-content', 'ins-entry-week', 'ins-entry-summary', 'ins-entry-latest-content']) assert.match(css, new RegExp(`\\.${selector} \\{[^}]*width:100%`))
 })
+test('home insight title stays compact and tablet bars retain top breathing room', () => {
+  const css = readFileSync(new URL('../src/features/insights/insights.css', import.meta.url), 'utf8')
+  const tabletCss = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
+  assert.match(css, /\.ins-entry-summary>strong \{ font-size:14px; line-height:18px/)
+  assert.match(css, /\.ins-entry-content \{[^}]*padding:24px 24px 20px/)
+  assert.match(tabletCss, /\.app-shell \.ins-entry-content \{padding:20px 16px 10px/)
+})
 test('reporting windows use calendar dates across DST; 30-day comparison spans 60 days', () => {
   assert.deepEqual(reportingWindow(7, 'America/New_York', new Date('2026-03-09T12:00:00Z')), { start: '2026-03-02', end: '2026-03-09' })
   assert.deepEqual(reportingWindow(30, 'Asia/Singapore', now, true), { start: '2026-07-15', end: '2026-08-14' })
