@@ -9,8 +9,8 @@ Live and history share the same stage strip. Finished stages show a left-aligned
 ## Evidence priority
 
 1. An explicit, stage-matched request from Decaid's `ws/v1/machine/shotState` weight exit, or an accepted Bestpresso manual advance, within two seconds before an observed adjacent transition. Explicit competing requests remain OR alternatives.
-2. Telemetry and the shot-time profile: duration boundary interval, pressure/flow exit on the last old-stage sample, actual stage weight, or integrated stage volume. No assumed weight look-ahead. No inference across gaps over 1.5 seconds or missing frames. Sensor readings from the new stage cannot establish the preceding stage's exit. Opposite-axis limiters are not exits.
-3. Unknown.
+2. Telemetry and the shot-time profile: duration boundary interval, pressure/flow exits, actual stage weight, or integrated stage volume. A first adjacent-stage sample can confirm a nearby sensor crossing only when the departing stage was already trending toward it and both sampling intervals are within 1.5 seconds. Arbitrary new-stage jumps do not qualify. Earlier gaps do not discard valid boundary evidence, but prevent volume integration. Duration and sensor comparisons account for firmware rounding; unknown machine families retain plausible encoded thresholds as inferred alternatives. No assumed weight look-ahead. Opposite-axis limiters are not exits.
+3. Unknown. Without a specific recorded stop reason, natural completion can be inferred only at the final configured stage. Explicit stop reasons take priority; missing stages are never labelled skipped from a frame jump alone.
 
 These are best-effort explanations, not firmware-reported causality. Derived reasons expose a “Derived from saved profile and telemetry” title. Firmware `profileAdvance` alone is not a specific cause. `profileSkip` with a positive `stepExitWeight` means stage yield, not manual skip. Manual actions from another app cannot be reconstructed unless explicitly reported in a future API.
 
@@ -24,7 +24,7 @@ These are best-effort explanations, not firmware-reported causality. Derived rea
 
 ## Existing history
 
-- Version-1 migration processes five cached graphs per batch, with one-second scheduling gaps. It pauses outside idle home/history/insights views and when hidden, resumes later, and works offline.
+- Version-2 migration rechecks earlier analyses, including Unknown, five cached graphs per batch, with one-second scheduling gaps. It pauses outside idle home/history/insights views and when hidden, resumes later, and works offline.
 - Old cache revision signatures retain the shot's workflow and are used to recover its profile. Never use the currently selected profile to analyse an old shot.
 - Summary-only records are deferred; loading their detail performs reconciliation immediately. This migration does not download all 1,000 graphs.
 - Versioned results, including Unknown, persist so successful work is not repeated after every launch. New recorded evidence can invalidate an earlier derived result on detail access.
