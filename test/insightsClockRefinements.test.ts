@@ -2,9 +2,23 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { insightHour, insightHourRange, insightPeriods, toggleHour } from '../src/features/insights/insightClock.ts'
 import { clockPoint, coxcombSector } from '../src/features/insights/coxcomb.ts'
+import { reportingWindow } from '../src/features/insights/historyData.ts'
 
-test('insight period labels follow the selected duration', () => {
-  for (const days of [7, 30, 180]) assert.deepEqual(insightPeriods(days), [`Last ${days} days`, `Previous ${days} days`])
+const periods = (days: number, now: string, timezone = 'UTC') => insightPeriods(
+  reportingWindow(days, timezone, new Date(now), false, true),
+  reportingWindow(days, timezone, new Date(now), true, true),
+)
+test('insight labels use inclusive dates from the actual rolling chart windows', () => {
+  const now = '2026-09-16T12:00:00Z'
+  assert.deepEqual(periods(7, now), ['10–16 Sep', '3–9 Sep'])
+  assert.deepEqual(periods(30, now), ['18 Aug–16 Sep', '19 Jul–17 Aug'])
+  assert.deepEqual(periods(180, now), ['21 Mar 2026–16 Sep 2026', '22 Sep 2025–20 Mar 2026'])
+})
+test('date legends handle year boundaries, leap days, and the reporting timezone', () => {
+  assert.deepEqual(periods(7, '2026-01-03T12:00:00Z'), ['28 Dec 2025–3 Jan 2026', '21–27 Dec 2025'])
+  assert.deepEqual(periods(7, '2024-03-02T12:00:00Z'), ['25 Feb–2 Mar', '18–24 Feb'])
+  assert.deepEqual(periods(7, '2026-09-16T23:30:00Z', 'Asia/Singapore'), ['11–17 Sep', '4–10 Sep'])
+  assert.deepEqual(periods(7, '2026-09-16T23:30:00Z', 'America/Los_Angeles'), ['10–16 Sep', '3–9 Sep'])
 })
 test('hour labels honor explicit and device clock preferences', () => {
   assert.equal(insightHour(0, '12h'), '12 am')
