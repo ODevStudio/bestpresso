@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { analyseStageMoveOn, reconcileStageReasons, stageReasonKey } from '../src/features/brew/stageMoveOn.ts'
+import { analyseStageMoveOn, reconcileStageReasons, stageReasonKey, STAGE_REASON_VERSION } from '../src/features/brew/stageMoveOn.ts'
 import { weightAdvanceEvidence, recordedStopReason } from '../src/features/brew/stageShotEvents.ts'
 import { readStageEvidence, saveStageEvidence, withStageEvidence } from '../src/features/brew/stageEvidenceStorage.ts'
 import { HistoryRepository } from '../src/features/insights/historyRepository.ts'
@@ -36,12 +36,12 @@ test('active stage has no reason; final stage uses whole-shot stop, not a move-o
   assert.deepEqual(analyseStageMoveOn(points, [step], { stopReason: 'targetWeight' }).reasons[lastKey], { label: 'Target yield reached', source: 'recorded', kind: 'stop' })
   assert.equal(analyseStageMoveOn(points, [step], { stopReason: 'machineEnded' }).reasons[lastKey].label, 'Unknown')
 })
-test('gaps, jumps, missing recipe and threshold seen only in the next stage remain Unknown', () => {
+test('old gaps and forward jumps preserve departing-frame evidence but not arbitrary new-frame jumps', () => {
   assert.equal(reason([]).label, 'Unknown')
   const gap = [points[0], points.at(-2)!, points.at(-1)!]
-  assert.equal(analyseStageMoveOn(gap, [step]).reasons[key].label, 'Unknown')
+  assert.equal(analyseStageMoveOn(gap, [step]).reasons[key].label, 'Pressure threshold reached')
   const jump = points.map(p => p.stageIndex === 1 ? { ...p, stageIndex: 3 } : p)
-  assert.equal(analyseStageMoveOn(jump, [step]).reasons[key].label, 'Unknown')
+  assert.equal(analyseStageMoveOn(jump, [step]).reasons[key].label, 'Pressure threshold reached')
   const afterOnly = points.map(p => ({ ...p, pressure: p.stageIndex === 1 ? 4 : 2 }))
   assert.equal(analyseStageMoveOn(afterOnly, [step]).reasons[key].label, 'Unknown')
 })
@@ -66,6 +66,8 @@ test('cached graphs reconcile offline in batches; resume once, use saved recipe 
   let saved: HistoryCache = reconcileHistory(page, null, 'local', 'UTC')
   const detail = (id: string): PreviousShot => ({ id, profileName: 'Old recipe', totalYield: '20', totalTime: '5', points })
   for (const raw of shots.slice(0, 8)) saved.details[raw.id!] = detail(raw.id!)
+  // Simulate existing v0.1.30 analyses, including cached Unknown results.
+  saved.details['0'].stageReasons = { version: 1, reasons: { [key]: { label: 'Unknown', source: 'unknown', kind: 'advance' } } }
   let requests = 0
   const create = () => new HistoryRepository('local', 'UTC', {
     storage: { read: async () => structuredClone(saved), write: async cache => { saved = structuredClone(cache) } },
@@ -74,9 +76,10 @@ test('cached graphs reconcile offline in batches; resume once, use saved recipe 
   const repo = create()
   assert.equal(await repo.reconcileStageReasonBatch(() => false), false)
   assert.equal(await repo.reconcileStageReasonBatch(), false)
-  assert.equal(Object.values(saved.details).filter(d => d.stageReasons).length, 5)
+  assert.equal(Object.values(saved.details).filter(d => d.stageReasons?.version === STAGE_REASON_VERSION).length, 5)
   const restarted = create()
   assert.equal(await restarted.reconcileStageReasonBatch(), true)
+  assert.equal(Object.values(saved.details).filter(d => d.stageReasons?.version === STAGE_REASON_VERSION).length, 8)
   assert.equal(requests, 0)
   assert.equal(saved.details['0'].stageReasons?.reasons[key].label, 'Pressure threshold reached')
   assert.equal(await restarted.reconcileStageReasonBatch(), true)
