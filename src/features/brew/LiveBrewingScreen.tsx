@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { analyseStageMoveOn } from './stageMoveOn'
 import { liveShotFlowRate, liveShotYield, type BrewingScreenModel, type LiveBrewState } from '../../domain/brewing'
 import type { BrewStageSelection } from './LiveBrewStages'
 import type { ChartSeries } from './chartSeries'
@@ -24,6 +25,9 @@ const timedLabel = (milliseconds: number) => {
 }
 
 export function LiveBrewingScreen({ model, liveBrew, stopPending, skipPending, actionError, onStop, onSkipStage, onDismiss }: LiveBrewingScreenProps) {
+  const reasons = useMemo(() => analyseStageMoveOn(liveBrew.points, liveBrew.profileSteps, {
+    active: liveBrew.active, evidence: liveBrew.stageEvidence, telemetryStartedAt: liveBrew.telemetryStartedAt, stopReason: liveBrew.stopReason,
+  }), [liveBrew.points, liveBrew.profileSteps, liveBrew.active, liveBrew.stageEvidence, liveBrew.telemetryStartedAt, liveBrew.stopReason])
   const [dimmedSeries, setDimmedSeries] = useState<ChartSeries[]>([])
   const [stageSelection, setStageSelection] = useState<{ shotStartedAt: number | undefined; stage: BrewStageSelection } | null>(null)
   const profile = model.profiles.find((candidate) => candidate.id === model.activeProfileId) ?? model.profiles[0]
@@ -68,6 +72,6 @@ export function LiveBrewingScreen({ model, liveBrew, stopPending, skipPending, a
     <section className="live-pull-chart-panel" aria-label={`Running ${profileName}`}>
       <LiveShotChart points={chartView.points} contextPoints={chartView.contextPoints} elapsedMs={chartView.elapsedMs} startMs={chartView.startMs} fitDuration={!liveBrew.active} targetYield={targetYield ?? weight ?? 36} showWeight={!isCleaning} legendFilterEnabled={!liveBrew.active} dimmedSeries={dimmedSeries} onToggleSeries={(series) => setDimmedSeries((current) => toggleDimmedChartSeries(current, series))} />
     </section>
-    <LiveBrewStages key={liveBrew.startedAt ?? 'pending'} points={displayPoints} elapsedMs={liveBrew.elapsedMs} active={liveBrew.active} showYield={!isCleaning} skipPending={skipPending} selectedStageKey={selectedStage?.key} onStageSelect={liveBrew.active ? undefined : (stage) => setStageSelection(stage ? { shotStartedAt: liveBrew.startedAt, stage } : null)} onSkipStage={onSkipStage} />
+    <LiveBrewStages key={liveBrew.startedAt ?? 'pending'} reasons={reasons} points={displayPoints} elapsedMs={liveBrew.elapsedMs} active={liveBrew.active} showYield={!isCleaning} skipPending={skipPending} selectedStageKey={selectedStage?.key} onStageSelect={liveBrew.active ? undefined : (stage) => setStageSelection(stage ? { shotStartedAt: liveBrew.startedAt, stage } : null)} onSkipStage={onSkipStage} />
   </main>
 }

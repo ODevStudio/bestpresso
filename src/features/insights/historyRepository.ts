@@ -3,11 +3,13 @@ import type { PreviousShot } from '../../domain/brewing.ts'
 import { attachDetail, HISTORY_LIMIT, normalizeShot, retainHistoryDetails, regroupHistory, reconcileCachedDurations, savedDuration, validHistoryCache, type HistoryCache } from './historyData.ts'
 import type { HistoryStorage } from './historyStorage.ts'
 import { syncHistory } from './historySync.ts'
+import { reconcileStageReasons, STAGE_REASON_VERSION } from '../brew/stageMoveOn.ts'
 
 export interface HistoryState { cache: HistoryCache | null; status: 'loading' | 'ready' | 'offline'; refreshing: boolean; storageWarning: boolean; error: string | null }
 interface Dependencies {
   storage: HistoryStorage; page: (offset: number) => Promise<PaginatedShots>; detail: (id: string) => Promise<ShotRecord>
   toDetail: (shot: ShotRecord) => PreviousShot; now?: () => Date
+  decorateDetail?: (shot: PreviousShot) => PreviousShot
 }
 export class HistoryRepository {
   readonly source: string
@@ -21,6 +23,7 @@ export class HistoryRepository {
   private loadingDetails = new Map<string, Promise<PreviousShot>>()
   private rawDetails = new Map<string, Promise<ShotRecord>>()
   private durationBatch: Promise<boolean> | null = null
+  private stageBatch: Promise<boolean> | null = null
   constructor(source: string, timezone: string, dependencies: Dependencies) { this.source = source; this.timezone = timezone; this.deps = dependencies }
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
   getSnapshot = () => this.state
@@ -36,6 +39,35 @@ export class HistoryRepository {
   private persist(cache: HistoryCache) {
     this.writes = this.writes.then(() => this.deps.storage.write(cache)).catch(() => this.update({ storageWarning: true }))
     return this.writes
+  }
+  private reconcileDetail(detail: PreviousShot, signature?: string) {
+    return reconcileStageReasons(this.deps.decorateDetail?.(detail) ?? detail, signature)
+  }
+  // Offline-only migration: small resumable batches, no graph downloads. Missing
+  // detail records remain eligible when their measurements are fetched later.
+  reconcileStageReasonBatch(canContinue: () => boolean = () => true): Promise<boolean> {
+    if (this.stageBatch) return this.stageBatch
+    this.stageBatch = (async () => {
+      await this.load()
+      const current = this.state.cache
+      if (!current) return true
+      const needsReconciliation = (detail: PreviousShot | undefined) => detail?.points?.length && (this.deps.decorateDetail?.(detail) ?? detail).stageReasons?.version !== STAGE_REASON_VERSION
+      const pending = current.records.filter(r => needsReconciliation(current.details[r.id])).slice(0, 5)
+      const details = { ...current.details }
+      let changed = false
+      for (const record of pending) {
+        if (!canContinue()) break
+        details[record.id] = this.reconcileDetail(details[record.id], record.signature)
+        changed = true
+      }
+      if (changed) {
+        const cache = { ...current, details }
+        this.update({ cache })
+        await this.persist(cache)
+      }
+      return !this.state.cache?.records.some(r => needsReconciliation(this.state.cache!.details[r.id]))
+    })().finally(() => { this.stageBatch = null })
+    return this.stageBatch
   }
   refresh(force = false) {
     if (this.refreshing) return this.refreshing
@@ -119,11 +151,19 @@ export class HistoryRepository {
       const record = initial?.records.find(r => r.id === id)
       if (!initial || !record) throw new Error(`This shot is not in the latest ${HISTORY_LIMIT.toLocaleString()} saved records. Refresh history to check again.`)
       // Summaries are reconciled on entry/refresh. A cached detail shares that revision.
-      if (Object.hasOwn(initial.details, id)) return initial.details[id]
+      if (Object.hasOwn(initial.details, id)) {
+        const detail = this.reconcileDetail(initial.details[id], record.signature)
+        if (detail !== initial.details[id]) {
+          const cache = attachDetail(initial, id, record.signature, detail)
+          this.update({ cache })
+          await this.persist(cache)
+        }
+        return detail
+      }
       const raw = await this.readDetail(id)
       const normalized = normalizeShot(raw, initial.timezone)
       if (!normalized) throw new Error('This saved shot is missing its date or identity.')
-      const detail = this.deps.toDetail(raw)
+      const detail = this.reconcileDetail(this.deps.toDetail(raw), normalized.signature)
       const current = this.state.cache
       if (current?.records.some(r => r.id === id && r.signature === record.signature)) {
         const updated = { ...current, records: current.records.map(r => r.id === id ? normalized : r) }
