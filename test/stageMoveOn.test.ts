@@ -13,14 +13,14 @@ const key = stageReasonKey(points[0])
 const reason = (steps: DecaidProfileStep[], options: Parameters<typeof analyseStageMoveOn>[2] = {}) => analyseStageMoveOn(points, steps, options).reasons[key]
 const step: DecaidProfileStep = { seconds: 30, exit: { type: 'pressure', condition: 'over', value: 4 } }
 test('one sensor exit, time exit, flow-under and limiter distinction', () => {
-  assert.equal(reason([step]).label, 'Pressure threshold reached')
+  assert.equal(reason([step]).label, 'Pressure >4 bar reached')
   assert.equal(reason([{ seconds: 5, pressure: 2, limiter: { value: 2 } }]).label, 'Time limit reached')
-  assert.equal(reason([{ exit: { type: 'flow', condition: 'under', value: 2 } }]).label, 'Flow threshold reached')
+  assert.equal(reason([{ exit: { type: 'flow', condition: 'under', value: 2 } }]).label, 'Flow <2 ml/s reached')
   assert.equal(reason([{ pressure: 4, flow: 2, limiter: { value: 4 } }]).label, 'Unknown')
 })
 test('all plausible causes use OR; inferred yield does not override others', () => {
-  assert.equal(reason([{ ...step, seconds: 5, weight: 18, volume: 10 }]).label, 'Time limit reached or Pressure threshold reached or Stage yield reached or Stage volume reached')
-  assert.equal(reason([{ ...step, weight: 20 }]).label, 'Pressure threshold reached') // no invented look-ahead
+  assert.equal(reason([{ ...step, seconds: 5, weight: 18, volume: 10 }]).label, 'Time limit reached or Pressure >4 bar reached or Stage yield reached or Stage volume reached')
+  assert.equal(reason([{ ...step, weight: 20 }]).label, 'Pressure >4 bar reached') // no invented look-ahead
 })
 test('recorded weight/manual override inference only for a matched frame and boundary', () => {
   const evidence = [{ frame: 0, timestamp: 14500, reason: 'weight' as const }]
@@ -39,9 +39,9 @@ test('active stage has no reason; final stage uses whole-shot stop, not a move-o
 test('old gaps and forward jumps preserve departing-frame evidence but not arbitrary new-frame jumps', () => {
   assert.equal(reason([]).label, 'Unknown')
   const gap = [points[0], points.at(-2)!, points.at(-1)!]
-  assert.equal(analyseStageMoveOn(gap, [step]).reasons[key].label, 'Pressure threshold reached')
+  assert.equal(analyseStageMoveOn(gap, [step]).reasons[key].label, 'Pressure >4 bar reached')
   const jump = points.map(p => p.stageIndex === 1 ? { ...p, stageIndex: 3 } : p)
-  assert.equal(analyseStageMoveOn(jump, [step]).reasons[key].label, 'Pressure threshold reached')
+  assert.equal(analyseStageMoveOn(jump, [step]).reasons[key].label, 'Pressure >4 bar reached')
   const afterOnly = points.map(p => ({ ...p, pressure: p.stageIndex === 1 ? 4 : 2 }))
   assert.equal(analyseStageMoveOn(afterOnly, [step]).reasons[key].label, 'Unknown')
 })
@@ -68,6 +68,7 @@ test('cached graphs reconcile offline in batches; resume once, use saved recipe 
   for (const raw of shots.slice(0, 8)) saved.details[raw.id!] = detail(raw.id!)
   // Simulate existing v0.1.30 analyses, including cached Unknown results.
   saved.details['0'].stageReasons = { version: 1, reasons: { [key]: { label: 'Unknown', source: 'unknown', kind: 'advance' } } }
+  saved.details['1'].stageReasons = { version: 2, reasons: { [key]: { label: 'Pressure threshold reached', source: 'telemetry', kind: 'advance' } } }
   let requests = 0
   const create = () => new HistoryRepository('local', 'UTC', {
     storage: { read: async () => structuredClone(saved), write: async cache => { saved = structuredClone(cache) } },
@@ -81,8 +82,9 @@ test('cached graphs reconcile offline in batches; resume once, use saved recipe 
   assert.equal(await restarted.reconcileStageReasonBatch(), true)
   assert.equal(Object.values(saved.details).filter(d => d.stageReasons?.version === STAGE_REASON_VERSION).length, 8)
   assert.equal(requests, 0)
-  assert.equal(saved.details['0'].stageReasons?.reasons[key].label, 'Pressure threshold reached')
+  assert.equal(saved.details['0'].stageReasons?.reasons[key].label, 'Pressure >4 bar reached')
+  assert.equal(saved.details['1'].stageReasons?.reasons[key].label, 'Pressure >4 bar reached')
   assert.equal(await restarted.reconcileStageReasonBatch(), true)
-  assert.equal((await restarted.detail('8')).stageReasons?.reasons[key].label, 'Pressure threshold reached')
+  assert.equal((await restarted.detail('8')).stageReasons?.reasons[key].label, 'Pressure >4 bar reached')
   assert.equal(requests, 1)
 })

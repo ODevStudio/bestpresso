@@ -6,6 +6,8 @@ Branch: `feat/stage-move-on-reasons`. Display-only; no changes to machine execut
 
 Live and history share the same stage strip. Finished stages show a left-aligned, regular-weight 12px explanation beneath the title, above telemetry. A leading 14px advance icon identifies a transition; a stop icon identifies the final stage. Adjacent conditions share “reached,” such as “Time limit or Pressure threshold reached.” Reasons use the value color; “or” uses the muted label color. Active stages show green “Active stage” text with a leading circular loader and a green timer. Reduced-motion preferences disable the loader animation. Unknown evidence is displayed as “Unknown.” The row hugs its tallest content; all stage cards and the manual advance button share that height without a fixed height.
 
+Pressure and flow reasons include the saved recipe's direction, value and unit, for example “Pressure >7 bar reached” or “Flow <2.5 ml/s reached.” The compact >/< symbols represent the profile's over/under settings; firmware comparisons include equality. The displayed value is the configured threshold, not the observed sample or its encoded rounding.
+
 ## Evidence priority
 
 1. An explicit, stage-matched request from Decaid's `ws/v1/machine/shotState` weight exit, or an accepted Bestpresso manual advance, within two seconds before an observed adjacent transition. Explicit competing requests remain OR alternatives.
@@ -24,7 +26,7 @@ These are best-effort explanations, not firmware-reported causality. Derived rea
 
 ## Existing history
 
-- Version-2 migration rechecks earlier analyses, including Unknown, five cached graphs per batch, with one-second scheduling gaps. It pauses outside idle home/history/insights views and when hidden, resumes later, and works offline.
+- Version-3 migration rechecks earlier analyses, including generic threshold labels and Unknown, five cached graphs per batch, with one-second scheduling gaps. It pauses outside idle home/history/insights views and when hidden, resumes later, and works offline.
 - Old cache revision signatures retain the shot's workflow and are used to recover its profile. Never use the currently selected profile to analyse an old shot.
 - Summary-only records are deferred; loading their detail performs reconciliation immediately. This migration does not download all 1,000 graphs.
 - Versioned results, including Unknown, persist so successful work is not repeated after every launch. New recorded evidence can invalidate an earlier derived result on detail access.

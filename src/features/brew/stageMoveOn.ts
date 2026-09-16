@@ -1,7 +1,7 @@
 import type { DecaidProfileStep } from '../../api/decaid/types.ts'
 import type { LiveShotPoint, PreviousShot } from '../../domain/brewing.ts'
 
-export const STAGE_REASON_VERSION = 2
+export const STAGE_REASON_VERSION = 3
 export interface StageAdvanceEvidence {
   frame: number
   timestamp: number
@@ -119,7 +119,11 @@ export function analyseStageMoveOn(points: LiveShotPoint[], steps: DecaidProfile
     const exit = step.exit
     const exitValue = numeric(exit?.value)
     if (exit && positive(exitValue) && (exit.type === 'pressure' || exit.type === 'flow') && (exit.condition === 'over' || exit.condition === 'under')) {
-      if (sensorExitReached(group, adjacent ? next : undefined, exit.type, exit.condition, exitValue)) candidates.push(`${exit.type === 'pressure' ? 'Pressure' : 'Flow'} threshold reached`)
+      if (sensorExitReached(group, adjacent ? next : undefined, exit.type, exit.condition, exitValue)) {
+        // Show the saved recipe threshold, not the sampled reading or a possible
+        // firmware-rounded value. Symbols match the profile's over/under choice.
+        candidates.push(`${exit.type === 'pressure' ? 'Pressure' : 'Flow'} ${exit.condition === 'over' ? '>' : '<'}${exitValue} ${exit.type === 'pressure' ? 'bar' : 'ml/s'} reached`)
+      }
     }
     // Historical projected-weight decisions aren't recoverable. Actual weight
     // crossing is only an inferred candidate, never an explicit override.
