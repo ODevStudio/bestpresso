@@ -1,25 +1,25 @@
 import { useState } from 'react'
 import { timeWindowCounts, type HistoryRecord } from './historyData'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
-import { insightHour, insightHourRange, insightPeriods, toggleHour } from './insightClock'
+import { insightHour, insightHourRange, toggleHour } from './insightClock'
 import { COXCOMB, clockPoint, coxcombRadius, coxcombSector } from './coxcomb'
 
 interface TimeCoxcombProps {
   current: HistoryRecord[]
   previous: HistoryRecord[]
   comparison: boolean
-  days: number
+  periodLabels: [string, string]
   onOpen: (window: number, previous: boolean) => void
 }
 
-export function TimeCoxcomb({ current, previous, onOpen, comparison, days }: TimeCoxcombProps) {
+export function TimeCoxcomb({ current, previous, onOpen, comparison, periodLabels }: TimeCoxcombProps) {
   const { preferences } = useBestpressoPreferences()
   const range = (index: number) => insightHourRange(index, preferences.clockFormat)
   const counts = [timeWindowCounts(current), timeWindowCounts(previous)]
   const maximum = Math.max(1, ...counts.flat())
   const [period, setPeriod] = useState(0)
   const [selected, setSelected] = useState<number | null>(null)
-  const periodNames = insightPeriods(days).slice(0, comparison ? 2 : 1)
+  const periodNames = periodLabels.slice(0, comparison ? 2 : 1)
   const selectedCount = selected === null ? 0 : counts[period][selected]
   const selectionLabel = selected === null ? '' : `${periodNames[period]}, ${range(selected)}: ${selectedCount} ${selectedCount === 1 ? 'brew' : 'brews'}`
 
