@@ -58,6 +58,11 @@ export interface MachineSnapshot {
   steamTemperature?: number
 }
 export interface ScaleSnapshot { status?: 'connected' | 'disconnected'; timestamp?: string; weight?: number; weightFlow?: number; timerValue?: number | null }
+export interface ShotStateEvent {
+  event?: string; timestamp?: string; shotId?: string | null; profileFrame?: number | null
+  state?: string
+  decision?: { kind?: string; reason?: string; data?: Record<string, unknown> | null } | null
+}
 export interface DecaidDevice { id?: string; name?: string; state?: 'connected' | 'disconnected'; type?: 'machine' | 'scale' | 'sensor'; available?: boolean }
 export type ScalePowerMode = 'disabled' | 'displayOff' | 'disconnect'
 export type ChargingMode = 'disabled' | 'longevity' | 'balanced' | 'highAvailability'

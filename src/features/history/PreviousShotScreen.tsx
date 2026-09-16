@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { reconcileStageReasons } from '../brew/stageMoveOn'
 import { clockOptions, type ClockFormat } from '../sleep/deviceTime'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import type { LiveShotPoint, PreviousShot, PreviousShotStatus } from '../../domain/brewing'
@@ -87,6 +88,7 @@ export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, o
   }
 
   const points = activeShot?.points ?? []
+  const reasons = activeShot ? reconcileStageReasons(activeShot).stageReasons : undefined
   const elapsedMs = points.at(-1)?.elapsedMs ?? (Number(activeShot?.totalTime) || 0) * 1000
   const targetYield = activeShot?.targetYield ?? (Number(activeShot?.totalYield) || 36)
   const focusedView = stageFocusedChartView(points, elapsedMs, selectedStage)
@@ -132,7 +134,7 @@ export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, o
         {activeShot && <AnimatedHistoryShotChart view={chartView} targetYield={targetYield} />}
         {loadError && <p className="history-pull-error">That pull couldn’t be loaded. Try selecting it again.</p>}
       </section>
-      <LiveBrewStages points={points} elapsedMs={elapsedMs} showYield={!isCleaning} selectedStageKey={selectedStage?.key} onStageSelect={(stage) => setStageSelection(stage ? { shotId: activeId, stage } : null)} />
+      <LiveBrewStages reasons={reasons} points={points} elapsedMs={elapsedMs} showYield={!isCleaning} selectedStageKey={selectedStage?.key} onStageSelect={(stage) => setStageSelection(stage ? { shotId: activeId, stage } : null)} />
     </section>
   </main>
 }

@@ -7,11 +7,13 @@ import { readHistoryDetail, readHistoryPage } from './historyTransport'
 import { startLatestChartRetry, type LatestChartStatus } from './latestChartRetry'
 import { createHistoryRefresh } from './historyRefresh'
 import { startDurationBackfill } from './durationBackfill'
+import { readStageEvidence, withStageEvidence } from '../brew/stageEvidenceStorage'
 
 export function useShotInsights(active: boolean, shotId: string) {
   const source = getDecaidEndpoints().apiBase
   const repository = useMemo(() => new HistoryRepository(source, Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', {
     storage: browserHistoryStorage(), page: offset => readHistoryPage(source, offset), detail: id => readHistoryDetail(source, id), toDetail: shotToDomain,
+    decorateDetail: detail => withStageEvidence(detail, readStageEvidence(source, detail.id)),
   }), [source])
   const state = useSyncExternalStore(repository.subscribe, repository.getSnapshot)
   const [now, setNow] = useState(() => new Date())
@@ -74,6 +76,21 @@ export function useShotInsights(active: boolean, shotId: string) {
       document.removeEventListener('visibilitychange', backfill.resume)
     }
   }, [repository, active, state.status, state.cache?.syncedAt, shotId])
+  const stageCacheStamp = state.cache?.syncedAt
+  useEffect(() => {
+    if (!active || !stageCacheStamp) return
+    const backfill = startDurationBackfill({
+      batch: canContinue => repository.reconcileStageReasonBatch(canContinue),
+      visible: () => document.visibilityState !== 'hidden',
+      schedule: (callback, delay) => {
+        const timer = window.setTimeout(callback, delay)
+        return () => window.clearTimeout(timer)
+      },
+    })
+    document.addEventListener('visibilitychange', backfill.resume)
+    return () => { backfill.stop(); document.removeEventListener('visibilitychange', backfill.resume) }
+    // Cache changes from the batch itself must not restart the migration loop.
+  }, [repository, active, stageCacheStamp, shotId])
   const latest = state.cache?.records.find(r => r.beverage !== 'excluded')
   const latestId = latest?.id
   const latestSignature = latest?.signature

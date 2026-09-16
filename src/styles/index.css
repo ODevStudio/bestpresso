@@ -806,6 +806,26 @@ body { min-width:0; min-height:0; background:#171717; }
   .live-brew-stage dd { margin-top:4px; line-height:25px; }
 }
 
+/* Stage explanations sit below and align with the title. All cards stretch to
+   the tallest content-sized card, including the active stage and skip button. */
+.live-brew-screen,.history-browser-detail { grid-template-rows:115px minmax(0,1fr) auto; }
+.live-brew-stages__track { height:auto; align-items:stretch; }
+.live-brew-stage header { display:grid; grid-template-columns:minmax(0,1fr) auto; row-gap:0; }
+.live-brew-stage__move-on { grid-column:1 / -1; margin:0; padding-left:38px; contain:inline-size; color:var(--metric-label-color); font-size:12px; line-height:18px; font-weight:400; text-align:left; }
+.live-brew-stage__advance-icon,.live-brew-stage__stop-icon { width:14px; height:14px; margin-right:6px; vertical-align:-3px; opacity:.6; }
+.live-brew-stage__stop-icon { color:var(--metric-value-color); }
+[data-theme="light"] .live-brew-stage__advance-icon { filter:brightness(.4); }
+.live-brew-stage__reason { color:var(--metric-value-color); }
+.live-brew-stage__move-on--active,.live-brew-stage--active time { color:#3dc078; }
+[data-theme="light"] .live-brew-stage__move-on--active,[data-theme="light"] .live-brew-stage--active time { color:#24764b; }
+.live-brew-stage__loader { display:inline-block; width:14px; height:14px; box-sizing:border-box; margin-right:6px; vertical-align:-3px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:stage-loader-spin 1s linear infinite; }
+@keyframes stage-loader-spin { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce){ .live-brew-stage__loader { animation:none; } }
+@media(max-height:700px){
+  .live-brew-screen,.history-browser-detail { grid-template-rows:96px minmax(0,1fr) auto; }
+  .live-brew-stage__move-on { padding-left:32px; line-height:17px; }
+}
+
 /* Unified settings */
 .settings-screen{width:min(1194px,100%);height:100vh;min-height:700px;display:grid;grid-template-columns:242px minmax(0,1fr);margin:0 auto;overflow:hidden;color:#f5f5f5;background:radial-gradient(circle at 17% 7%,rgba(55,83,68,.36),transparent 34%),radial-gradient(circle at 86% 96%,rgba(84,63,55,.34),transparent 42%),#111312}
 .settings-sidebar{min-height:0;display:flex;flex-direction:column;padding:24px 16px 18px;border-right:1px solid rgba(255,255,255,.07);background:rgba(25,27,26,.82);backdrop-filter:blur(22px)}

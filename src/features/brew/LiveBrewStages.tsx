@@ -7,6 +7,8 @@ import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import { DOUBLE_TAP_CONFIRMATION_WINDOW_MS, registerDoubleTap } from './doubleTapConfirmation'
 import { canStartStageMouseDrag, latestStageScrollLeft, STAGE_MOUSE_DRAG_THRESHOLD_PX, stageMouseDragScrollLeft } from './stageStripScroll'
 import { pressureChainSlotCount } from './stageCardSizing'
+import { stageReasonKey, type StageReasonAnalysis } from './stageMoveOn'
+import { stageReasonLabels } from './stageReasonLabels'
 
 interface StageSummary {
   key: string
@@ -122,7 +124,7 @@ function PressureChain({ pressures, slotCount }: { pressures: number[]; slotCoun
   </span>
 }
 
-export function LiveBrewStages({ points, elapsedMs, active = false, showYield = true, skipPending = false, selectedStageKey, onStageSelect, onSkipStage }: { points: LiveShotPoint[]; elapsedMs: number; active?: boolean; showYield?: boolean; skipPending?: boolean; selectedStageKey?: string; onStageSelect?: (stage: BrewStageSelection | null) => void; onSkipStage?: () => Promise<boolean> }) {
+export function LiveBrewStages({ points, elapsedMs, reasons, active = false, showYield = true, skipPending = false, selectedStageKey, onStageSelect, onSkipStage }: { points: LiveShotPoint[]; elapsedMs: number; reasons?: StageReasonAnalysis; active?: boolean; showYield?: boolean; skipPending?: boolean; selectedStageKey?: string; onStageSelect?: (stage: BrewStageSelection | null) => void; onSkipStage?: () => Promise<boolean> }) {
   const { preferences } = useBestpressoPreferences()
   const stages = summarizeLiveBrewStages(points, elapsedMs)
   const stripRef = useRef<HTMLElement>(null)
@@ -268,6 +270,7 @@ export function LiveBrewStages({ points, elapsedMs, active = false, showYield = 
     {stages.map((stage, index) => {
       const isActive = active && index === stages.length - 1
       const isSelected = selectedStageKey === stage.key
+      const reason = reasons?.reasons[stageReasonKey(stage.points[0])]
       const wasSkipped = skippedStageKeys.has(stage.key)
       const selectable = Boolean(onStageSelect)
       const pressureLabel = stage.pressureMovements.length ? stage.pressureMovements.map((pressure) => reading(pressure)).join(' to ') : 'No pressure reading'
@@ -286,7 +289,19 @@ export function LiveBrewStages({ points, elapsedMs, active = false, showYield = 
         if (node) stageRefs.current.set(stage.key, node)
         else stageRefs.current.delete(stage.key)
       }} role={selectable ? 'button' : undefined} tabIndex={selectable ? 0 : undefined}>
-      <header><div className="live-brew-stage__heading"><b>{index + 1}</b><h2>{stage.name}</h2></div><div className="live-brew-stage__time"><time>{timedLabel(stage.endedAt - stage.startedAt)}</time>{wasSkipped && <span className="live-brew-stage__skipped" aria-label="Skipped phase"><img src={skipNext} alt="" /></span>}</div></header>
+      <header><div className="live-brew-stage__heading"><b>{index + 1}</b><h2>{stage.name}</h2></div><div className="live-brew-stage__time"><time>{timedLabel(stage.endedAt - stage.startedAt)}</time>{wasSkipped && <span className="live-brew-stage__skipped" aria-label="Skipped phase"><img src={skipNext} alt="" /></span>}</div>
+      {isActive ? <p className="live-brew-stage__move-on live-brew-stage__move-on--active">
+        <span className="live-brew-stage__loader" aria-hidden="true" />Active stage
+      </p> : <p className="live-brew-stage__move-on" title={reason?.source === 'telemetry' ? 'Derived from saved profile and telemetry' : undefined}>
+        {index === stages.length - 1 && !active
+          ? <svg className="live-brew-stage__stop-icon" viewBox="0 0 24 24" role="img" aria-label="Shot ended"><rect x="5" y="5" width="14" height="14" rx="1" fill="currentColor" /></svg>
+          : <img className="live-brew-stage__advance-icon" src={skipNext} alt="Move on" />}
+        {stageReasonLabels(reason?.label).map((label, reasonIndex) => <Fragment key={reasonIndex}>
+          {reasonIndex > 0 && <span> or </span>}
+          <span className="live-brew-stage__reason">{label}</span>
+        </Fragment>)}
+      </p>}
+      </header>
       <dl>
         {showYield && <div><dt>Yield</dt><dd><span className="live-brew-stage__yield-value">{reading(stage.yield)}<small>g</small></span></dd></div>}
         <div><dt>Temperature range</dt><dd>{formatTemperatureValue(stage.minimumTemperature, preferences.temperatureUnit)} – {formatTemperatureValue(stage.maximumTemperature, preferences.temperatureUnit)}<small className="temperature-unit">{temperatureUnitLabel(preferences.temperatureUnit)}</small></dd></div>

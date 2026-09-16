@@ -1,3 +1,6 @@
+import type { DecaidProfileStep } from '../api/decaid/types.ts'
+import type { StageAdvanceEvidence, StageReasonAnalysis } from '../features/brew/stageMoveOn.ts'
+
 export type MachineReadiness = 'ready' | 'heating' | 'notHeating' | 'thirsty' | 'sleeping' | 'disconnected'
 export type DataConnection = 'connecting' | 'connected' | 'fixture' | 'disconnected'
 export type UtilityId = 'water' | 'steam' | 'scale' | 'tank'
@@ -71,9 +74,15 @@ export interface BrewProfile {
   targetYield: string
   targetPoints?: ProfileTargetPoint[]
   stepNames?: string[]
+  profileSteps?: DecaidProfileStep[]
 }
 
 export interface PreviousShot {
+  profileSteps?: DecaidProfileStep[]
+  telemetryStartedAt?: number
+  stageEvidence?: StageAdvanceEvidence[]
+  stageReasons?: StageReasonAnalysis
+  stopReason?: string
   id?: string
   profileName: string
   beverageType?: string
@@ -111,6 +120,10 @@ export interface LiveShotPoint {
 }
 
 export interface LiveBrewState {
+  profileSteps?: DecaidProfileStep[]
+  telemetryStartedAt?: number
+  stageEvidence?: StageAdvanceEvidence[]
+  stopReason?: string
   active: boolean
   visible: boolean
   startedAt?: number

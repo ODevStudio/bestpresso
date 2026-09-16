@@ -1,4 +1,5 @@
 import type { BrewProfile, BrewingScreenModel, PreviousShot } from '../../domain/brewing.ts'
+import { reconcileStageReasons } from '../../features/brew/stageMoveOn.ts'
 import { sourceForRecord } from '../../features/profiles/profileLibraryModel.ts'
 import { isSteamHeatingEnabled } from '../../features/machine/steamHeating.ts'
 import { profileStepsToTargetPoints } from './profileTargetPoints.ts'
@@ -87,6 +88,7 @@ export function profileRecordsToDomain(records: DecaidProfileRecord[], workflow:
       targetYield: numberString(profileConfiguredTargetYield(profile, metadata, isActive ? workflow.profile?.target_weight ?? workflow.context?.targetYield : undefined), '—'),
       targetPoints: profileStepsToTargetPoints(chartSteps),
       stepNames: chartSteps?.map((step, index) => textValue(step.name) ?? `Stage ${index + 1}`),
+      profileSteps: isActive && workflow.profile?.steps?.length ? workflow.profile.steps : chartSteps,
     }
   }))
 }
@@ -213,7 +215,10 @@ export function shotToDomain(shot: ShotRecord): PreviousShot {
     }]
   }) : []
   const shotProfileTitle = shot.workflow?.profile?.title || shot.workflow?.name || 'Previous pull'
-  return {
+  return reconcileStageReasons({
+    profileSteps: shot.workflow?.profile?.steps,
+    telemetryStartedAt: Number.isFinite(startedAt) ? startedAt : undefined,
+    stopReason: shot.stopReason ?? undefined,
     id: shot.id,
     profileName: parseProfileTitle(shotProfileTitle).name,
     beverageType,
@@ -222,5 +227,5 @@ export function shotToDomain(shot: ShotRecord): PreviousShot {
     totalTime: numberString(duration, '—'),
     targetYield: profileTargetYield(shot.workflow?.profile),
     points,
-  }
+  })
 }

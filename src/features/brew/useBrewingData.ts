@@ -6,7 +6,12 @@ import { assertProfileDeletionAllowed, canDeleteProfile, deleteVerifiedUserProfi
 import { hotWaterWeightStoppingPatch } from '../settings/yieldLookAhead'
 import { hotWaterSettings } from './hotWaterSettings'
 import type { HotWaterShotSettings } from './hotWaterSync'
-import { activeProfileForWorkflow, applyWorkflow, carouselProfiles, favoriteProfileSlots as resolveFavoriteProfileSlots, isCleaningProfile, profileRecordsToDomain, profilesWithParsedTitles, retainedAdHocProfileAtBrewStart, shotStage, shotToDomain, STEAM_HEATER_READY_C, tankMillilitres } from '../../api/decaid/adapters'
+import { activeProfileForWorkflow, applyWorkflow, carouselProfiles, favoriteProfileSlots as resolveFavoriteProfileSlots, isCleaningProfile, profileRecordsToDomain, profilesWithParsedTitles, retainedAdHocProfileAtBrewStart, shotStage, shotToDomain as rawShotToDomain, STEAM_HEATER_READY_C, tankMillilitres } from '../../api/decaid/adapters'
+import { getDecaidEndpoints } from '../../api/decaid/config'
+import { reconcileStageReasons, type StageAdvanceEvidence } from './stageMoveOn'
+import { readStageEvidence, saveStageEvidence, withStageEvidence } from './stageEvidenceStorage'
+import { recordedStopReason, weightAdvanceEvidence } from './stageShotEvents'
+import type { DecaidProfileStep, ShotRecord, ShotStateEvent } from '../../api/decaid/types'
 import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, getDevices, getFavoriteAssignments, getLatestShot, getMachineSettings, getProfile, getProfiles, getSettings, getSharedSetting, getShot, getShotHistory, getWorkflow, scanForDevices, setMachineProfile, setMachineState, setSharedSetting, tareScale, updateProfile, updateProfileMetadata, updateWorkflow } from '../../api/decaid/client'
 import { displayBrightness } from '../settings/displayBrightness'
 import { profileTargetNeedsWorkflowSync, workflowPatchForSavedActiveProfile, workflowValuesForProfile } from '../../api/decaid/profileWorkflow'
@@ -37,6 +42,7 @@ const currentWaterThresholds = () => {
 }
 
 const MAX_LIVE_SHOT_POINTS = 900
+const shotToDomain = (shot: ShotRecord) => reconcileStageReasons(withStageEvidence(rawShotToDomain(shot), readStageEvidence(getDecaidEndpoints().apiBase, shot.id)))
 const MINIMUM_SCALE_SCAN_MS = 10_000
 const SCALE_SCAN_RETRY_DELAY_MS = 5_000
 const fixtureProfiles = profilesWithParsedTitles(brewingFixture.profiles)
@@ -48,10 +54,15 @@ const localLiveBrewFixture = import.meta.env.DEV && new URLSearchParams(window.l
   : undefined
 
 interface LiveShotSession {
+  shotId?: string
+  profileSteps?: DecaidProfileStep[]
+  stageEvidence: StageAdvanceEvidence[]
+  stopReason?: string
   kind: 'espresso' | 'cleaning'
   beverageType?: string
   startedAt: number
   telemetryStartedAt?: number
+  lastSampleReceivedAt?: number
   profileName: string
   targetYield?: number
   stepNames?: string[]
@@ -387,6 +398,8 @@ export function useBrewingData() {
 
   useEffect(() => {
     let disposed = false
+    const evidenceSource = getDecaidEndpoints().apiBase
+    let completedSession: LiveShotSession | null = null
     let hotWaterMachineState: string | undefined
     let hotWaterWorkflow: Awaited<ReturnType<typeof getWorkflow>> = {}
     let hotWaterWorkflowLoaded = false
@@ -485,16 +498,21 @@ export function useBrewingData() {
         getLatestShot().then((shot) => {
           if (disposed) return
           const timestamp = shot?.timestamp ? Date.parse(shot.timestamp) : Number.NaN
-          const isCompletedSession = shot && (!Number.isFinite(timestamp) || timestamp >= session.startedAt - 2_000)
+          const isCompletedSession = shot && (session.shotId ? shot.id === session.shotId
+            : Number.isFinite(timestamp) && timestamp >= session.startedAt - 2_000 && timestamp <= (session.telemetryStartedAt ?? session.startedAt) + 2_000)
           if (isCompletedSession) {
+            if (shot.id) saveStageEvidence(evidenceSource, shot.id, { events: session.stageEvidence, stopReason: session.stopReason })
             const persistedShot = shotToDomain(shot)
-            const domainShot = {
+            const domainShot = reconcileStageReasons({
               ...persistedShot,
+              stageReasons: undefined,
+              profileSteps: persistedShot.profileSteps ?? session.profileSteps,
+              telemetryStartedAt: persistedShot.points?.length ? persistedShot.telemetryStartedAt : session.telemetryStartedAt,
               profileName: session.profileName,
               beverageType: session.beverageType ?? persistedShot.beverageType ?? session.kind,
               totalYield: reconciledShotYield(persistedShot.totalYield, settledYieldBySession.get(session.startedAt)),
               points: reconciledShotPoints(persistedShot.points, session.points),
-            }
+            })
             settledYieldBySession.delete(session.startedAt)
             if (domainShot.id) shotHistoryCache.current.set(domainShot.id, domainShot)
             setModel((current) => ({ ...current, previousShot: domainShot }))
@@ -527,6 +545,7 @@ export function useBrewingData() {
     const completeLiveShot = (interrupted = false) => {
       const session = liveShotSession.current
       if (!session) return
+      completedSession = session
       liveShotSession.current = null
       brewSkipTransition.current = null
       brewStopRequestInFlight.current = false
@@ -563,12 +582,16 @@ export function useBrewingData() {
         points = points.map((point, index) => index === points.length - 1 ? { ...point, weight: finalWeight } : point)
       }
       session.points = points
-      setLiveBrew({ active: false, visible: true, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, targetYield: session.targetYield, scaleWeight: finalWeight, elapsedMs, points })
+      setLiveBrew({ active: false, visible: true, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, targetYield: session.targetYield, scaleWeight: finalWeight, elapsedMs, points, profileSteps: session.profileSteps, stageEvidence: [...session.stageEvidence], telemetryStartedAt: session.telemetryStartedAt, stopReason: session.stopReason })
 
       const hasExtraction = points.some((point) => (point.pressure ?? 0) > 0.5 || (point.flow ?? 0) > 0.1)
       if (!isSuccessfulEspressoCompletion(elapsedMs, hasExtraction)) return
       if (shouldPlayCompletionCue({ kind: session.kind, interrupted, elapsedMs, hasExtraction })) void playCompletionSound()
       const localShot = {
+        profileSteps: session.profileSteps,
+        stageEvidence: [...session.stageEvidence],
+        telemetryStartedAt: session.telemetryStartedAt,
+        stopReason: session.stopReason,
         id: `live:${session.startedAt}`,
         profileName: session.profileName,
         timestamp: new Date(session.startedAt).toISOString(),
@@ -723,6 +746,22 @@ export function useBrewingData() {
       if (!connected) hotWaterSettings.disconnect()
     })
 
+    const shotState = subscribe<ShotStateEvent>('/machine/shotState', (event) => {
+      if (disposed || !event.shotId || !Number.isFinite(Date.parse(event.timestamp ?? ''))) return
+      const evidence = weightAdvanceEvidence(event), stopReason = recordedStopReason(event)
+      if (evidence || stopReason) saveStageEvidence(evidenceSource, event.shotId, { events: evidence ? [evidence] : [], stopReason })
+      const session = liveShotSession.current ?? completedSession
+      const timestamp = Date.parse(event.timestamp!)
+      if (!session || (session.shotId && session.shotId !== event.shotId) || timestamp < session.startedAt || (!liveShotSession.current && timestamp > (session.telemetryStartedAt ?? session.startedAt) + (session.points.at(-1)?.elapsedMs ?? 0) + 5000)) return
+      session.shotId = event.shotId
+      const saved = readStageEvidence(evidenceSource, event.shotId)
+      // Preserve local manual requests when the shot-state stream supplies its ID.
+      saveStageEvidence(evidenceSource, event.shotId, { events: [...session.stageEvidence, ...(saved?.events ?? [])], stopReason })
+      session.stageEvidence = readStageEvidence(evidenceSource, event.shotId)?.events ?? session.stageEvidence
+      session.stopReason = stopReason ?? session.stopReason
+      setLiveBrew(current => current.startedAt === session.startedAt ? { ...current, stageEvidence: [...session.stageEvidence], stopReason: session.stopReason } : current)
+    }, () => undefined)
+
     const machine = subscribe<MachineSnapshot>('/machine/snapshot', (snapshot) => {
       if (machineConnectionRef.current !== 'connected') return
       const machineState = (typeof snapshot.state === 'string' ? snapshot.state : snapshot.state?.state)?.toLowerCase()
@@ -791,6 +830,8 @@ export function useBrewingData() {
         if (!liveShotSession.current) {
           finishPendingYield()
           liveShotSession.current = {
+            profileSteps: profile?.profileSteps ? structuredClone(profile.profileSteps) : undefined,
+            stageEvidence: [],
             kind: isCleaning ? 'cleaning' : 'espresso',
             beverageType: isCleaning ? 'cleaning' : profile?.beverageType,
             startedAt: now,
@@ -830,9 +871,10 @@ export function useBrewingData() {
             weightFlow: latestScaleSnapshot.current.weightFlow,
             ...stage,
           })
+          session.lastSampleReceivedAt = Date.now()
           if (session.points.length > MAX_LIVE_SHOT_POINTS) session.points.shift()
         }
-        setLiveBrew({ active: true, visible: true, startedAt: session.startedAt, kind: session.kind, profileName: session.profileName, targetYield: session.targetYield, scaleWeight: session.kind === 'espresso' ? normalizedLiveScaleWeight(latestScaleSnapshot.current.weight) : undefined, elapsedMs, points: [...session.points] })
+        setLiveBrew({ active: true, visible: true, startedAt: session.startedAt, kind: session.kind, profileName: session.profileName, targetYield: session.targetYield, scaleWeight: session.kind === 'espresso' ? normalizedLiveScaleWeight(latestScaleSnapshot.current.weight) : undefined, elapsedMs, points: [...session.points], profileSteps: session.profileSteps, stageEvidence: [...session.stageEvidence], telemetryStartedAt: session.telemetryStartedAt, stopReason: session.stopReason })
       } else if (liveShotSession.current) {
         completeLiveShot()
       }
@@ -1015,7 +1057,7 @@ export function useBrewingData() {
       if (feedbackTimeout.current !== null) window.clearTimeout(feedbackTimeout.current)
       if (actionErrorTimeout.current !== null) window.clearTimeout(actionErrorTimeout.current)
       if (scaleRenderFrame !== null) window.cancelAnimationFrame(scaleRenderFrame)
-      machine.close(); scale.close(); water.close(); timeToReady.close(); shotSettings.close()
+      machine.close(); scale.close(); water.close(); timeToReady.close(); shotSettings.close(); shotState.close()
     }
   }, [])
 
@@ -1243,11 +1285,23 @@ export function useBrewingData() {
       return false
     }
     brewSkipRequestInFlight.current = true
+    const session = liveShotSession.current
+    const frame = session.points.at(-1)?.stageIndex
+    // Use the telemetry clock; the tablet and browser wall clocks can differ.
+    const requestedAt = (session.telemetryStartedAt ?? session.startedAt) + (session.points.at(-1)?.elapsedMs ?? 0)
+      + Math.max(0, Date.now() - (session.lastSampleReceivedAt ?? Date.now()))
     brewSkipTransition.current = beginSkipTransition(liveShotSession.current.points.at(-1)?.stageIndex, Date.now())
     setBrewSkipPending(true)
     showMachineActionError(null)
     try {
       await setMachineState('skipStep')
+      if (frame !== undefined && session.telemetryStartedAt !== undefined) {
+        // Store an accepted request; the analyser still requires a matching
+        // observed boundary, and rejects requests arriving after that boundary.
+        session.stageEvidence.push({ frame, timestamp: requestedAt, reason: 'manual' })
+        if (session.shotId) saveStageEvidence(getDecaidEndpoints().apiBase, session.shotId, { events: session.stageEvidence, stopReason: session.stopReason })
+        setLiveBrew(current => current.startedAt === session.startedAt ? { ...current, stageEvidence: [...session.stageEvidence] } : current)
+      }
       return true
     } catch {
       brewSkipTransition.current = null
