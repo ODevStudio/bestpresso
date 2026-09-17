@@ -1,4 +1,5 @@
 import { getDecaidEndpoints } from './config'
+import { parseJsonBody } from './jsonBody'
 import type { DecaidAdvancedMachineSettings, DecaidDevice, DecaidInfo, DecaidMachineSettings, DecaidProfile, DecaidProfileRecord, DecaidSettings, DecaidWorkflow, DecaidWorkflowPatch, DecentAccountStatus, DisplayState, FavoriteAssignments, MachineCapabilities, PaginatedShots, PresenceSettings, ScalePowerMode, ShotRecord, WakeSchedule } from './types'
 
 export interface DecaidPluginManifest {
@@ -150,7 +151,7 @@ async function postJson<T>(path: string, body: unknown, method = 'POST'): Promis
   })
   if (!response.ok) throw await responseError(response, `Decaid ${path} returned ${response.status}`)
   if (!(response.headers.get('content-type') || '').includes('application/json')) return undefined
-  return await response.json() as T
+  return parseJsonBody<T>(await response.text())
 }
 
 export const updateSettings = (patch: Partial<DecaidSettings>) => postJson<DecaidSettings>('/settings', patch)
