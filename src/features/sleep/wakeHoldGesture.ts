@@ -17,6 +17,17 @@ export class WakeHoldGesture {
   private candidate: WakeHoldCandidate | null = null
   private blocked = false
 
+  // The browser's `touches` list is the truth about which fingers are down. A finger
+  // whose touch-up never reached the page (a palm brush, a second finger, the app
+  // backgrounded mid-touch) otherwise stays counted for as long as the sleep screen is
+  // mounted, which can be hours, and every later hold is refused as multi-touch.
+  syncActivePointers(pointerIds: Iterable<number>): void {
+    const current = new Set(pointerIds)
+    for (const id of this.activePointers) if (!current.has(id)) this.activePointers.delete(id)
+    if (this.candidate && !current.has(this.candidate.pointerId)) this.candidate = null
+    if (this.activePointers.size === 0) this.blocked = false
+  }
+
   pointerDown(pointerId: number, x: number, y: number): WakeHoldUpdate {
     this.activePointers.add(pointerId)
     if (this.blocked || this.activePointers.size !== 1 || this.candidate) {
