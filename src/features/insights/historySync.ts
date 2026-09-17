@@ -1,7 +1,9 @@
 import type { PaginatedShots } from '../../api/decaid/types.ts'
 import { canonical, HISTORY_LIMIT, HISTORY_PAGE_SIZE, mergeRecentHistory, reconcileHistory, type HistoryCache } from './historyData.ts'
 
-export const FULL_HISTORY_INTERVAL = 15 * 60 * 1000
+// Between full passes only the newest page is read and merged; the full ten-page pull
+// competes with the machine and scale for Decaid's attention, so it runs rarely.
+export const FULL_HISTORY_INTERVAL = 6 * 60 * 60 * 1000
 class HistoryChanged extends Error {
   constructor() { super('History changed while syncing. Please refresh again. Your saved history is unchanged.') }
 }
