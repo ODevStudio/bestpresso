@@ -110,16 +110,87 @@ test('duration reconciliation and opening the graph share a single network read'
 })
 test('background runner paces batches, retries only failures and stops on completion', async () => {
   let timer: (() => void) | undefined
+  let now = 0, due = 0
   const delays: number[] = []
   let calls = 0
   const runner = startDurationBackfill({
+    now: () => now,
     batch: async () => { calls++; if (calls === 2) throw Error('offline'); return calls >= 3 },
     visible: () => true,
-    schedule: (fn, delay) => { timer = fn; delays.push(delay); return () => { timer = undefined } },
+    schedule: (fn, delay) => { timer = fn; due = now + delay; delays.push(delay); return () => { timer = undefined } },
   })
-  const tick = async () => { await new Promise(resolve => setImmediate(resolve)); const fn = timer; timer = undefined; fn?.(); await new Promise(resolve => setImmediate(resolve)) }
+  const tick = async () => { await new Promise(resolve => setImmediate(resolve)); const fn = timer; timer = undefined; now = due; fn?.(); await new Promise(resolve => setImmediate(resolve)) }
   await tick(); await tick(); await tick()
   assert.deepEqual(delays, [1000, 5000])
   runner.resume(); assert.equal(calls, 3)
   runner.stop()
+})
+
+test('online and visibility resumes cannot bypass the batch cooldown, including after remount', async () => {
+  let now = 0
+  const cooldown = { nextAt: 0 }
+  const calls: number[] = []
+  const timers = new Map<() => void, number>()
+  const options = {
+    now: () => now, cooldown, minimumGapMs: 4000, visible: () => true,
+    batch: async () => { calls.push(now); return false },
+    schedule: (run: () => void, delay: number) => { timers.set(run, now + delay); return () => { timers.delete(run) } },
+  }
+  const settle = () => new Promise(resolve => setImmediate(resolve))
+  const first = startDurationBackfill(options)
+  await settle()
+  assert.deepEqual(calls, [0])
+  now = 100
+  first.resume(); first.resume()
+  await settle()
+  assert.deepEqual(calls, [0])
+  assert.deepEqual([...timers.values()], [4000])
+  first.stop()
+  const next = startDurationBackfill(options)
+  await settle()
+  assert.deepEqual(calls, [0])
+  now = 3999
+  next.resume()
+  await settle()
+  assert.deepEqual(calls, [0])
+  now = 4000
+  next.resume()
+  await settle()
+  assert.deepEqual(calls, [0, 4000])
+  next.stop()
+  assert.equal(timers.size, 0)
+})
+
+test('a failed duration batch keeps its longer retry delay on external resume', async () => {
+  let now = 0, calls = 0
+  const scheduled: number[] = []
+  const runner = startDurationBackfill({
+    now: () => now, minimumGapMs: 4000, visible: () => true,
+    batch: async () => { calls++; throw Error('offline') },
+    schedule: (_run, delay) => { scheduled.push(now + delay); return () => {} },
+  })
+  const settle = () => new Promise(resolve => setImmediate(resolve))
+  await settle()
+  now = 4000
+  runner.resume()
+  await settle()
+  assert.equal(calls, 1)
+  assert.deepEqual(scheduled, [5000, 5000])
+  now = 5000
+  runner.resume()
+  await settle()
+  assert.equal(calls, 2)
+  assert.equal(scheduled.at(-1), 20000)
+  runner.stop()
+})
+
+test('stopping a runner before its deferred start prevents any batch', async () => {
+  let calls = 0
+  const runner = startDurationBackfill({
+    batch: async () => { calls++; return false }, visible: () => true,
+    schedule: () => { assert.fail('stopped runners cannot schedule'); return () => {} },
+  })
+  runner.stop()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(calls, 0)
 })

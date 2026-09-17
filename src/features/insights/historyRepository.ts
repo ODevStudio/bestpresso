@@ -4,12 +4,14 @@ import { attachDetail, HISTORY_LIMIT, normalizeShot, retainHistoryDetails, regro
 import type { HistoryStorage } from './historyStorage.ts'
 import { syncHistory } from './historySync.ts'
 import { reconcileStageReasons, STAGE_REASON_VERSION } from '../brew/stageMoveOn.ts'
+import { assertHistoryActive, HistoryPaused, type BackfillCooldown, type HistoryPacer } from './historyPacing.ts'
 
 export interface HistoryState { cache: HistoryCache | null; status: 'loading' | 'ready' | 'offline'; refreshing: boolean; storageWarning: boolean; error: string | null }
 interface Dependencies {
   storage: HistoryStorage; page: (offset: number) => Promise<PaginatedShots>; detail: (id: string) => Promise<ShotRecord>
   toDetail: (shot: ShotRecord) => PreviousShot; now?: () => Date
   decorateDetail?: (shot: PreviousShot) => PreviousShot
+  background?: HistoryPacer
 }
 export class HistoryRepository {
   readonly source: string
@@ -18,7 +20,8 @@ export class HistoryRepository {
   state: HistoryState = { cache: null, status: 'loading', refreshing: false, storageWarning: false, error: null }
   private listeners = new Set<() => void>()
   private boot: Promise<void> | null = null
-  private refreshing: Promise<void> | null = null
+  private refreshing: Promise<boolean | 'paused'> | null = null
+  readonly durationCooldown: BackfillCooldown = { nextAt: 0 }
   private writes: Promise<void> = Promise.resolve()
   private loadingDetails = new Map<string, Promise<PreviousShot>>()
   private rawDetails = new Map<string, Promise<ShotRecord>>()
@@ -69,18 +72,30 @@ export class HistoryRepository {
     })().finally(() => { this.stageBatch = null })
     return this.stageBatch
   }
-  refresh(force = false) {
-    if (this.refreshing) return this.refreshing
+  private background<T>(read: () => Promise<T>, canContinue: () => boolean): Promise<T> {
+    assertHistoryActive(canContinue)
+    return this.deps.background ? this.deps.background(read, canContinue) : read()
+  }
+  refresh(force = false, canContinue: () => boolean = () => true): Promise<boolean | 'paused'> {
+    // A newly mounted caller must not inherit an older caller's paused request.
+    // Explicit Refresh during an incremental pass still gets a full scan.
+    if (this.refreshing) return this.refreshing.then(result => canContinue() && (result === 'paused' || force)
+      ? this.refresh(force, canContinue) : result)
     this.refreshing = (async () => {
       await this.load()
-      this.update({ refreshing: true })
       try {
-        const next = await syncHistory(this.deps.page, this.state.cache, this.source, this.state.cache?.timezone ?? this.timezone, this.deps.now?.() ?? new Date(), force)
+        assertHistoryActive(canContinue)
+        this.update({ refreshing: true })
+        const next = await syncHistory(offset => this.background(() => this.deps.page(offset), canContinue), this.state.cache, this.source, this.state.cache?.timezone ?? this.timezone, this.deps.now?.() ?? new Date(), force, canContinue)
+        assertHistoryActive(canContinue)
         const cache = retainHistoryDetails(next, this.state.cache)
         this.update({ cache, status: 'ready', error: null })
         await this.persist(cache)
+        return true
       } catch (error) {
+        if (error instanceof HistoryPaused || !canContinue()) return 'paused' as const
         this.update({ status: 'offline', error: error instanceof Error ? error.message : 'Decaid history is unavailable.' })
+        return false
       } finally { this.update({ refreshing: false }); this.refreshing = null }
     })()
     return this.refreshing
@@ -113,12 +128,22 @@ export class HistoryRepository {
           if (cached) duration = savedDuration(cached)
           else {
             try {
-              const raw = await this.readDetail(record.id)
-              const normalized = normalizeShot(raw, initial.timezone)
-              // Don't attach measurements to a different revision; refresh will reconcile it.
-              if (normalized?.signature !== record.signature) throw new Error('Saved shot changed during duration reconciliation.')
-              duration = savedDuration(this.deps.toDetail(raw))
+              duration = await this.background(async () => {
+                // An interactive read may have filled the cache during the wait.
+                const current = this.state.cache
+                const revision = current?.records.find(r => r.id === record.id)
+                if (revision?.signature !== record.signature) throw new HistoryPaused()
+                const cached = current?.details[record.id]
+                if (cached) return savedDuration(cached)
+                // Only actual in-flight reads are deduplicated. Interactive reads
+                // never wait behind a queued background request for the same ID.
+                const raw = await this.readDetail(record.id)
+                const normalized = normalizeShot(raw, initial.timezone)
+                if (normalized?.signature !== record.signature) throw new Error('Saved shot changed during duration reconciliation.')
+                return savedDuration(this.deps.toDetail(raw))
+              }, canContinue)
             } catch (error) {
+              if (error instanceof HistoryPaused || !canContinue()) break
               // Deleted records must not block the rest of the archive. Transient failures retry.
               if (!(error instanceof Error && 'status' in error && error.status === 404)) throw error
             }
