@@ -72,28 +72,50 @@ export function SleepWakeScreen({ onWake }: SleepWakeScreenProps) {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
   }
 
+  // React registers touch listeners as passive, so preventDefault() inside the React
+  // handlers is ignored ("Unable to preventDefault inside passive event listener").
+  // A native non-passive pair keeps the browser's own long-press and scroll gestures,
+  // and the touchcancel they send, away from the hold.
+  const screenRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    const element = screenRef.current
+    if (!element) return
+    const block = (event: TouchEvent) => { if (event.cancelable) event.preventDefault() }
+    element.addEventListener('touchstart', block, { passive: false })
+    element.addEventListener('touchmove', block, { passive: false })
+    return () => {
+      element.removeEventListener('touchstart', block)
+      element.removeEventListener('touchmove', block)
+    }
+  }, [])
+
+  const fingersStillDown = (event: ReactTouchEvent<HTMLButtonElement>, except: ReactTouchEvent<HTMLButtonElement>['changedTouches']) => {
+    const ending = new Set(Array.from(except, (touch) => touch.identifier))
+    return Array.from(event.touches, (touch) => touch.identifier).filter((id) => !ending.has(id))
+  }
+
   const handleTouchStart = (event: ReactTouchEvent<HTMLButtonElement>) => {
-    event.preventDefault()
+    gesture.current.syncActivePointers(fingersStillDown(event, event.changedTouches))
     Array.from(event.changedTouches).forEach((touch) => {
       applyUpdate(gesture.current.pointerDown(touch.identifier, touch.clientX, touch.clientY))
     })
   }
 
   const handleTouchMove = (event: ReactTouchEvent<HTMLButtonElement>) => {
-    event.preventDefault()
     Array.from(event.touches).forEach((touch) => {
       applyUpdate(gesture.current.pointerMove(touch.identifier, touch.clientX, touch.clientY))
     })
   }
 
   const handleTouchEnd = (event: ReactTouchEvent<HTMLButtonElement>) => {
-    event.preventDefault()
     Array.from(event.changedTouches).forEach((touch) => {
       applyUpdate(gesture.current.pointerEnd(touch.identifier))
     })
+    gesture.current.syncActivePointers(Array.from(event.touches, (touch) => touch.identifier))
   }
 
   return <button
+    ref={screenRef}
     className="sleep-screen"
     type="button"
     aria-label="Hold with one finger for 1 second to wake machine"
