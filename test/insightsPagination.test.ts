@@ -70,12 +70,15 @@ test('recent sync prepends new shots without downloading older pages, trims to 1
   assert.notEqual(cache.syncedAt, old.syncedAt)
 })
 
-test('old edits are reconciled on the 15-minute sweep or immediately with explicit Refresh', async () => {
+test('old edits reconcile on the next event after six hours, or immediately with explicit Refresh', async () => {
   const records = shots(1050), old = initial(records)
   old.details['shot-900'] = graph('shot-900')
   records[900] = { ...records[900], annotations: { actualYield: 42 } }
   const quick = await syncHistory(async offset => page(records, offset), old, source, 'UTC', new Date(now.getTime() + 60000))
   assert.equal(quick.records[900].yield, 36)
+  const beforeDue: number[] = []
+  await syncHistory(async offset => { beforeDue.push(offset); return page(records, offset) }, old, source, 'UTC', new Date(now.getTime() + FULL_HISTORY_INTERVAL - 1))
+  assert.deepEqual(beforeDue, [0])
   for (const [date, force] of [[new Date(now.getTime() + FULL_HISTORY_INTERVAL), false], [now, true]] as const) {
     const calls: number[] = []
     const fresh = await syncHistory(async offset => { calls.push(offset); return page(records, offset) }, old, source, 'UTC', date, force)
