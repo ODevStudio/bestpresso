@@ -30,7 +30,7 @@ import { assertMatchingProfileReadback, assertVerifiedProfileRecord, ProfileSave
 import { rinseWorkflowPatchFromMachineSettings } from './flushSettings'
 import { isSuccessfulEspressoCompletion, shouldPlayCompletionCue } from './completionCue'
 import { DEMO_BREW_TICK_MS, demoBrewForProfile, demoBrewPointsAtElapsed, demoPullIsEnabled, isConnectedMockDe1, type DemoBrewDefinition } from './demoBrew'
-import { advanceShotTimeline, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, type SkipTransition } from './liveShotState'
+import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, type SkipTransition } from './liveShotState'
 import { shouldRunBackgroundScaleScan, sleepMachineWithConfiguredScalePolicy } from './sleepControl'
 import { utilityElapsedMs, utilityTimerStartedAt } from './utilityOperationTiming'
 import { readBestpressoPreferences, useBestpressoPreferences } from '../settings/bestpressoPreferences'
@@ -41,7 +41,6 @@ const currentWaterThresholds = () => {
   return { warningLevelMl: preferences.waterWarningLevelMl, criticalLevelMl: preferences.waterCriticalLevelMl }
 }
 
-const MAX_LIVE_SHOT_POINTS = 900
 const shotToDomain = (shot: ShotRecord) => reconcileStageReasons(withStageEvidence(rawShotToDomain(shot), readStageEvidence(getDecaidEndpoints().apiBase, shot.id)))
 const MINIMUM_SCALE_SCAN_MS = 10_000
 const SCALE_SCAN_RETRY_DELAY_MS = 5_000
@@ -857,10 +856,9 @@ export function useBrewingData() {
         const timeline = advanceShotTimeline(now, acceptsShotTelemetry, session.telemetryStartedAt, session.points.at(-1)?.elapsedMs)
         session.telemetryStartedAt = timeline.telemetryStartedAt
         const elapsedMs = timeline.elapsedMs
-        const lastPoint = session.points.at(-1)
-        if (acceptsShotTelemetry && (!lastPoint || elapsedMs > lastPoint.elapsedMs)) {
+        if (acceptsShotTelemetry) {
           const stage = shotStage(snapshot.profileFrame, typeof snapshot.state === 'object' ? snapshot.state.substate : undefined, session.stepNames)
-          session.points.push({
+          const appended = appendLiveShotSample(session.points, {
             elapsedMs,
             pressure: snapshot.pressure,
             flow: snapshot.flow,
@@ -871,8 +869,7 @@ export function useBrewingData() {
             weightFlow: latestScaleSnapshot.current.weightFlow,
             ...stage,
           })
-          session.lastSampleReceivedAt = Date.now()
-          if (session.points.length > MAX_LIVE_SHOT_POINTS) session.points.shift()
+          if (appended) session.lastSampleReceivedAt = Date.now()
         }
         setLiveBrew({ active: true, visible: true, startedAt: session.startedAt, kind: session.kind, profileName: session.profileName, targetYield: session.targetYield, scaleWeight: session.kind === 'espresso' ? normalizedLiveScaleWeight(latestScaleSnapshot.current.weight) : undefined, elapsedMs, points: [...session.points], profileSteps: session.profileSteps, stageEvidence: [...session.stageEvidence], telemetryStartedAt: session.telemetryStartedAt, stopReason: session.stopReason })
       } else if (liveShotSession.current) {
