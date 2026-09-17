@@ -1,6 +1,6 @@
-// Event-driven history sync: successful requests never schedule another request.
+// Event-driven history sync: success and intentional pauses never schedule retries.
 export function createHistoryRefresh(options: {
-  refresh: (force: boolean) => Promise<boolean>
+  refresh: (force: boolean, canContinue: () => boolean) => Promise<boolean | 'paused'>
   visible: () => boolean
   schedule: (callback: () => void, delay: number) => () => void
 }) {
@@ -11,12 +11,13 @@ export function createHistoryRefresh(options: {
   let cancelTimer: (() => void) | undefined
   const request = (force = false): Promise<void> => {
     if (stopped || !options.visible()) return Promise.resolve()
-    if (pending) return pending
+    if (pending) return force ? pending.then(() => request(true)) : pending
     forceNext ||= force
     cancelTimer?.()
     cancelTimer = undefined
-    pending = Promise.resolve().then(() => stopped ? true : options.refresh(forceNext)).catch(() => false).then(success => {
+    pending = Promise.resolve().then(() => stopped ? 'paused' as const : options.refresh(forceNext, () => !stopped && options.visible())).catch(() => false).then(success => {
       if (stopped) return
+      if (success === 'paused') { failures = 0; return }
       if (success) {
         failures = 0
         forceNext = false

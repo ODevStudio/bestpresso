@@ -7,13 +7,14 @@ import { readHistoryDetail, readHistoryPage } from './historyTransport'
 import { startLatestChartRetry, type LatestChartStatus } from './latestChartRetry'
 import { createHistoryRefresh } from './historyRefresh'
 import { startDurationBackfill } from './durationBackfill'
-import { atLeast, BACKFILL_GAP_MS, PAGE_GAP_MS, pacedReader } from './historyPacing'
+import { BACKFILL_GAP_MS, createHistoryPacer } from './historyPacing'
 import { readStageEvidence, withStageEvidence } from '../brew/stageEvidenceStorage'
 
 export function useShotInsights(active: boolean, shotId: string) {
   const source = getDecaidEndpoints().apiBase
   const repository = useMemo(() => new HistoryRepository(source, Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', {
-    storage: browserHistoryStorage(), page: pacedReader((offset: number) => readHistoryPage(source, offset), PAGE_GAP_MS), detail: id => readHistoryDetail(source, id), toDetail: shotToDomain,
+    storage: browserHistoryStorage(), page: offset => readHistoryPage(source, offset), detail: id => readHistoryDetail(source, id), toDetail: shotToDomain,
+    background: createHistoryPacer(),
     decorateDetail: detail => withStageEvidence(detail, readStageEvidence(source, detail.id)),
   }), [source])
   const state = useSyncExternalStore(repository.subscribe, repository.getSnapshot)
@@ -31,10 +32,9 @@ export function useShotInsights(active: boolean, shotId: string) {
     void repository.load()
     if (!active) return
     const controller = createHistoryRefresh({
-      refresh: async force => {
+      refresh: async (force, canContinue) => {
         setNow(new Date())
-        await repository.refresh(force)
-        return repository.state.status === 'ready'
+        return repository.refresh(force, canContinue)
       },
       visible: () => document.visibilityState !== 'hidden',
       schedule: (callback, delay) => {
@@ -64,10 +64,12 @@ export function useShotInsights(active: boolean, shotId: string) {
     const backfill = startDurationBackfill({
       batch: canContinue => repository.reconcileDurationBatch(canContinue),
       visible: () => document.visibilityState !== 'hidden',
-      schedule: atLeast((callback, delay) => {
+      cooldown: repository.durationCooldown,
+      minimumGapMs: BACKFILL_GAP_MS,
+      schedule: (callback, delay) => {
         const timer = window.setTimeout(callback, delay)
         return () => window.clearTimeout(timer)
-      }, BACKFILL_GAP_MS),
+      },
     })
     window.addEventListener('online', backfill.resume)
     document.addEventListener('visibilitychange', backfill.resume)
