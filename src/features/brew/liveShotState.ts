@@ -1,3 +1,15 @@
+import type { LiveShotPoint } from '../../domain/brewing.ts'
+
+/** Retain the complete current shot, including early stage boundaries. This is
+ * session-owned storage, not a rolling telemetry window; each shot starts fresh. */
+export function appendLiveShotSample(points: LiveShotPoint[], point: LiveShotPoint): boolean {
+  if (!Number.isFinite(point.elapsedMs) || point.elapsedMs < 0) return false
+  const last = points.at(-1)
+  if (last && point.elapsedMs <= last.elapsedMs) return false
+  points.push(point)
+  return true
+}
+
 interface SnapshotWithState {
   state?: string | { state?: string; substate?: string }
   profileFrame?: number
