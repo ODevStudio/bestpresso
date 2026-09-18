@@ -1,3 +1,5 @@
+import type { BrewingScreenModel } from './brewing'
+
 export interface SupportedScaleDefinition {
   id: string
   displayName: string
@@ -62,4 +64,16 @@ export function supportedScaleForDevice(name: string | undefined, identifier: st
   }
 
   return undefined
+}
+
+// Preserve React state identity when raw telemetry has not changed the displayed tenth of a gram.
+export function withDisplayedScaleWeight(current: BrewingScreenModel, weight: number): BrewingScreenModel {
+  const value = weight.toFixed(1)
+  if (current.utilities.every(utility => utility.id !== 'scale' || utility.metrics.every(metric => metric.value === value))) return current
+  return {
+    ...current,
+    utilities: current.utilities.map(utility => utility.id === 'scale'
+      ? { ...utility, metrics: utility.metrics.map(metric => ({ ...metric, value })) }
+      : utility),
+  }
 }

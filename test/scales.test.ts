@@ -1,8 +1,48 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { supportedScaleForDevice } from '../src/domain/scales.ts'
+import * as scales from '../src/domain/scales.ts'
+import type { BrewingScreenModel } from '../src/domain/brewing.ts'
 
 const match = (name?: string, identifier?: string) => supportedScaleForDevice(name, identifier)
+
+function displayModel(): BrewingScreenModel {
+  return {
+    readiness: 'ready', profiles: [], previousShot: null,
+    utilities: [
+      { id: 'steam', metrics: [{ id: 'current', value: '130' }] },
+      { id: 'scale', metrics: [{ id: 'weight', value: '0.0', unit: 'g' }] },
+    ],
+  }
+}
+
+test('identical rounded scale readings retain the display model identity', () => {
+  assert.equal(typeof scales.withDisplayedScaleWeight, 'function')
+  const model = displayModel()
+  assert.equal(scales.withDisplayedScaleWeight(model, 0.04), model)
+  assert.equal(scales.withDisplayedScaleWeight(model, 0), model)
+})
+
+test('changed scale readings update immutably without replacing unrelated state', () => {
+  assert.equal(typeof scales.withDisplayedScaleWeight, 'function')
+  const model = displayModel()
+  const updated = scales.withDisplayedScaleWeight(model, 12.36)
+  assert.notEqual(updated, model)
+  assert.equal(updated.utilities[1].metrics[0].value, '12.4')
+  assert.equal(updated.utilities[1].metrics[0].unit, 'g')
+  assert.equal(model.utilities[1].metrics[0].value, '0.0')
+  assert.equal(updated.utilities[0], model.utilities[0])
+  assert.equal(updated.profiles, model.profiles)
+  assert.equal(updated.readiness, model.readiness)
+  assert.equal(scales.withDisplayedScaleWeight(updated, 12.39), updated)
+})
+
+test('a display with no scale needs no scale-driven update', () => {
+  assert.equal(typeof scales.withDisplayedScaleWeight, 'function')
+  const model = displayModel()
+  model.utilities = model.utilities.slice(0, 1)
+  assert.equal(scales.withDisplayedScaleWeight(model, 42), model)
+})
 
 test('uses Decaid canonical names for the original and Half Decent scales', () => {
   assert.equal(match('Decent Scale', 'AA:BB:CC:DD:EE:FF')?.id, 'decent-scale')

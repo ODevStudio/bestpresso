@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { cloneJsonData, createId } from '../../utils/browserCompatibility'
 import { t } from '../../i18n/index.ts'
+import { withDisplayedScaleWeight } from '../../domain/scales'
 import { playCompletionSound } from '../../audio/completionSound'
 import { deleteProfile, updateSettings } from '../../api/decaid/client'
 import { librarySaveMetadata } from '../profiles/profileLibraryModel'
@@ -360,12 +361,7 @@ export function useBrewingData() {
   }
 
   const setDisplayedScaleWeight = (weight: number) => {
-    setModel((current) => ({
-      ...current,
-      utilities: current.utilities.map((utility) => utility.id === 'scale'
-        ? { ...utility, metrics: utility.metrics.map((metric) => ({ ...metric, value: weight.toFixed(1) })) }
-        : utility),
-    }))
+    setModel(current => withDisplayedScaleWeight(current, weight))
   }
 
   const requestScaleTare = async (silent = false) => {
