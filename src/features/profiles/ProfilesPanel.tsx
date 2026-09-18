@@ -7,7 +7,7 @@ import { ProfileTargetChart } from '../brew/ProfileTargetChart'
 import { ProfileDeleteDialog } from './ProfileDeleteDialog'
 import { parseProfileImport, type ParsedProfileImport } from './profileImports'
 import { beverageTypeLabel, filterLibraryProfiles, librarySectionLabel, profileLibrarySource, type LibrarySection } from './profileLibraryModel'
-import { plural, t } from '../../i18n/index.ts'
+import { localizeDecimalText, plural, t } from '../../i18n/index.ts'
 import './profileDeletion.css'
 import './profileLibrary.css'
 
@@ -39,7 +39,7 @@ function Icon({ name }: { name: string }) {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]}/></svg>
 }
 function Metric({ label, value, unit }: { label:string; value:string; unit?:string }) {
-  return <div className="pl-metric"><span>{label}</span><strong>{value}{unit && value !== '—' && <small className={unit === '°' ? 'temperature-unit' : undefined}>{unit}</small>}</strong></div>
+  return <div className="pl-metric"><span>{label}</span><strong>{localizeDecimalText(value)}{unit && value !== '—' && <small className={unit === '°' ? 'temperature-unit' : undefined}>{unit}</small>}</strong></div>
 }
 function Chart({profile}:{profile:BrewProfile}) { return <ProfileTargetChart profileName={profile.name} points={profile.targetPoints} variant="library"/> }
 
@@ -109,7 +109,7 @@ export function ProfilesPanel({profiles, favoriteProfileSlots, activeProfileId, 
   const isError=Boolean(error)||feedback?.status==='error'
   const feedbackView=message&&<div className={`pl-library-feedback${isError?' pl-library-feedback--error':''}`} role={isError?'alert':'status'}>{message}</div>
   const temperature=(p:BrewProfile)=>formatTemperatureValue(p.temperature,preferences.temperatureUnit)
-  const ratio=detail&&Number(detail.dose)>0&&Number(detail.targetYield)>0?`1:${Number((Number(detail.targetYield)/Number(detail.dose)).toFixed(1))}`:'—'
+  const ratio=detail&&Number(detail.dose)>0&&Number(detail.targetYield)>0?`1:${localizeDecimalText(String(Number((Number(detail.targetYield)/Number(detail.dose)).toFixed(1))))}`:'—'
   return <div className="ins-theme pl-app">
     {!initialProfileId?<div className="ins-shell">
       <aside className="ins-rail"><SidebarBrand onClose={onClose} closeLabel={t('library.aria.closeProfiles')}/>

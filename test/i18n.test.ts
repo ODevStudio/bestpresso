@@ -83,3 +83,15 @@ test('pseudo localisation keeps placeholders intact and makes text longer', () =
   assert.match(pseudo, /\{total\}/)
   assert.ok(pseudo.length > 'Stage {n} of {total}'.length * 1.3)
 })
+
+test('dot-decimal model values are shown with the locale separator without changing English', async () => {
+  const { localizeDecimalText } = await import('../src/i18n/index.ts')
+  setActiveLanguage('en', ['en-US'])
+  assert.equal(localizeDecimalText('14.5'), '14.5')
+  setActiveLanguage('de', ['de-DE'])
+  assert.equal(localizeDecimalText('14.5'), '14,5')
+  assert.equal(localizeDecimalText('1:2.1'), '1:2,1')
+  assert.equal(localizeDecimalText('—'), '—')
+  assert.equal(localizeDecimalText('42'), '42')
+  setActiveLanguage('en', ['en-US'])
+})

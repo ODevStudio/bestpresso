@@ -8,7 +8,7 @@ import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import type { EditableMachineSetting, MachineUtility, ScaleConnection, UtilityMetricId } from '../../domain/brewing'
 import { displayUtilityMetric, utilityLabel } from '../../domain/utilityLabels'
 import { VALUE_ADJUSTMENTS } from '../../domain/valueAdjustments'
-import { t } from '../../i18n/index.ts'
+import { formatNumber, t } from '../../i18n/index.ts'
 import { scalePresentationForDevice } from './scaleArtwork'
 import { steamTargetForToggle } from './steamHeating'
 import { DrinkUtilityCard } from './DrinkUtilityCard'
@@ -73,7 +73,7 @@ export function MachineUtilityCard({ utility, compact = false, scale, onExpand, 
     const level = Math.max(0, Math.min(100, utility.levelPercent ?? fallbackLevel))
     const needsWater = Boolean(utility.alert)
     const warnsWater = !needsWater && Boolean(utility.warning)
-    const valueLabel = Number.isFinite(volume) ? `${metric.value} ${metric.unit ?? 'ml'}` : t('shell.tank.unknownLevel')
+    const valueLabel = Number.isFinite(volume) ? `${formatNumber(volume)} ${metric.unit ?? 'ml'}` : t('shell.tank.unknownLevel')
     const statusLabel = needsWater
       ? t('shell.tank.needsWater', { value: valueLabel })
       : warnsWater

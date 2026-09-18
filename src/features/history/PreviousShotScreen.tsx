@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { reconcileStageReasons } from '../brew/stageMoveOn'
 import { clockOptions, type ClockFormat } from '../sleep/deviceTime'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
-import { dateFormatter, t } from '../../i18n/index.ts'
+import { dateFormatter, localizeDecimalText, t } from '../../i18n/index.ts'
 import type { LiveShotPoint, PreviousShot, PreviousShotStatus } from '../../domain/brewing'
 import { LiveBrewStages } from '../brew/LiveBrewStages'
 import type { BrewStageSelection } from '../brew/LiveBrewStages'
@@ -123,7 +123,7 @@ export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, o
         <div className="live-pull-header__controls">
           <div className={`live-pull-header__metrics metric-scale--medium${isCleaning ? ' live-pull-header__metrics--single' : ' live-pull-header__metrics--history'}`}>
             <div><span>{t('insights.common.duration')}</span><strong>{activeShot ? timerLabel(activeShot) : '—'}</strong></div>
-            {!isCleaning && <><i aria-hidden="true" /><div><span>{t('insights.common.yield')}</span><strong>{activeShot?.totalYield ?? '—'}{activeShot?.totalYield !== '—' && <small>g</small>}</strong></div></>}
+            {!isCleaning && <><i aria-hidden="true" /><div><span>{t('insights.common.yield')}</span><strong>{localizeDecimalText(activeShot?.totalYield ?? '—')}{activeShot?.totalYield !== '—' && <small>g</small>}</strong></div></>}
           </div>
           <div className="live-pull-header__actions">
             <button className="live-pull-action live-pull-action--close" type="button" onClick={onDismiss}>{t('insights.common.close')}</button>

@@ -123,6 +123,15 @@ export function formatDecimal(value: number, digits = 0) {
   return separator === '.' ? fixed : fixed.replace('.', separator)
 }
 
+/**
+ * Display-only: model values such as grind `14.5` or flow `0.6` are kept as dot-decimal strings because they
+ * are parsed again; show them with the locale's separator without touching the stored value.
+ */
+export function localizeDecimalText(text: string) {
+  const separator = decimalSeparator()
+  return separator === '.' ? text : text.replace(/(\d)\.(\d)/g, `$1${separator}$2`)
+}
+
 /** Localised number with grouping (`1,234` / `1.234`), replacing `toLocaleString()` in displayed text. */
 export function formatNumber(value: number, options?: Intl.NumberFormatOptions) {
   try {
