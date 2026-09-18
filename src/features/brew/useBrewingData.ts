@@ -31,7 +31,7 @@ import { assertMatchingProfileReadback, assertVerifiedProfileRecord, ProfileSave
 import { rinseWorkflowPatchFromMachineSettings } from './flushSettings'
 import { isSuccessfulEspressoCompletion, shouldPlayCompletionCue } from './completionCue'
 import { DEMO_BREW_TICK_MS, demoBrewForProfile, demoBrewPointsAtElapsed, demoPullIsEnabled, isConnectedMockDe1, type DemoBrewDefinition } from './demoBrew'
-import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, type SkipTransition } from './liveShotState'
+import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, shouldAutoTareAtShotStart, type SkipTransition } from './liveShotState'
 import { shouldRunBackgroundScaleScan, sleepMachineWithConfiguredScalePolicy } from './sleepControl'
 import { utilityElapsedMs, utilityTimerStartedAt } from './utilityOperationTiming'
 import { readBestpressoPreferences, useBestpressoPreferences } from '../settings/bestpressoPreferences'
@@ -819,7 +819,7 @@ export function useBrewingData() {
             points: [],
           }
           if (!isCleaning) {
-            void requestScaleTare(true)
+            if (shouldAutoTareAtShotStart(snapshot)) void requestScaleTare(true)
             const adHocProfileAtBrewStart = retainedAdHocProfileAtBrewStart(currentModel.activeProfileId, retainedAdHocProfileId.current)
             if (adHocProfileAtBrewStart !== retainedAdHocProfileId.current) {
               retainedAdHocProfileId.current = adHocProfileAtBrewStart

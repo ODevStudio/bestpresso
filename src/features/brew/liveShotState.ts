@@ -47,6 +47,15 @@ export function isEspressoExtractionSnapshot(snapshot: SnapshotWithState, shotIn
   return state === 'espresso'
 }
 
+/** A live session can also start mid-shot (socket reconnect, WebView reload or
+ * resume). Only tare while the machine is still preparing the shot: once water
+ * flows the cup may already hold coffee, and zeroing it would push Decaid's
+ * stop-at-weight past the target. Decaid's own arm-before-pour tare still runs. */
+export function shouldAutoTareAtShotStart(snapshot: SnapshotWithState) {
+  const substate = (typeof snapshot.state === 'object' ? snapshot.state?.substate : undefined)?.toLowerCase()
+  return snapshotState(snapshot) === 'espresso' && substate === 'preparingforshot'
+}
+
 export function isEspressoMonitoringSnapshot(snapshot: SnapshotWithState, keepShotActive = false) {
   return snapshotState(snapshot) === 'espresso' || keepShotActive
 }
