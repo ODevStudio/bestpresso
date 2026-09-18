@@ -44,7 +44,7 @@ test('only the home hot-water duration shortcut is removed, not the Settings lim
   const waterCard = source.split('!steam ? <div className="drink-card__water-settings">')[1].split(': <div className="drink-card__steam-settings">')[0]
   assert.deepEqual([...waterCard.matchAll(/displayMetric\('([^']+)'\)/g)].map(match => match[1]), ['temperature', 'volume'])
   const settings = readFileSync(new URL('../src/features/settings/SettingsScreen.tsx', import.meta.url), 'utf8')
-  assert.match(settings, /NumberSetting label="Max duration" value=\{numberValue\(settings\.draft\.workflow\.hotWaterData\?\.duration\)\}/)
+  assert.match(settings, /NumberSetting label=\{t\('common\.metric\.maxDuration'\)\} value=\{numberValue\(settings\.draft\.workflow\.hotWaterData\?\.duration\)\}/)
   assert.match(settings, /onChange=\{\(duration\) => settings\.patchWorkflow\('hotWaterData', \{ duration \}\)\}/)
 })
 
