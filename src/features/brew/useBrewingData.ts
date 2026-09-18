@@ -32,7 +32,7 @@ import { rinseWorkflowPatchFromMachineSettings } from './flushSettings'
 import { isSuccessfulEspressoCompletion, shouldPlayCompletionCue } from './completionCue'
 import { DEMO_BREW_TICK_MS, demoBrewForProfile, demoBrewPointsAtElapsed, demoPullIsEnabled, isConnectedMockDe1, type DemoBrewDefinition } from './demoBrew'
 import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, shouldAutoTareAtShotStart, type SkipTransition } from './liveShotState'
-import { shouldRunBackgroundScaleScan, sleepMachineWithConfiguredScalePolicy } from './sleepControl'
+import { backgroundScaleScanDelayMs, shouldRunBackgroundScaleScan, sleepMachineWithConfiguredScalePolicy } from './sleepControl'
 import { utilityElapsedMs, utilityTimerStartedAt } from './utilityOperationTiming'
 import { readBestpressoPreferences, useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import { UNIFIED_SETTINGS_SAVED_EVENT, type UnifiedSettingsSnapshot } from '../settings/useUnifiedSettings'
@@ -44,7 +44,6 @@ const currentWaterThresholds = () => {
 
 const shotToDomain = (shot: ShotRecord) => reconcileStageReasons(withStageEvidence(rawShotToDomain(shot), readStageEvidence(getDecaidEndpoints().apiBase, shot.id)))
 const MINIMUM_SCALE_SCAN_MS = 10_000
-const SCALE_SCAN_RETRY_DELAY_MS = 5_000
 const fixtureProfiles = profilesWithParsedTitles(brewingFixture.profiles)
 const localScaleFixture = import.meta.env.DEV
   ? scaleFixtureForKey(new URLSearchParams(window.location.search).get('mockScale'))
@@ -1005,18 +1004,22 @@ export function useBrewingData() {
     }, 30000)
 
     let backgroundScaleSearchTimeout: number | null = null
+    let unsuccessfulBackgroundScaleScans = 0
     const scheduleBackgroundScaleSearch = () => {
+      if (connectedScale.current) unsuccessfulBackgroundScaleScans = 0
       backgroundScaleSearchTimeout = window.setTimeout(async () => {
         backgroundScaleSearchTimeout = null
         if (disposed) return
-        if (shouldRunBackgroundScaleScan(preferredScaleId, connectedScale.current, previousReadiness.current)) {
+        const machineBusy = Boolean(liveShotSession.current || utilityOperationSession.current)
+        if (shouldRunBackgroundScaleScan(preferredScaleId, connectedScale.current, previousReadiness.current, machineBusy)) {
           try {
             const devices = await runScaleScan()
             if (devices.some((device) => device.type === 'scale' && device.state === 'connected')) connectedScale.current = true
           } catch { /* the next scheduled scan can retry */ }
+          unsuccessfulBackgroundScaleScans = connectedScale.current ? 0 : unsuccessfulBackgroundScaleScans + 1
         }
         if (!disposed) scheduleBackgroundScaleSearch()
-      }, SCALE_SCAN_RETRY_DELAY_MS)
+      }, backgroundScaleScanDelayMs(unsuccessfulBackgroundScaleScans))
     }
     scheduleBackgroundScaleSearch()
 
