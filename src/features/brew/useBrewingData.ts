@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { cloneJsonData, createId } from '../../utils/browserCompatibility'
 import { playCompletionSound } from '../../audio/completionSound'
 import { deleteProfile, updateSettings } from '../../api/decaid/client'
 import { librarySaveMetadata } from '../profiles/profileLibraryModel'
@@ -14,7 +15,7 @@ import { recordedStopReason, weightAdvanceEvidence } from './stageShotEvents'
 import type { DecaidProfileStep, ShotRecord, ShotStateEvent } from '../../api/decaid/types'
 import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, getDevices, getFavoriteAssignments, getLatestShot, getMachineSettings, getProfile, getProfiles, getSettings, getSharedSetting, getShot, getShotHistory, getWorkflow, scanForDevices, setMachineProfile, setMachineState, setSharedSetting, tareScale, updateProfile, updateProfileMetadata, updateWorkflow } from '../../api/decaid/client'
 import { displayBrightness } from '../settings/displayBrightness'
-import { profileTargetNeedsWorkflowSync, workflowPatchForSavedActiveProfile, workflowValuesForProfile } from '../../api/decaid/profileWorkflow'
+import { workflowPatchForSavedActiveProfile, workflowValuesForProfile } from '../../api/decaid/profileWorkflow'
 import { createMachineReadinessTracker } from '../../api/decaid/readiness'
 import { subscribe } from '../../api/decaid/socket'
 import type { DecaidProfile, DecaidProfileRecord, DecaidWorkflowPatch, FavoriteAssignments, MachineSnapshot, ScaleSnapshot, TimeToReadyFrame, WaterLevels } from '../../api/decaid/types'
@@ -648,13 +649,10 @@ export function useBrewingData() {
     const shotHistoryRequest = getShotHistory()
       .then((history) => ({ history, failed: false }))
       .catch(() => ({ history: null, failed: true }))
-    const rememberedProfileRequest = getSharedSetting<unknown>(LAST_SELECTED_PROFILE_SHARED_KEY)
-      .then((value) => normalizeRememberedProfileId(value) ?? storedLastSelectedProfileId())
-      .catch(storedLastSelectedProfileId)
     const machineSettingsRequest = getMachineSettings().catch(() => null)
 
-    Promise.all([getWorkflow(), machineSettingsRequest, getProfiles(), getFavoriteAssignments().catch(() => null), latestShotRequest, shotHistoryRequest, rememberedProfileRequest])
-      .then(async ([initialWorkflow, machineSettings, records, assignments, latestShot, historyResult, rememberedProfileId]) => {
+    Promise.all([getWorkflow(), machineSettingsRequest, getProfiles(), getFavoriteAssignments().catch(() => null), latestShotRequest, shotHistoryRequest])
+      .then(async ([initialWorkflow, machineSettings, records, assignments, latestShot, historyResult]) => {
         if (disposed) return
         profileRecords.current = records
         favoriteAssignments.current = assignments
@@ -668,26 +666,7 @@ export function useBrewingData() {
             workflow = initialWorkflow
           }
         }
-        let domainProfiles = profileRecordsToDomain(records, workflow, fixtureProfiles)
-        const workflowProfile = activeProfileForWorkflow(domainProfiles, records, workflow)
-        const restoredProfileId = resolveRememberedProfileId(domainProfiles.map((profile) => profile.id), rememberedProfileId, workflowProfile?.id)
-        if (restoredProfileId) {
-          const restoredProfile = domainProfiles.find((profile) => profile.id === restoredProfileId)
-          const restoredRecord = records.find((record) => (record.id || record.profile?.title) === restoredProfileId)
-          const targetOverrideNeedsSync = profileTargetNeedsWorkflowSync(restoredRecord?.profile, restoredRecord?.metadata, workflow.context?.targetYield)
-          const shouldRestoreProfile = restoredProfileId !== workflowProfile?.id || targetOverrideNeedsSync
-          if (shouldRestoreProfile && restoredProfile && restoredRecord?.profile?.steps?.length) {
-            const workflowBeforeProfileRestore = workflow
-            try {
-              workflow = await updateWorkflow(workflowValuesForProfile(restoredRecord, restoredProfile).patch)
-              if (disposed) return
-              domainProfiles = profileRecordsToDomain(records, workflow, fixtureProfiles)
-            } catch {
-              workflow = workflowBeforeProfileRestore
-              domainProfiles = profileRecordsToDomain(records, workflow, fixtureProfiles)
-            }
-          }
-        }
+        const domainProfiles = profileRecordsToDomain(records, workflow, fixtureProfiles)
         const slots = resolveFavoriteProfileSlots(domainProfiles, assignments)
         const activeProfile = activeProfileForWorkflow(domainProfiles, records, workflow)
         if (activeProfile) storeLastSelectedProfileIdLocally(activeProfile.id)
@@ -829,7 +808,7 @@ export function useBrewingData() {
         if (!liveShotSession.current) {
           finishPendingYield()
           liveShotSession.current = {
-            profileSteps: profile?.profileSteps ? structuredClone(profile.profileSteps) : undefined,
+            profileSteps: profile?.profileSteps ? cloneJsonData(profile.profileSteps) : undefined,
             stageEvidence: [],
             kind: isCleaning ? 'cleaning' : 'espresso',
             beverageType: isCleaning ? 'cleaning' : profile?.beverageType,
@@ -1473,7 +1452,7 @@ export function useBrewingData() {
       if (connection === 'fixture') {
         const savedRecord: DecaidProfileRecord = {
           ...sourceRecord,
-          id: `local-${crypto.randomUUID()}`,
+          id: `local-${createId()}`,
           parentId: expectedParentId,
           profile: authoredProfile,
           metadata: metadata ?? null,
@@ -1614,13 +1593,9 @@ export function useBrewingData() {
       if (!isFavorite) retainedAdHocProfileId.current = profileId
       storeLastSelectedProfileIdLocally(profileId)
       if (connection === 'connected') {
-        const record = profileRecords.current.find((candidate) => candidate.id === profileId)
         try {
           const workflow = await getWorkflow()
-          if (record?.profile?.steps?.length && profileTargetNeedsWorkflowSync(record.profile, record.metadata, workflow.context?.targetYield)) {
-            const synchronizedWorkflow = await updateWorkflow(workflowValuesForProfile(record, profile).patch)
-            setModel((current) => applyWorkflow(current, synchronizedWorkflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
-          }
+          setModel((current) => applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
         } catch {
           showSettingFeedback({ status: 'error', message: `${profile.name} could not be synchronized with Decaid.` })
           return false

@@ -117,8 +117,8 @@ test('Step 7 matrix: Filter3-style no-yield profiles remain no-yield until the u
   const workflow = workflowValuesForProfile({ id: 'filter-3', profile: saved }, {
     id: 'filter-3', name: 'Filter3', temperature: '94', grindSetting: '20', dose: '18', targetYield: '—',
   })
-  assert.equal(workflow.patch.profile?.target_weight, null)
-  assert.equal(workflow.patch.context?.targetYield, null)
+  assert.equal(workflow.patch.profile?.target_weight, 0)
+  assert.equal(workflow.patch.context?.targetYield, 0)
 })
 
 test('Step 7 matrix: cleaning sequences retain classification, order, and every stage', () => {

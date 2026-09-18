@@ -1,4 +1,5 @@
 import type { BrewProfile, BrewingScreenModel, PreviousShot } from '../../domain/brewing.ts'
+import { createId } from '../../utils/browserCompatibility.ts'
 import { reconcileStageReasons } from '../../features/brew/stageMoveOn.ts'
 import { sourceForRecord } from '../../features/profiles/profileLibraryModel.ts'
 import { isSteamHeatingEnabled } from '../../features/machine/steamHeating.ts'
@@ -73,7 +74,7 @@ export function profileRecordsToDomain(records: DecaidProfileRecord[], workflow:
     const parsedTitle = parseProfileTitle(profile.title)
     const chartSteps = profile.steps?.length ? profile.steps : isActive ? workflow.profile?.steps : undefined
     return {
-      id: record.id || profile.title || crypto.randomUUID(),
+      id: record.id || profile.title || createId(),
       source: sourceForRecord(record),
       createdAt: textValue(metadata.bestpressoCreatedAt),
       author: textValue(profile.author),
@@ -85,7 +86,7 @@ export function profileRecordsToDomain(records: DecaidProfileRecord[], workflow:
       temperature: numberString(isActive ? workflow.profile?.steps?.[0]?.temperature : metadata.temperature ?? profile.steps?.[0]?.temperature, '—'),
       grindSetting: numberString(isActive ? workflow.context?.grinderSetting : metadata.grinderSetting, '—'),
       dose: numberString(isActive ? workflow.context?.targetDoseWeight : metadata.targetDoseWeight ?? profile.dose_weight, '18'),
-      targetYield: numberString(profileConfiguredTargetYield(profile, metadata, isActive ? workflow.profile?.target_weight ?? workflow.context?.targetYield : undefined), '—'),
+      targetYield: numberString(profileConfiguredTargetYield(profile, metadata, isActive ? workflow.context?.targetYield ?? workflow.profile?.target_weight : undefined), '—'),
       targetPoints: profileStepsToTargetPoints(chartSteps),
       stepNames: chartSteps?.map((step, index) => textValue(step.name) ?? `Stage ${index + 1}`),
       profileSteps: isActive && workflow.profile?.steps?.length ? workflow.profile.steps : chartSteps,

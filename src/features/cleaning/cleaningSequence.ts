@@ -1,5 +1,12 @@
 import type { DecaidProfile, DecaidWorkflow, DecaidWorkflowPatch } from '../../api/decaid/types'
 
+export const cleaningPreparationStatus = (selectedId: string | null, pending: boolean, preparedId: string | null, failedId: string | null) => {
+  if (pending) return 'loading'
+  if (selectedId && selectedId === preparedId) return 'ready'
+  if (selectedId && selectedId === failedId) return 'error'
+  return 'idle'
+}
+
 export const profileForCleaningShortcut = (profile: DecaidProfile): DecaidProfile => (
   profile.beverage_type?.trim().toLowerCase() === 'cleaning'
     ? profile

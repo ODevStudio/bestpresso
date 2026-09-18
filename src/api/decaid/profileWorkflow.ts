@@ -37,14 +37,13 @@ export const profileUserTargetNeedsWorkflowSync = (metadata: Record<string, unkn
 }
 
 export const profileConfiguredTargetYield = (profile?: DecaidProfile, metadata?: Record<string, unknown> | null, activeTarget?: unknown) => {
+  if (activeTarget !== undefined) return positiveTargetYield(activeTarget)
   const sourceTarget = profileUsesStopAtWeight(profile) ? positiveTargetYield(profile?.target_weight) : undefined
   const userTarget = profileUserTargetYield(metadata)
   if (userTarget === 0) return undefined
   if (sourceTarget === undefined && userTarget === undefined) return undefined
 
-  const configuredTarget = activeTarget === undefined
-    ? positiveTargetYield(sourceTarget === undefined ? userTarget : metadata?.targetYield)
-    : positiveTargetYield(activeTarget)
+  const configuredTarget = positiveTargetYield(sourceTarget === undefined ? userTarget : metadata?.targetYield)
   return configuredTarget ?? userTarget ?? sourceTarget
 }
 
@@ -63,12 +62,17 @@ export const workflowValuesForProfile = (record: DecaidProfileRecord, profile: B
   const usesStopAtWeight = profileUsesStopAtWeight(record.profile)
   const savedUserTarget = profileUserTargetYield(record.metadata)
   const targetYield = Number.isFinite(profileYield)
-    ? profileYield > 0 ? profileYield : null
-    : savedUserTarget === 0 ? null : savedUserTarget ?? profileTargetYield(record.profile) ?? null
+    ? Math.max(0, profileYield)
+    : savedUserTarget ?? profileTargetYield(record.profile) ?? 0
+  const baseTemperature = Number(record.profile?.steps?.[0]?.temperature)
+  const temperatureOffset = Number.isFinite(baseTemperature) ? temperature - baseTemperature : 0
   const workflowProfile = {
     ...record.profile,
     target_weight: targetYield,
-    steps: record.profile?.steps?.map((step) => ({ ...step, temperature })) ?? [],
+    steps: record.profile?.steps?.map((step) => ({
+      ...step,
+      temperature: temperatureOffset === 0 ? step.temperature : Number(step.temperature) + temperatureOffset,
+    })) ?? [],
   }
   const patch: DecaidWorkflowPatch = {
     profile: workflowProfile,

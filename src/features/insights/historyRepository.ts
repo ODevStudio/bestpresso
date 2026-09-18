@@ -176,7 +176,7 @@ export class HistoryRepository {
       const record = initial?.records.find(r => r.id === id)
       if (!initial || !record) throw new Error(`This shot is not in the latest ${HISTORY_LIMIT.toLocaleString()} saved records. Refresh history to check again.`)
       // Summaries are reconciled on entry/refresh. A cached detail shares that revision.
-      if (Object.hasOwn(initial.details, id)) {
+      if (Object.prototype.hasOwnProperty.call(initial.details, id)) {
         const detail = this.reconcileDetail(initial.details[id], record.signature)
         if (detail !== initial.details[id]) {
           const cache = attachDetail(initial, id, record.signature, detail)

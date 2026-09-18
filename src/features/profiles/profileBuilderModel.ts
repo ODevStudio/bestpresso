@@ -1,4 +1,5 @@
 import type { DecaidProfile, DecaidProfileStep } from '../../api/decaid/types'
+import { cloneJsonData } from '../../utils/browserCompatibility.ts'
 import { profileStepsToTargetPoints } from '../../api/decaid/profileTargetPoints.ts'
 import type { ProfileTargetPoint } from '../../domain/brewing'
 
@@ -122,7 +123,7 @@ export function duplicateBuilderStage(stage: BuilderStage, index: number): Build
     name: `${stage.name} copy`,
     exit: stage.exit ? { ...stage.exit } : stage.exit,
     limiter: stage.limiter ? { ...stage.limiter } : stage.limiter,
-    ...(stage.source ? { source: structuredClone(stage.source) } : {}),
+    ...(stage.source ? { source: cloneJsonData(stage.source) } : {}),
   }
 }
 
