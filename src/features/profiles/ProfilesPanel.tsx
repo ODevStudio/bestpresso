@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { SidebarBrand, SidebarNavItem } from '../../components/Sidebar/SidebarNavigation'
 import type { BrewProfile, SettingFeedback } from '../../domain/brewing'
 import { formatTemperatureValue } from '../../domain/temperature'
@@ -61,11 +61,11 @@ export function ProfilesPanel({profiles, favoriteProfileSlots, activeProfileId, 
   const returnId = useRef<string|null>(null)
   const detail = profiles.find(p=>p.id===initialProfileId)
   const candidate = profiles.find(p=>p.id===candidateId)
-  const favorites = favoriteProfileSlots.flatMap((id,slot)=>{const profile=profiles.find(p=>p.id===id); return profile?[{profile,slot}]:[]})
-  const ids = new Set(favorites.map(f=>f.profile.id))
-  const categories = [...new Set(profiles.map(p=>p.category).filter((c):c is string=>Boolean(c)))].sort((a,b)=>a.localeCompare(b))
+  const favorites = useMemo(()=>favoriteProfileSlots.flatMap((id,slot)=>{const profile=profiles.find(p=>p.id===id); return profile?[{profile,slot}]:[]}),[profiles,favoriteProfileSlots])
+  const ids = useMemo(()=>new Set(favorites.map(f=>f.profile.id)),[favorites])
+  const categories = useMemo(()=>[...new Set(profiles.map(p=>p.category).filter((c):c is string=>Boolean(c)))].sort((a,b)=>a.localeCompare(b)),[profiles])
   const sources:LibrarySection[] = ['Preloaded','Imported','My profiles']
-  const visible = filterLibraryProfiles(profiles,{section,query,category,sort})
+  const visible = useMemo(()=>filterLibraryProfiles(profiles,{section,query,category,sort}),[profiles,section,query,category,sort])
   const count = (s:LibrarySection)=>s==='All profiles'?profiles.length:s==='Favorites'?favorites.length:profiles.filter(p=>profileLibrarySource(p)===s).length
   useEffect(()=>{
     if(!candidateId) return
