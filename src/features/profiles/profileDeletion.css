@@ -4,7 +4,7 @@
 .profile-detail__delete-icon { display:block; width:20px; height:20px; background:currentColor; -webkit-mask:url('../../assets/figma/builder-stage-delete.svg') center/contain no-repeat; mask:url('../../assets/figma/builder-stage-delete.svg') center/contain no-repeat; }
 .profile-detail__actions button.profile-detail__delete:hover:not(:disabled) { border-color:#f18b87; background:rgba(127,44,44,.3); }
 .profile-detail__actions button.profile-detail__delete:focus-visible { outline-color:currentColor; }
-.profile-delete-dialog { width:min(440px,calc(100vw - 40px)); max-height:calc(100dvh - 48px); box-sizing:border-box; padding:28px; overflow:auto; border:1px solid rgba(255,255,255,.15); border-radius:24px; color:#f3f2f0; background:#302c2a; box-shadow:0 24px 72px rgba(0,0,0,.4); }
+.profile-delete-dialog { width:min(440px,calc(100vw - 40px)); max-height:calc(100vh - 48px);max-height:calc(100dvh - 48px); box-sizing:border-box; padding:28px; overflow:auto; border:1px solid rgba(255,255,255,.15); border-radius:24px; color:#f3f2f0; background:#302c2a; box-shadow:0 24px 72px rgba(0,0,0,.4); }
 .profile-delete-dialog::backdrop { background:rgba(0,0,0,.6); }
 .profile-delete-dialog h2 { margin:0; font-size:24px; line-height:1.2; font-weight:600; }
 .profile-delete-dialog__name { display:block; margin-top:18px; overflow-wrap:anywhere; font-size:18px; line-height:1.4; font-weight:500; }
