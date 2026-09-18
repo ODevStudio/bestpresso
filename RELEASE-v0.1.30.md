@@ -9,3 +9,15 @@
 Recorded stage-matched events take priority where available. Other explanations are inferred from the saved recipe and telemetry, rather than reported directly by the machine. Older or incomplete records may show “Unknown.” Brewing behavior and profile execution are unchanged.
 
 Install `bestpresso-v0.1.30.zip` in Decaid.
+
+## Patch 002 — Profile loading and tablet compatibility
+
+- Fixed loading cleaning and other profiles without a target yield on newer Decaid versions.
+- Preserved each stage's temperature when selecting a profile. Temperature adjustments now retain the recipe's differences between stages.
+- Kept Decaid's current profile and yield on startup, instead of overwriting them with remembered settings.
+- Fixed older-tablet browser compatibility affecting live shots, the Stop button, cached history, and profile editing.
+- Cleaning now shows loading and failure states clearly, offers retry, and only displays start instructions after loading succeeds.
+
+This patch addresses confirmed compatibility and profile-handling bugs. The separate intermittent issue requiring an app/machine restart remains under investigation.
+
+Install `bestpresso-v0.1.30-patch002.zip` in Decaid.

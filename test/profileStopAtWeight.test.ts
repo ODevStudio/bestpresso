@@ -36,9 +36,9 @@ test('a profile target weight is the sole stop-at-weight authority', () => {
 
 test('selecting a profile without stop at weight clears inherited yield targets', () => {
   const values = workflowValuesForProfile(record(null), domainProfile('—'))
-  assert.equal(values.patch.profile?.target_weight, null)
-  assert.equal(values.patch.context?.targetYield, null)
-  assert.equal(values.metadata.targetYield, null)
+  assert.equal(values.patch.profile?.target_weight, 0)
+  assert.equal(values.patch.context?.targetYield, 0)
+  assert.equal(values.metadata.targetYield, 0)
 })
 
 test('selecting a stop-at-weight profile preserves its configured target', () => {
@@ -58,9 +58,9 @@ test('saving a yield creates an explicit override for a profile without a progra
 
 test('saving zero disables brew by weight and persists that choice', () => {
   const values = workflowValuesForProfile(record(40), domainProfile('0'))
-  assert.equal(values.patch.profile?.target_weight, null)
-  assert.equal(values.patch.context?.targetYield, null)
-  assert.equal(values.metadata.targetYield, null)
+  assert.equal(values.patch.profile?.target_weight, 0)
+  assert.equal(values.patch.context?.targetYield, 0)
+  assert.equal(values.metadata.targetYield, 0)
   assert.equal(values.metadata[BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY], 0)
 })
 
@@ -71,8 +71,8 @@ test('a saved zero keeps brew by weight disabled when the profile is selected ag
     [BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY]: 0,
   }
   const values = workflowValuesForProfile(disabledRecord, domainProfile('—'))
-  assert.equal(values.patch.profile?.target_weight, null)
-  assert.equal(values.patch.context?.targetYield, null)
+  assert.equal(values.patch.profile?.target_weight, 0)
+  assert.equal(values.patch.context?.targetYield, 0)
   assert.equal(values.metadata[BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY], 0)
 })
 
@@ -81,7 +81,7 @@ test('only an explicit Bestpresso override revives a profile without a programme
   assert.equal(profileConfiguredTargetYield(record(null).profile, { targetYield: 42, [BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY]: 42 }), 42)
   assert.equal(profileConfiguredTargetYield(record(40).profile, { targetYield: 42 }), 42)
   assert.equal(profileConfiguredTargetYield(record(40).profile, { targetYield: null, [BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY]: 0 }), undefined)
-  assert.equal(profileConfiguredTargetYield(record(40).profile, { targetYield: null, [BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY]: 0 }, 40), undefined)
+  assert.equal(profileConfiguredTargetYield(record(40).profile, { targetYield: null, [BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY]: 0 }, 40), 40)
 })
 
 test('restores the saved user yield when the current workflow lost it', () => {
@@ -92,7 +92,7 @@ test('restores the saved user yield when the current workflow lost it', () => {
   assert.equal(profileUserTargetNeedsWorkflowSync({}, 42), false)
   assert.equal(profileUserTargetNeedsWorkflowSync({ [BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY]: 0 }, 42), true)
   assert.equal(profileUserTargetNeedsWorkflowSync({ [BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY]: 0 }, null), false)
-  assert.match(brewingData, /profileTargetNeedsWorkflowSync\(restoredRecord\?\.profile, restoredRecord\?\.metadata, workflow\.context\?\.targetYield\)/)
+  assert.doesNotMatch(brewingData, /profileTargetNeedsWorkflowSync\(/)
 })
 
 test('restores a stored pour-over target when the active workflow lost it', () => {

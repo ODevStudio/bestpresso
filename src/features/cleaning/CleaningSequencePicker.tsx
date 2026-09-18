@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import brewAction from '../../assets/figma/brew-action.svg'
 import cleaningProfile from '../../assets/figma/cleaning-profile.svg'
 import cleaningProfileSelected from '../../assets/figma/cleaning-profile-selected.svg'
 import type { BrewProfile } from '../../domain/brewing'
+import { cleaningPreparationStatus } from './cleaningSequence'
 
 interface CleaningSequencePickerProps {
   profiles: BrewProfile[]
@@ -16,27 +17,40 @@ export function CleaningSequencePicker({ profiles, pending, preparedProfileId, o
   const visibleProfiles = profiles.slice(0, 8)
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(visibleProfiles.length === 1 ? visibleProfiles[0].id : null)
   const autoPrepareRequested = useRef(false)
-  const interactionLocked = pending
+  const preparationInFlight = useRef(false)
+  const [preparing, setPreparing] = useState(false)
+  const [failedProfileId, setFailedProfileId] = useState<string | null>(null)
+  const interactionLocked = pending || preparing
+  const status = cleaningPreparationStatus(selectedProfileId, interactionLocked, preparedProfileId, failedProfileId)
   const columns = Math.max(1, Math.min(4, visibleProfiles.length || 2))
-  const rows = Math.max(1, Math.ceil(visibleProfiles.length / columns))
   const panelStyle = {
     '--cleaning-picker-columns': columns,
     width: `${(columns * 223) + ((columns - 1) * 15) + 48}px`,
-    height: `${97 + 25 + (rows * 133) + ((rows - 1) * 15) + 26}px`,
   } as CSSProperties
 
-  useEffect(() => {
-    const onlyProfileId = visibleProfiles.length === 1 ? visibleProfiles[0].id : null
-    if (!onlyProfileId || autoPrepareRequested.current) return
-    autoPrepareRequested.current = true
-    void onPrepare(onlyProfileId)
-  }, [onPrepare, visibleProfiles])
-
-  const selectProfile = async (profileId: string) => {
-    if (interactionLocked) return
+  const selectProfile = useCallback(async (profileId: string) => {
+    if (interactionLocked || preparationInFlight.current) return
     setSelectedProfileId(profileId)
-    if (preparedProfileId !== profileId) await onPrepare(profileId)
-  }
+    setFailedProfileId(null)
+    if (preparedProfileId === profileId) return
+    preparationInFlight.current = true
+    setPreparing(true)
+    try {
+      if (!await onPrepare(profileId)) setFailedProfileId(profileId)
+    } catch {
+      setFailedProfileId(profileId)
+    } finally {
+      preparationInFlight.current = false
+      setPreparing(false)
+    }
+  }, [interactionLocked, onPrepare, preparedProfileId])
+
+  const onlyProfileId = visibleProfiles.length === 1 ? visibleProfiles[0].id : null
+  useEffect(() => {
+    if (!onlyProfileId || interactionLocked || autoPrepareRequested.current) return
+    autoPrepareRequested.current = true
+    void selectProfile(onlyProfileId)
+  }, [onlyProfileId, interactionLocked, selectProfile])
 
   return <div className="cleaning-picker-overlay" role="presentation" onPointerDown={(event) => {
     if (event.target === event.currentTarget && !interactionLocked) void onDismiss()
@@ -45,15 +59,17 @@ export function CleaningSequencePicker({ profiles, pending, preparedProfileId, o
       <header className="cleaning-picker__header">
         <div>
           <h2 id="cleaning-picker-title">Cleaning</h2>
-          {selectedProfileId
+          {status === 'ready'
             ? <p>Tap <span className="cleaning-picker__brew-guide"><img src={brewAction} alt="cup" /></span> on your machine to start.</p>
+            : status === 'loading' ? <p role="status">Loading cleaning profile…</p>
+            : status === 'error' ? <p role="alert">Could not load. Select a profile to retry.</p>
             : <p>Select a cleaning profile.</p>}
         </div>
         <button className="cleaning-picker__close" type="button" disabled={interactionLocked} onClick={() => void onDismiss()}>Close</button>
       </header>
       <div className="cleaning-picker__profiles">
         {visibleProfiles.map((profile) => {
-          const selected = selectedProfileId === profile.id
+          const selected = status === 'ready' && preparedProfileId === profile.id
           return <button
             className={`cleaning-picker-card${selected ? ' cleaning-picker-card--selected' : ''}`}
             key={profile.id}

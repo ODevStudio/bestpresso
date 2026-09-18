@@ -1,4 +1,5 @@
 import { getDecaidEndpoints } from './config'
+import { receiveSocketMessage } from './socketMessage'
 
 export interface SocketSubscription {
   close(): void
@@ -23,7 +24,7 @@ export function subscribe<T>(path: string, onData: (data: T) => void, onConnecti
     }
     socket.addEventListener('open', () => onConnection(true))
     socket.addEventListener('message', (event) => {
-      try { onData(JSON.parse(String(event.data)) as T) } catch { /* ignore malformed frames */ }
+      receiveSocketMessage(event.data, path, onData)
     })
     socket.addEventListener('close', () => {
       onConnection(false)
@@ -65,7 +66,7 @@ export function subscribeWithCommands<TData, TCommand>(
       onOpen?.(send)
     })
     socket.addEventListener('message', (event) => {
-      try { onData(JSON.parse(String(event.data)) as TData) } catch { /* ignore malformed frames */ }
+      receiveSocketMessage(event.data, path, onData)
     })
     socket.addEventListener('close', () => {
       onConnection(false)
