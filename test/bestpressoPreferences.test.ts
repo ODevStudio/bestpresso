@@ -63,7 +63,8 @@ test('unified settings use Decaid domains instead of delegating to a second sett
   assert.match(client, /getMachineSettings = \(\) => getJson<DecaidMachineSettings>\('\/machine\/settings', 20000\)/)
   assert.doesNotMatch(screen, /label="Stop using scale"/)
   const brewing = readFileSync(new URL('../src/features/brew/useBrewingData.ts', import.meta.url), 'utf8')
-  assert.match(brewing, /const patch = hotWaterWeightStoppingPatch\(current\)/)
+  // Tablet fork: connecting a scale no longer rewrites Decaid's stopHotWaterAtWeight (see tabletSafety.test.ts).
+  assert.doesNotMatch(brewing, /hotWaterWeightStoppingPatch|updateSettings\(/)
   assert.match(screen, /scalePowerMode/)
   assert.match(screen, /sleepTimeoutMinutes/)
   assert.match(screen, /automaticUpdateCheck/)

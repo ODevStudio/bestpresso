@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { cloneJsonData, createId } from '../../utils/browserCompatibility'
 import { playCompletionSound } from '../../audio/completionSound'
-import { deleteProfile, updateSettings } from '../../api/decaid/client'
+import { deleteProfile } from '../../api/decaid/client'
 import { librarySaveMetadata } from '../profiles/profileLibraryModel'
 import { assertProfileDeletionAllowed, canDeleteProfile, deleteVerifiedUserProfile, favoritesWithoutProfile } from '../profiles/profileDeletion'
-import { hotWaterWeightStoppingPatch } from '../settings/yieldLookAhead'
 import { hotWaterSettings } from './hotWaterSettings'
 import type { HotWaterShotSettings } from './hotWaterSync'
 import { activeProfileForWorkflow, applyWorkflow, carouselProfiles, favoriteProfileSlots as resolveFavoriteProfileSlots, isCleaningProfile, profileRecordsToDomain, profilesWithParsedTitles, retainedAdHocProfileAtBrewStart, shotStage, shotToDomain as rawShotToDomain, STEAM_HEATER_READY_C, tankMillilitres } from '../../api/decaid/adapters'
@@ -13,7 +12,7 @@ import { reconcileStageReasons, type StageAdvanceEvidence } from './stageMoveOn'
 import { readStageEvidence, saveStageEvidence, withStageEvidence } from './stageEvidenceStorage'
 import { recordedStopReason, weightAdvanceEvidence } from './stageShotEvents'
 import type { DecaidProfileStep, ShotRecord, ShotStateEvent } from '../../api/decaid/types'
-import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, getDevices, getFavoriteAssignments, getLatestShot, getMachineSettings, getProfile, getProfiles, getSettings, getSharedSetting, getShot, getShotHistory, getWorkflow, scanForDevices, setMachineProfile, setMachineState, setSharedSetting, tareScale, updateProfile, updateProfileMetadata, updateWorkflow } from '../../api/decaid/client'
+import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, getDevices, getFavoriteAssignments, getLatestShot, getProfile, getProfiles, getSettings, getSharedSetting, getShot, getShotHistory, getWorkflow, scanForDevices, setMachineProfile, setMachineState, setSharedSetting, tareScale, updateProfile, updateProfileMetadata, updateWorkflow } from '../../api/decaid/client'
 import { displayBrightness } from '../settings/displayBrightness'
 import { workflowPatchForSavedActiveProfile, workflowValuesForProfile } from '../../api/decaid/profileWorkflow'
 import { createMachineReadinessTracker } from '../../api/decaid/readiness'
@@ -28,7 +27,6 @@ import { observePostShotWeight, reconciledShotPoints, reconciledShotYield, type 
 import { LAST_SELECTED_PROFILE_LOCAL_KEY, LAST_SELECTED_PROFILE_SHARED_KEY, normalizeRememberedProfileId, resolveRememberedProfileId } from '../profiles/profileSelectionPersistence'
 import { profileAuthorForAccount } from '../profiles/profileAuthor'
 import { assertMatchingProfileReadback, assertVerifiedProfileRecord, ProfileSaveVerificationError } from '../profiles/profileSaveVerification'
-import { rinseWorkflowPatchFromMachineSettings } from './flushSettings'
 import { isSuccessfulEspressoCompletion, shouldPlayCompletionCue } from './completionCue'
 import { DEMO_BREW_TICK_MS, demoBrewForProfile, demoBrewPointsAtElapsed, demoPullIsEnabled, isConnectedMockDe1, type DemoBrewDefinition } from './demoBrew'
 import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, shouldAutoTareAtShotStart, type SkipTransition } from './liveShotState'
@@ -184,23 +182,7 @@ export function useBrewingData() {
   const [sleepPending, setSleepPending] = useState(false)
   const [sleepScreenActive, setSleepScreenActive] = useState(false)
   const [machineActionError, setMachineActionError] = useState<string | null>(null)
-  useEffect(() => {
-    if (connection !== 'connected' || scale.status !== 'connected') return
-    let cancelled = false
-    const enableWeightStopping = async () => {
-      try {
-        const current = await getSettings()
-        const patch = hotWaterWeightStoppingPatch(current)
-        if (!cancelled && Object.keys(patch).length) {
-          await updateSettings(patch)
-        }
-      } catch {
-        if (!cancelled) setMachineActionError('Could not enable hot-water weight stopping. Reconnect the scale to retry.')
-      }
-    }
-    void enableWeightStopping()
-    return () => { cancelled = true }
-  }, [connection, scale.status, scale.id])
+  // Decaid's stopHotWaterAtWeight is the user's choice (default on); the skin no longer forces it on scale connect.
   const [settingFeedback, setSettingFeedback] = useState<SettingFeedback | null>(null)
   const [settingFeedbackVisible, setSettingFeedbackVisible] = useState(false)
   const [previousShotStatus, setPreviousShotStatus] = useState<PreviousShotStatus>('loading')
@@ -400,24 +382,6 @@ export function useBrewingData() {
     let disposed = false
     const evidenceSource = getDecaidEndpoints().apiBase
     let completedSession: LiveShotSession | null = null
-    let hotWaterMachineState: string | undefined
-    let hotWaterWorkflow: Awaited<ReturnType<typeof getWorkflow>> = {}
-    let hotWaterWorkflowLoaded = false
-    let hotWaterSyncPending = false
-    const reconcileHotWater = () => {
-      if (disposed || hotWaterSyncPending || !hotWaterWorkflowLoaded) return
-      hotWaterSyncPending = true
-      void hotWaterSettings.reconcile(hotWaterWorkflow, () => !disposed && machineConnectionRef.current === 'connected' && hotWaterMachineState === 'idle' && !liveShotSession.current && !cleaningRestoreWorkflow.current)
-        .then((workflow) => {
-          if (disposed || !workflow) return
-          hotWaterWorkflow = workflow
-          setModel((current) => withHotWaterReadback(applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current)))
-        })
-        .catch(() => {
-          if (!disposed) showMachineActionError('Hot water targets could not be synchronised with Decaid. Check the dispenser settings before use.')
-        })
-        .finally(() => { hotWaterSyncPending = false })
-    }
     let timeToReadyEstimate: { deadline: number; receivedAt: number } | null = null
     let latestShotRefreshTimeout: number | null = null
     let preferredScaleId: string | null = null
@@ -458,7 +422,6 @@ export function useBrewingData() {
       machineConnectionRef.current = next
       setMachineConnection(next)
       if (next !== 'connected') {
-        hotWaterMachineState = undefined
         hotWaterSettings.disconnect()
         previousReadiness.current = null
         readinessTracker.current.reset()
@@ -649,23 +612,13 @@ export function useBrewingData() {
     const shotHistoryRequest = getShotHistory()
       .then((history) => ({ history, failed: false }))
       .catch(() => ({ history: null, failed: true }))
-    const machineSettingsRequest = getMachineSettings().catch(() => null)
-
-    Promise.all([getWorkflow(), machineSettingsRequest, getProfiles(), getFavoriteAssignments().catch(() => null), latestShotRequest, shotHistoryRequest])
-      .then(async ([initialWorkflow, machineSettings, records, assignments, latestShot, historyResult]) => {
+    Promise.all([getWorkflow(), getProfiles(), getFavoriteAssignments().catch(() => null), latestShotRequest, shotHistoryRequest])
+      .then(async ([initialWorkflow, records, assignments, latestShot, historyResult]) => {
         if (disposed) return
         profileRecords.current = records
         favoriteAssignments.current = assignments
-        let workflow = rememberFlushDuration(initialWorkflow)
-        const rinsePatch = machineSettings && rinseWorkflowPatchFromMachineSettings(workflow, machineSettings)
-        if (rinsePatch) {
-          try {
-            workflow = rememberFlushDuration(await updateWorkflow(rinsePatch))
-            if (disposed) return
-          } catch {
-            workflow = initialWorkflow
-          }
-        }
+        // The workflow's rinseData is what Decaid uploads to the machine; booting the skin does not rewrite it.
+        const workflow = rememberFlushDuration(initialWorkflow)
         const domainProfiles = profileRecordsToDomain(records, workflow, fixtureProfiles)
         const slots = resolveFavoriteProfileSlots(domainProfiles, assignments)
         const activeProfile = activeProfileForWorkflow(domainProfiles, records, workflow)
@@ -683,9 +636,6 @@ export function useBrewingData() {
         if (latestDomainShot?.id) shotHistoryCache.current.set(latestDomainShot.id, latestDomainShot)
         setShotHistory(reconciledHistory)
         setModel((current) => ({ ...withHotWaterReadback(applyWorkflow(current, workflow, records, assignments, retainedAdHocProfileId.current)), previousShot: latestDomainShot }))
-        hotWaterWorkflow = workflow
-        hotWaterWorkflowLoaded = true
-        reconcileHotWater()
         setPreviousShotStatus(latestShot.failed && historyResult.failed ? 'error' : reconciledHistory.length ? 'loaded' : 'empty')
         setConnection('connected')
       })
@@ -716,10 +666,8 @@ export function useBrewingData() {
 
     const shotSettings = subscribe<HotWaterShotSettings>('/machine/shotSettings', (frame) => {
       if (disposed) return
-      if (hotWaterSettings.observe(frame)) {
-        setModel(withHotWaterReadback)
-        reconcileHotWater()
-      }
+      // Display what the machine reports; hot-water targets are only written on a user edit.
+      if (hotWaterSettings.observe(frame)) setModel(withHotWaterReadback)
     }, (connected) => {
       if (!connected) hotWaterSettings.disconnect()
     })
@@ -743,9 +691,6 @@ export function useBrewingData() {
     const machine = subscribe<MachineSnapshot>('/machine/snapshot', (snapshot) => {
       if (machineConnectionRef.current !== 'connected') return
       const machineState = (typeof snapshot.state === 'string' ? snapshot.state : snapshot.state?.state)?.toLowerCase()
-      const wasIdle = hotWaterMachineState === 'idle'
-      hotWaterMachineState = machineState
-      if (!wasIdle && machineState === 'idle') reconcileHotWater()
       machineNeedsWater.current = machineState === 'needswater'
       const operationKind = operationKindForSnapshot(snapshot)
       if (operationKind) {
@@ -987,10 +932,6 @@ export function useBrewingData() {
 
     const refreshWorkflow = window.setInterval(() => {
       getWorkflow().then((workflow) => {
-        if (disposed) return
-        hotWaterWorkflow = workflow
-        hotWaterWorkflowLoaded = true
-        reconcileHotWater()
         if (disposed || liveShotSession.current || (workflow.profile?.beverage_type?.toLowerCase() === 'cleaning' && cleaningRestoreWorkflow.current)) return
         setModel((current) => withHotWaterReadback(applyWorkflow(current, rememberFlushDuration(workflow), profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current)))
       }).catch(() => undefined)

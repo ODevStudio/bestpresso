@@ -95,3 +95,20 @@ test('M2: the stop button is released after an unconfirmed stop and state writes
   assert.match(setMachineStateSource, /controller\.abort\(\)/)
   assert.match(setMachineStateSource, /signal: controller\.signal/)
 })
+
+const bootSource = brewingSource.slice(brewingSource.indexOf('Promise.all([getWorkflow()'), brewingSource.indexOf('const shotSettings = subscribe'))
+
+test('M4: connecting a scale does not rewrite Decaid settings', () => {
+  assert.doesNotMatch(brewingSource, /hotWaterWeightStoppingPatch|updateSettings\(|stopHotWaterAtWeight: true/)
+})
+
+test('M4: booting the skin does not copy machine flush settings into the workflow', () => {
+  assert.doesNotMatch(brewingSource, /rinseWorkflowPatchFromMachineSettings|getMachineSettings/)
+  assert.match(bootSource, /const workflow = rememberFlushDuration\(initialWorkflow\)/)
+})
+
+test('M4: hot-water targets are only written on a user edit, never reconciled in the background', () => {
+  assert.doesNotMatch(brewingSource, /hotWaterSettings\.reconcile|reconcileHotWater/)
+  assert.match(brewingSource, /if \(hotWaterSettings\.observe\(frame\)\) setModel\(withHotWaterReadback\)/)
+  assert.match(brewingSource, /isHotWater \? hotWaterSettings\.save\(update\.patch\)/)
+})
