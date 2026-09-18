@@ -187,7 +187,7 @@ export const settingsEn = {
   'settings.action.addSchedule': 'Add schedule',
   'settings.power.schedule.wakeTime': 'Wake time',
   'settings.power.schedule.everyDay': 'Every day',
-  'settings.power.schedule.daysCount': '{count} days',
+  'settings.power.schedule.daysCount': { one: '{count} day', other: '{count} days' },
   'settings.power.schedule.enabled': 'Schedule enabled',
   'settings.power.schedule.deleteConfirm': 'Delete this wake schedule?',
   'settings.action.remove': 'Remove',

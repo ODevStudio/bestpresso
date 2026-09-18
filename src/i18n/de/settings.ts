@@ -190,7 +190,7 @@ export const settingsDe = {
   'settings.action.addSchedule': 'Zeitplan hinzufügen',
   'settings.power.schedule.wakeTime': 'Aufwachzeit',
   'settings.power.schedule.everyDay': 'Jeden Tag',
-  'settings.power.schedule.daysCount': '{count} Tage',
+  'settings.power.schedule.daysCount': { one: '{count} Tag', other: '{count} Tage' },
   'settings.power.schedule.enabled': 'Zeitplan aktiviert',
   'settings.power.schedule.deleteConfirm': 'Diesen Aufwachzeitplan löschen?',
   'settings.action.remove': 'Entfernen',
