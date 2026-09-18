@@ -2,11 +2,39 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { areas as germanAreas, de } from '../src/i18n/de/index.ts'
 import { areas as englishAreas, en } from '../src/i18n/en/index.ts'
-import { decimalSeparator, formatDecimal, formatNumber, localeFor, plural, pseudoLocalize, resolveLanguage, setActiveLanguage, t } from '../src/i18n/index.ts'
+import { dateFormatter, decimalSeparator, formatDecimal, formatNumber, localeFor, plural, pseudoLocalize, resolveLanguage, setActiveLanguage, t } from '../src/i18n/index.ts'
 import { normalizeBestpressoPreferences } from '../src/features/settings/bestpressoPreferences.ts'
 
 const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort()
 const texts = (entry: unknown): string[] => typeof entry === 'string' ? [entry] : Object.values(entry as Record<string, string>)
+
+test('date formatters reuse identical explicit-zone options across history rows', () => {
+  setActiveLanguage('en', ['en-US'])
+  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', timeZone: 'UTC' }
+  assert.equal(dateFormatter(options), dateFormatter({ ...options }))
+  assert.notEqual(dateFormatter(options), dateFormatter({ ...options, year: 'numeric' }))
+  assert.notEqual(dateFormatter(options), dateFormatter({ ...options, timeZone: 'Europe/Berlin' }))
+})
+
+test('cached dates follow language and regional changes', () => {
+  const options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', timeZone: 'UTC' }
+  const date = new Date('2026-03-18T12:00:00Z')
+  setActiveLanguage('en', ['en-US'])
+  const enUS = dateFormatter(options)
+  setActiveLanguage('de', ['de-DE'])
+  const deDE = dateFormatter(options)
+  assert.equal(deDE.format(date), new Intl.DateTimeFormat('de-DE', options).format(date))
+  assert.notEqual(deDE, enUS)
+  setActiveLanguage('en', ['en-GB'])
+  assert.equal(dateFormatter(options).format(date), new Intl.DateTimeFormat('en-GB', options).format(date))
+  assert.notEqual(dateFormatter(options), enUS)
+  setActiveLanguage('en', ['en-US'])
+})
+
+test('implicit device timezones are not cached and can follow Android timezone changes', () => {
+  const options: Intl.DateTimeFormatOptions = { month: 'long' }
+  assert.notEqual(dateFormatter(options), dateFormatter(options))
+})
 
 test('every area keeps its keys under its own prefix, so merged catalogs cannot overwrite each other', () => {
   const seen = new Set<string>()

@@ -147,9 +147,20 @@ export function parseLocalizedNumber(text: string) {
   return Number(separator === '.' ? text : text.replace(separator, '.'))
 }
 
+const dateFormatters = new Map<string, Intl.DateTimeFormat>()
+
 /** Localised date/time formatter for the active language (month and weekday names follow it). */
 export function dateFormatter(options: Intl.DateTimeFormatOptions) {
-  return new Intl.DateTimeFormat(activeLocale, options)
+  // Leave implicit device timezones uncached so Android timezone changes remain visible.
+  if (!options.timeZone) return new Intl.DateTimeFormat(activeLocale, options)
+  const key = JSON.stringify([activeLocale, options])
+  const cached = dateFormatters.get(key)
+  if (cached) return cached
+  const formatter = new Intl.DateTimeFormat(activeLocale, options)
+  // Bound retained native Intl objects even if future callers introduce arbitrary options.
+  if (dateFormatters.size >= 32) dateFormatters.clear()
+  dateFormatters.set(key, formatter)
+  return formatter
 }
 
 /** Re-renders a component when the language changes; components that are not memoised follow the app shell. */
