@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { setActiveLanguage } from '../src/i18n/index.ts'
 import { analyseStageMoveOn, reconcileStageReasons, stageReasonKey, STAGE_REASON_VERSION } from '../src/features/brew/stageMoveOn.ts'
 import { weightAdvanceEvidence, recordedStopReason } from '../src/features/brew/stageShotEvents.ts'
 import { readStageEvidence, saveStageEvidence, withStageEvidence } from '../src/features/brew/stageEvidenceStorage.ts'
@@ -87,4 +88,13 @@ test('cached graphs reconcile offline in batches; resume once, use saved recipe 
   assert.equal(await restarted.reconcileStageReasonBatch(), true)
   assert.equal((await restarted.detail('8')).stageReasons?.reasons[key].label, 'Pressure >4 bar reached')
   assert.equal(requests, 1)
+})
+test('reason generation stays English regardless of the active display language (persisted evidence)', () => {
+  setActiveLanguage('de', ['de-DE'])
+  try {
+    assert.equal(reason([step]).label, 'Pressure >4 bar reached')
+    assert.equal(reason([{ seconds: 5, pressure: 2, limiter: { value: 2 } }]).label, 'Time limit reached')
+  } finally {
+    setActiveLanguage('en', ['en-US'])
+  }
 })

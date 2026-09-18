@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { t } from '../../i18n/index.ts'
 import { stageMarkerCanShowName } from './chartStageMarkerLayout'
 
 export interface ChartStageMarker {
@@ -34,7 +35,7 @@ export function ChartStageMarkers({ stages, highlightedKey, xForElapsedMs, plotL
     }
   }).filter((stage) => stage.width > 0)
 
-  return <div className="chart-stage-markers" aria-label="Shot stages">
+  return <div className="chart-stage-markers" aria-label={t('brew.chart.stageMarkers.ariaLabel')}>
     {visibleStages.map((stage, visibleIndex) => {
       const highlighted = stage.key === highlightedKey
       return <span className={`chart-stage-marker${visibleIndex === 0 ? ' chart-stage-marker--first' : ''}${highlighted ? ' chart-stage-marker--highlighted' : ''}`} style={stage.style} title={`${stage.sequence}. ${stage.name}`} key={stage.key}>

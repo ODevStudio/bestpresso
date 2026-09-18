@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { formatDecimal, t } from '../../i18n/index.ts'
 import type { LiveShotPoint } from '../../domain/brewing'
 import { formatTemperatureValue, temperatureUnitLabel } from '../../domain/temperature'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
@@ -40,7 +41,7 @@ const INSPECTION_MOVE_TOLERANCE_PX = 12
 const stageMarkersForPoints = (points: LiveShotPoint[], elapsedMs: number): ChartStageMarker[] => {
   const stages: ChartStageMarker[] = []
   for (const point of points) {
-    const name = point.stageName?.trim() || 'Extraction'
+    const name = point.stageName?.trim() || t('brew.stage.extractionFallback')
     const identity = point.stageIndex === undefined ? `name:${name}` : `frame:${point.stageIndex}`
     const current = stages[stages.length - 1]
     if (current?.key.startsWith(`${identity}:`)) continue
@@ -107,7 +108,7 @@ const inspectionTimeLabel = (elapsedMs: number) => {
   return `${String(minutes).padStart(2, '0')}:${seconds.toFixed(1).padStart(4, '0')}`
 }
 
-const reading = (value: number | undefined, digits: number) => typeof value === 'number' ? value.toFixed(digits) : '—'
+const reading = (value: number | undefined, digits: number) => typeof value === 'number' ? formatDecimal(value, digits) : '—'
 
 const useAnimatedChartFocus = (target: ChartFocusTransform) => {
   const currentRef = useRef(target)
@@ -192,7 +193,7 @@ export function LiveShotChart({ points, elapsedMs, targetYield, startMs = 0, fit
   const horizontalGridLines = horizontalChartGridLines(PLOT)
   const timeLabel = (tick: number) => {
     const seconds = (startMs + tick) / 1000
-    return `${Number.isInteger(seconds) ? seconds : seconds.toFixed(1)}s`
+    return `${Number.isInteger(seconds) ? seconds : formatDecimal(seconds, 1)}s`
   }
   const gridTimeTicks = candidateTimeTicks.map((offsetMs) => ({
     offsetMs,
@@ -287,7 +288,7 @@ export function LiveShotChart({ points, elapsedMs, targetYield, startMs = 0, fit
       {horizontalGridLines.map((line) => <span key={`axis-${line.ratio}`} className="shot-chart-axes__value" style={{ left: `${(PLOT.left - 13) / VIEW_WIDTH * 100}%`, top: `${(PLOT.bottom - line.ratio * (PLOT.bottom - PLOT.top)) / VIEW_HEIGHT * 100}%` }}>{Math.round(12 * line.ratio)}</span>)}
       <span className="shot-chart-axes__unit" style={{ left: `${(PLOT.left - 13) / VIEW_WIDTH * 100}%`, top: `${18 / VIEW_HEIGHT * 100}%` }}>bar / ml/s</span>
     </div>
-    <svg ref={svgRef} viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} role="img" aria-label={showWeight ? 'Pressure, flow, yield weight, and temperature chart. Touch and hold to inspect.' : 'Pressure, flow, and temperature chart. Touch and hold to inspect.'} preserveAspectRatio="none" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd} onContextMenu={(event) => event.preventDefault()}>
+    <svg ref={svgRef} viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} role="img" aria-label={showWeight ? t('brew.chart.live.ariaLabelWithWeight') : t('brew.chart.live.ariaLabelNoWeight')} preserveAspectRatio="none" onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerEnd} onPointerCancel={handlePointerEnd} onContextMenu={(event) => event.preventDefault()}>
       <defs>
         <clipPath id={`${gradientId}-plot`}><rect x={PLOT.left} y={PLOT.top - PLOT_TOP_STROKE_ALLOWANCE} width={PLOT.right - PLOT.left} height={PLOT.bottom - PLOT.top + PLOT_TOP_STROKE_ALLOWANCE + PLOT_BOTTOM_STROKE_ALLOWANCE} /></clipPath>
         <linearGradient id={`${gradientId}-pressure-area`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--chart-pressure)" stopOpacity=".15" /><stop offset="1" stopColor="var(--chart-pressure)" stopOpacity="0" /></linearGradient>
@@ -332,13 +333,13 @@ export function LiveShotChart({ points, elapsedMs, targetYield, startMs = 0, fit
     {inspection && inspectionX !== null && <aside className={`chart-inspection${inspectionX > VIEW_WIDTH * .7 ? ' chart-inspection--before' : ''}`} style={{ left: `${inspectionX / VIEW_WIDTH * 100}%` }} role="status" aria-live="polite">
       <time>{inspectionTimeLabel(inspection.elapsedMs)}</time>
       <dl>
-        <div className="chart-reading--pressure"><dt>Pressure</dt><dd>{reading(inspection.pressure, 1)}<small>bar</small></dd></div>
-        <div className="chart-reading--flow"><dt>Flow</dt><dd>{reading(inspection.flow, 1)}<small>ml/s</small></dd></div>
-        <div className="chart-reading--temperature"><dt>Temperature</dt><dd>{formatTemperatureValue(inspection.temperature, preferences.temperatureUnit, 1)}<small className="temperature-unit">{temperatureUnitLabel(preferences.temperatureUnit)}</small></dd></div>
-        {showWeight && <div className="chart-reading--weight"><dt>Yield</dt><dd>{reading(inspection.weight, 1)}<small>g</small></dd></div>}
+        <div className="chart-reading--pressure"><dt>{t('brew.metric.pressure')}</dt><dd>{reading(inspection.pressure, 1)}<small>bar</small></dd></div>
+        <div className="chart-reading--flow"><dt>{t('common.metric.flow')}</dt><dd>{reading(inspection.flow, 1)}<small>ml/s</small></dd></div>
+        <div className="chart-reading--temperature"><dt>{t('common.metric.temperature')}</dt><dd>{formatTemperatureValue(inspection.temperature, preferences.temperatureUnit, 1)}<small className="temperature-unit">{temperatureUnitLabel(preferences.temperatureUnit)}</small></dd></div>
+        {showWeight && <div className="chart-reading--weight"><dt>{t('brew.metric.yield')}</dt><dd>{reading(inspection.weight, 1)}<small>g</small></dd></div>}
       </dl>
     </aside>}
-    {points.length === 0 && <p className="live-shot-chart__empty">Waiting for brewing telemetry…</p>}
+    {points.length === 0 && <p className="live-shot-chart__empty">{t('brew.chart.live.waitingForTelemetry')}</p>}
     </div>
   </div>
 }

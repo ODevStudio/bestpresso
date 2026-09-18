@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react'
+import { t } from '../../i18n/index.ts'
 import { Metric } from '../../components/Metric/Metric'
 import type { BrewProfile, EditableProfileSetting } from '../../domain/brewing'
 import { formatTemperatureValue, temperatureBoundToDisplay, temperatureFromDisplay, temperatureStepToDisplay, temperatureUnitLabel } from '../../domain/temperature'
@@ -43,10 +44,10 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
     ? (targetYield: number) => doseToYieldRatio(effectiveDose, targetYield)
     : undefined
   const fixedYieldSuggestions: readonly FixedValueSuggestion[] = [
-    { label: 'Ristretto', detail: '1:1', value: effectiveDose },
-    { label: 'Espresso', detail: '1:2', value: effectiveDose * 2 },
-    { label: 'Lungo', detail: '1:3', value: effectiveDose * 3 },
-    { label: 'Lungo+', detail: '1:4', value: effectiveDose * 4 },
+    { label: t('brew.panel.doseSuggestion.ristretto'), detail: '1:1', value: effectiveDose },
+    { label: t('brew.panel.doseSuggestion.espresso'), detail: '1:2', value: effectiveDose * 2 },
+    { label: t('brew.panel.doseSuggestion.lungo'), detail: '1:3', value: effectiveDose * 3 },
+    { label: t('brew.panel.doseSuggestion.lungoPlus'), detail: '1:4', value: effectiveDose * 4 },
   ]
 
   const cancelDemoHold = () => {
@@ -167,7 +168,7 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
   }
 
   return <section className="brew-panel">
-    <div className={`profile-carousel${dragProgress !== 0 ? ' profile-carousel--dragging' : ''}`} aria-label="Profiles" aria-roledescription="carousel" tabIndex={0} onKeyDown={handleKeyDown} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancelPointerGesture} onContextMenu={demoMode ? (event) => event.preventDefault() : undefined}>
+    <div className={`profile-carousel${dragProgress !== 0 ? ' profile-carousel--dragging' : ''}`} aria-label={t('brew.panel.carouselAriaLabel')} aria-roledescription="carousel" tabIndex={0} onKeyDown={handleKeyDown} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancelPointerGesture} onContextMenu={demoMode ? (event) => event.preventDefault() : undefined}>
       {profiles.map((profile, index) => {
         const offset = wrappedProfileOffset(index, activeIndex - dragProgress, profiles.length)
         const position = profileCardPosition(offset)
@@ -179,18 +180,24 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
           zIndex: motion.zIndex,
         } as CSSProperties
         const graphVisible = Math.abs(offset) < 1.5
-        return <button key={profile.id} className={`profile-card profile-card--free profile-card--${position}`} style={style} type="button" data-profile-id={profile.id} onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } void selectIndex(index) }} aria-current={index === activeIndex ? 'true' : undefined} aria-label={`${profile.name}${index === activeIndex ? ', selected' : ''}${demoMode && index === activeIndex ? ', hold to run a demo pull' : ''}`}>
+        const isActive = index === activeIndex
+        const profileAriaLabel = isActive && demoMode
+          ? t('brew.panel.profileAriaLabelSelectedDemo', { name: profile.name })
+          : isActive
+            ? t('brew.panel.profileAriaLabelSelected', { name: profile.name })
+            : t('brew.panel.profileAriaLabel', { name: profile.name })
+        return <button key={profile.id} className={`profile-card profile-card--free profile-card--${position}`} style={style} type="button" data-profile-id={profile.id} onClick={() => { if (suppressClick.current) { suppressClick.current = false; return } void selectIndex(index) }} aria-current={index === activeIndex ? 'true' : undefined} aria-label={profileAriaLabel}>
           <h1>{profile.name}</h1>
           {graphVisible && <ProfileTargetChart profileName={profile.name} points={profile.targetPoints} />}
         </button>
       })}
     </div>
-    <button className="manage-profiles" type="button" onClick={onManageProfiles}>See all profiles →</button>
+    <button className="manage-profiles" type="button" onClick={onManageProfiles}>{t('brew.panel.seeAllProfiles')}</button>
     <div className="brew-metrics" aria-live="polite">
-      <Metric metric={{ label: 'Temp.', value: formatTemperatureValue(activeProfile.temperature, temperatureUnit), unit: temperatureUnitLabel(temperatureUnit) }} edit={editProfileSetting('temperature')} />
-      <Metric metric={{ label: 'Grind size', value: activeProfile.grindSetting }} edit={editProfileSetting('grindSetting')} />
-      <Metric metric={{ label: 'Dose', value: activeProfile.dose, unit: 'g' }} edit={editProfileSetting('dose')} />
-      <Metric metric={{ label: 'Yield', value: activeProfile.targetYield, unit: Number.isFinite(Number(activeProfile.targetYield)) ? 'g' : undefined, subtext: ratio, subtextVariant: 'pill' }} reserveSubtext edit={editProfileSetting('targetYield', yieldValueHint, fixedYieldSuggestions)} />
+      <Metric metric={{ label: t('brew.panel.metricTemp'), value: formatTemperatureValue(activeProfile.temperature, temperatureUnit), unit: temperatureUnitLabel(temperatureUnit) }} edit={editProfileSetting('temperature')} />
+      <Metric metric={{ label: t('brew.metric.grindSize'), value: activeProfile.grindSetting }} edit={editProfileSetting('grindSetting')} />
+      <Metric metric={{ label: t('brew.metric.dose'), value: activeProfile.dose, unit: 'g' }} edit={editProfileSetting('dose')} />
+      <Metric metric={{ label: t('brew.metric.yield'), value: activeProfile.targetYield, unit: Number.isFinite(Number(activeProfile.targetYield)) ? 'g' : undefined, subtext: ratio, subtextVariant: 'pill' }} reserveSubtext edit={editProfileSetting('targetYield', yieldValueHint, fixedYieldSuggestions)} />
     </div>
   </section>
 }

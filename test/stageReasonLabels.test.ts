@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { setActiveLanguage } from '../src/i18n/index.ts'
 import { stageReasonLabels } from '../src/features/brew/stageReasonLabels.ts'
 
 test('retains reached for a single condition and shares it across alternatives', () => {
@@ -15,4 +16,17 @@ test('manual and unknown reasons remain separate from reached conditions', () =>
   assert.deepEqual(stageReasonLabels('Manually advanced or Stage yield reached'), ['Manual advance', 'Stage yield reached'])
   assert.deepEqual(stageReasonLabels('Manually stopped'), ['Manual stop'])
   assert.deepEqual(stageReasonLabels(), ['Unknown'])
+})
+
+test('translates the cached English reasons to German at display time', () => {
+  setActiveLanguage('de', ['de-DE'])
+  try {
+    assert.deepEqual(stageReasonLabels('Pressure >7 bar reached'), ['Druck >7 bar erreicht'])
+    assert.deepEqual(stageReasonLabels('Time limit reached or Flow <2.5 ml/s reached'), ['Zeitlimit', 'Durchfluss <2,5 ml/s erreicht'])
+    assert.deepEqual(stageReasonLabels('Stage yield reached or Manually advanced'), ['Phasenmenge erreicht', 'Manuell übersprungen'])
+    assert.deepEqual(stageReasonLabels('Manually stopped'), ['Manueller Stopp'])
+    assert.deepEqual(stageReasonLabels(), ['Unbekannt'])
+  } finally {
+    setActiveLanguage('en', ['en-US'])
+  }
 })

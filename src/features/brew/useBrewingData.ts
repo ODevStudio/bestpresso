@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cloneJsonData, createId } from '../../utils/browserCompatibility'
+import { t } from '../../i18n/index.ts'
 import { playCompletionSound } from '../../audio/completionSound'
 import { deleteProfile, updateSettings } from '../../api/decaid/client'
 import { librarySaveMetadata } from '../profiles/profileLibraryModel'
@@ -138,7 +139,7 @@ const availableScaleCandidates = (devices: Awaited<ReturnType<typeof getDevices>
   const candidates = new Map<string, AvailableScale>()
   devices.forEach((device) => {
     if (device.type !== 'scale' || device.state === 'connected' || device.available === false || !device.id) return
-    candidates.set(device.id, { id: device.id, name: device.name?.trim() || 'Unknown scale' })
+    candidates.set(device.id, { id: device.id, name: device.name?.trim() || t('brew.data.scale.unknownName') })
   })
   return [...candidates.values()]
 }
@@ -195,7 +196,7 @@ export function useBrewingData() {
           await updateSettings(patch)
         }
       } catch {
-        if (!cancelled) setMachineActionError('Could not enable hot-water weight stopping. Reconnect the scale to retry.')
+        if (!cancelled) setMachineActionError(t('brew.data.error.weightStoppingFailed'))
       }
     }
     void enableWeightStopping()
@@ -382,11 +383,11 @@ export function useBrewingData() {
     } catch (error) {
       if (!silent) {
         if (error instanceof DecaidApiError && error.type === 'block_tare_during_shot') {
-          showMachineActionError('Scale tare is unavailable during the shot.')
+          showMachineActionError(t('brew.data.error.tareUnavailableDuringShot'))
         } else if (error instanceof DecaidApiError && error.status === 404) {
-          showMachineActionError('The scale disconnected before it could be tared.')
+          showMachineActionError(t('brew.data.error.tareScaleDisconnected'))
         } else {
-          showMachineActionError('The scale did not accept the tare command.')
+          showMachineActionError(t('brew.data.error.tareRejected'))
         }
       }
       return false
@@ -414,7 +415,7 @@ export function useBrewingData() {
           setModel((current) => withHotWaterReadback(applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current)))
         })
         .catch(() => {
-          if (!disposed) showMachineActionError('Hot water targets could not be synchronised with Decaid. Check the dispenser settings before use.')
+          if (!disposed) showMachineActionError(t('brew.data.error.hotWaterSyncFailed'))
         })
         .finally(() => { hotWaterSyncPending = false })
     }
@@ -481,9 +482,9 @@ export function useBrewingData() {
       setScale((current) => current.status === 'searching'
         ? current
         : activeScale
-          ? { status: 'connected', id: activeScale.id, name: activeScale.name || 'Scale' }
+          ? { status: 'connected', id: activeScale.id, name: activeScale.name || t('brew.data.scale.fallbackName') }
           : scaleStreamConnected.current
-            ? { ...current, status: 'connected', name: current.name || 'Scale' }
+            ? { ...current, status: 'connected', name: current.name || t('brew.data.scale.fallbackName') }
             : { status: 'disconnected' })
     }
 
@@ -568,7 +569,7 @@ export function useBrewingData() {
             cleaningRestoreWorkflow.current = null
             setModel((current) => applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
           }).catch(() => {
-            if (!disposed) showMachineActionError('Cleaning finished, but the previous brew profile could not be restored.')
+            if (!disposed) showMachineActionError(t('brew.data.error.cleaningRestoreFailed'))
           })
         }
         return
@@ -632,7 +633,7 @@ export function useBrewingData() {
       refreshConnectedDevices().then((devices) => {
         if (disposed) return
         const connectedScale = devices.find((device) => device.type === 'scale' && device.state === 'connected')
-        setScale({ status: 'connected', id: connectedScale?.id, name: connectedScale?.name || 'Scale' })
+        setScale({ status: 'connected', id: connectedScale?.id, name: connectedScale?.name || t('brew.data.scale.fallbackName') })
       }).catch(() => undefined)
     }
 
@@ -813,7 +814,7 @@ export function useBrewingData() {
             kind: isCleaning ? 'cleaning' : 'espresso',
             beverageType: isCleaning ? 'cleaning' : profile?.beverageType,
             startedAt: now,
-            profileName: isCleaning ? cleaningSequence?.profileName ?? 'Cleaning' : profile?.name ?? 'Espresso',
+            profileName: isCleaning ? cleaningSequence?.profileName ?? t('brew.stage.cleaningFallbackName') : profile?.name ?? t('brew.liveScreen.espressoFallbackName'),
             targetYield: profile && Number.isFinite(Number(profile.targetYield)) ? Number(profile.targetYield) : undefined,
             stepNames: isCleaning ? cleaningSequence?.stepNames : profile?.stepNames,
             points: [],
@@ -1044,9 +1045,9 @@ export function useBrewingData() {
         wakeScreenDismissed.current = true
         setSleepScreenActive(false)
         void restoreDisplay()
-        showMachineActionError('The sleep screen was dismissed, but the disconnected machine could not be woken.')
+        showMachineActionError(t('brew.data.error.sleepScreenDismissedDisconnected'))
       } else {
-        showMachineActionError('Connect to a Decaid gateway before controlling the machine.')
+        showMachineActionError(t('brew.data.error.connectGatewayRequired'))
       }
       return
     }
@@ -1074,7 +1075,7 @@ export function useBrewingData() {
         setSleepScreenActive(false)
         void restoreDisplay()
       }
-      showMachineActionError('The machine did not accept the sleep command.')
+      showMachineActionError(t('brew.data.error.sleepRejected'))
     } finally {
       sleepRequestInFlight.current = false
       setSleepPending(false)
@@ -1093,7 +1094,7 @@ export function useBrewingData() {
       await restorePromise
       sleepRequestInFlight.current = false
       setSleepPending(false)
-      showMachineActionError('The sleep screen was dismissed, but the disconnected machine could not be woken.')
+      showMachineActionError(t('brew.data.error.sleepScreenDismissedDisconnected'))
       return
     }
     try {
@@ -1101,7 +1102,7 @@ export function useBrewingData() {
       await restorePromise
     } catch {
       await restorePromise
-      showMachineActionError('The machine did not accept the wake command.')
+      showMachineActionError(t('brew.data.error.wakeRejected'))
     } finally {
       sleepRequestInFlight.current = false
       setSleepPending(false)
@@ -1119,10 +1120,10 @@ export function useBrewingData() {
       const candidates = activeScale ? [] : availableScaleCandidates(devices)
       connectedScale.current = Boolean(activeScale)
       setAvailableScales(candidates.length > 1 ? candidates : [])
-      setScale(activeScale ? { status: 'connected', id: activeScale.id, name: activeScale.name || 'Scale' } : { status: 'disconnected' })
+      setScale(activeScale ? { status: 'connected', id: activeScale.id, name: activeScale.name || t('brew.data.scale.fallbackName') } : { status: 'disconnected' })
     } catch {
       setScale({ status: 'disconnected' })
-      showMachineActionError('Decaid could not start a scale search.')
+      showMachineActionError(t('brew.data.error.scaleSearchFailed'))
     } finally {
       manualScaleSearchInFlight.current = false
     }
@@ -1142,7 +1143,7 @@ export function useBrewingData() {
       setScale({ status: 'connected', id: deviceId, name: activeScale?.name || selected.name })
       setAvailableScales([])
     } catch {
-      showMachineActionError(`Could not connect to ${selected.name}.`)
+      showMachineActionError(t('brew.data.feedback.scaleConnectFailed', { name: selected.name }))
     } finally {
       setScaleConnectPendingId(null)
     }
@@ -1158,11 +1159,11 @@ export function useBrewingData() {
     const profile = allProfilesRef.current.find((candidate) => candidate.id === profileId && isCleaningProfile(candidate))
     const record = profileRecords.current.find((candidate) => (candidate.id || candidate.profile?.title) === profileId)
     if (!profile || !record?.profile?.steps?.length) {
-      showMachineActionError('That cleaning sequence is not available.')
+      showMachineActionError(t('brew.data.error.cleaningSequenceUnavailable'))
       return false
     }
     if (connection !== 'connected' || machineConnection !== 'connected') {
-      showMachineActionError('Connect to the machine before loading a cleaning sequence.')
+      showMachineActionError(t('brew.data.error.connectBeforeCleaningLoad'))
       return false
     }
 
@@ -1193,7 +1194,7 @@ export function useBrewingData() {
           // The original profile remains the desired recovery target in Decaid.
         }
       }
-      showMachineActionError('The cleaning sequence could not be loaded onto the machine.')
+      showMachineActionError(t('brew.data.error.cleaningLoadFailed'))
       return false
     } finally {
       cleaningStartInFlight.current = false
@@ -1222,7 +1223,7 @@ export function useBrewingData() {
       setModel((current) => applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
       return true
     } catch {
-      showMachineActionError('The previous brew profile could not be restored.')
+      showMachineActionError(t('brew.data.error.previousProfileRestoreFailed'))
       return false
     } finally {
       cleaningStartInFlight.current = false
@@ -1238,7 +1239,7 @@ export function useBrewingData() {
     }
     if (brewStopRequestInFlight.current || !liveShotSession.current) return
     if (connection !== 'connected' || machineConnection !== 'connected') {
-      showMachineActionError('The machine is disconnected, so the pull could not be stopped.')
+      showMachineActionError(t('brew.data.error.stopDisconnected'))
       return
     }
     brewStopRequestInFlight.current = true
@@ -1250,14 +1251,14 @@ export function useBrewingData() {
     } catch {
       brewStopRequestInFlight.current = false
       setBrewStopPending(false)
-      showMachineActionError('The machine did not accept the stop command.')
+      showMachineActionError(t('brew.data.error.stopRejected'))
     }
   }
 
   const skipBrewStage = async (): Promise<boolean> => {
     if (brewSkipRequestInFlight.current || !liveShotSession.current) return false
     if (connection !== 'connected' || machineConnection !== 'connected') {
-      showMachineActionError('The machine is disconnected, so the phase could not be skipped.')
+      showMachineActionError(t('brew.data.error.skipDisconnected'))
       return false
     }
     brewSkipRequestInFlight.current = true
@@ -1281,7 +1282,7 @@ export function useBrewingData() {
       return true
     } catch {
       brewSkipTransition.current = null
-      showMachineActionError('The machine did not accept the skip command.')
+      showMachineActionError(t('brew.data.error.skipRejected'))
       return false
     } finally {
       brewSkipRequestInFlight.current = false
@@ -1301,50 +1302,50 @@ export function useBrewingData() {
 
   const updateMachineSetting = async (setting: EditableMachineSetting, value: number) => {
     if (connection !== 'connected') {
-      showSettingFeedback({ status: 'error', message: 'Connect to Decaid before changing machine settings.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.connectBeforeMachineSettings') })
       return
     }
     const settings = {
-      hotWaterVolume: { label: 'Hot water yield', patch: { hotWaterData: { volume: value } }, sharedKey: 'last-hot-water-volume' },
-      hotWaterTemperature: { label: 'Hot water temperature', patch: { hotWaterData: { targetTemperature: value } }, sharedKey: 'last-hot-water-temp' },
-      hotWaterDuration: { label: 'Hot water max duration', patch: { hotWaterData: { duration: value } } },
-      steamTemperature: { label: 'Steam temperature', patch: { steamSettings: { targetTemperature: value } } },
-      steamDuration: { label: 'Steam duration', patch: { steamSettings: { duration: value } }, sharedKey: 'last-steam-duration' },
-      steamFlow: { label: 'Steam flow', patch: { steamSettings: { flow: value } }, sharedKey: 'last-steam-flow' },
+      hotWaterVolume: { label: t('brew.data.label.hotWaterYield'), patch: { hotWaterData: { volume: value } }, sharedKey: 'last-hot-water-volume' },
+      hotWaterTemperature: { label: t('brew.data.label.hotWaterTemperature'), patch: { hotWaterData: { targetTemperature: value } }, sharedKey: 'last-hot-water-temp' },
+      hotWaterDuration: { label: t('brew.data.label.hotWaterMaxDuration'), patch: { hotWaterData: { duration: value } } },
+      steamTemperature: { label: t('brew.data.label.steamTemperature'), patch: { steamSettings: { targetTemperature: value } } },
+      steamDuration: { label: t('brew.data.label.steamDuration'), patch: { steamSettings: { duration: value } }, sharedKey: 'last-steam-duration' },
+      steamFlow: { label: t('brew.data.label.steamFlow'), patch: { steamSettings: { flow: value } }, sharedKey: 'last-steam-flow' },
     } as const
     const update = settings[setting]
-    showSettingFeedback({ status: 'saving', message: `Saving ${update.label}…` })
+    showSettingFeedback({ status: 'saving', message: t('brew.data.feedback.saving', { name: update.label }) })
     try {
       const isHotWater = setting === 'hotWaterVolume' || setting === 'hotWaterTemperature' || setting === 'hotWaterDuration'
       const workflow = await (isHotWater ? hotWaterSettings.save(update.patch) : updateWorkflow(update.patch))
       setModel((current) => applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
       if (!isHotWater && 'sharedKey' in update) await setSharedSetting(update.sharedKey, value)
-      showSettingFeedback({ status: 'saved', message: `${update.label} saved to Decaid.` })
+      showSettingFeedback({ status: 'saved', message: t('brew.data.feedback.settingSaved', { name: update.label }) })
     } catch {
-      showSettingFeedback({ status: 'error', message: `${update.label} could not be saved.` })
+      showSettingFeedback({ status: 'error', message: t('brew.data.feedback.saveFailed', { name: update.label }) })
     }
   }
 
   const updateProfileSetting = async (profileId: string, setting: EditableProfileSetting, value: number) => {
     if (connection !== 'connected') {
-      showSettingFeedback({ status: 'error', message: 'Connect to Decaid before changing profile settings.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.connectBeforeProfileSettings') })
       return
     }
     const record = profileRecords.current.find((candidate) => candidate.id === profileId)
     const currentProfile = allProfiles.find((profile) => profile.id === profileId)
     if (!record?.profile?.steps?.length || !currentProfile) {
-      showSettingFeedback({ status: 'error', message: 'This profile is not available for editing.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.profileNotEditable') })
       return
     }
     const nextProfile = { ...currentProfile, [setting]: String(value) }
     const { patch, metadata } = workflowValuesForProfile(record, nextProfile)
-    showSettingFeedback({ status: 'saving', message: `Saving ${currentProfile.name}…` })
+    showSettingFeedback({ status: 'saving', message: t('brew.data.feedback.saving', { name: currentProfile.name }) })
     let workflow
     try {
       workflow = await updateWorkflow(patch)
       setModel((current) => applyWorkflow(current, workflow!, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
     } catch {
-      showSettingFeedback({ status: 'error', message: `${currentProfile.name} could not be applied to Decaid.` })
+      showSettingFeedback({ status: 'error', message: t('brew.data.feedback.applyFailed', { name: currentProfile.name }) })
       return
     }
     try {
@@ -1355,9 +1356,9 @@ export function useBrewingData() {
       setAllProfiles(domainProfiles)
       setFavoriteProfileSlots(resolveFavoriteProfileSlots(domainProfiles, favoriteAssignments.current))
       setModel((current) => applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
-      showSettingFeedback({ status: 'saved', message: `${currentProfile.name} saved and applied.` })
+      showSettingFeedback({ status: 'saved', message: t('brew.data.feedback.savedAndApplied', { name: currentProfile.name }) })
     } catch {
-      showSettingFeedback({ status: 'error', message: `${currentProfile.name} was applied, but its saved defaults could not be recorded.` })
+      showSettingFeedback({ status: 'error', message: t('brew.data.feedback.appliedButDefaultsNotRecorded', { name: currentProfile.name }) })
     }
   }
 
@@ -1381,7 +1382,7 @@ export function useBrewingData() {
         target_volume_count_start: 0,
         tank_temperature: 0,
         steps: [{
-          name: profile.stepNames?.[0] ?? 'Extraction',
+          name: profile.stepNames?.[0] ?? t('brew.stage.extractionFallback'),
           pump: 'pressure',
           transition: 'fast',
           pressure: 9,
@@ -1414,11 +1415,11 @@ export function useBrewingData() {
 
   const saveProfileDraft = async (profile: DecaidProfile, sourceProfileId: string | undefined, overwriteSource: boolean, metadata?: Record<string, unknown> | null) => {
     if (!profile.title?.trim() || !profile.steps?.length) {
-      const message = 'A profile name and at least one stage are required.'
+      const message = t('brew.data.error.profileNameAndStageRequired')
       showSettingFeedback({ status: 'error', message })
       throw new Error(message)
     }
-    showSettingFeedback({ status: 'saving', message: `Saving ${profile.title}…` })
+    showSettingFeedback({ status: 'saving', message: t('brew.data.feedback.saving', { name: profile.title }) })
     try {
       const author = connection === 'fixture'
         ? 'user'
@@ -1428,7 +1429,7 @@ export function useBrewingData() {
       const shouldOverwrite = overwriteSource && sourceRecord?.isDefault === false
       metadata = librarySaveMetadata(metadata, sourceRecord, shouldOverwrite, new Date().toISOString())
       if (overwriteSource && !shouldOverwrite) {
-        throw new Error('This protected profile must be saved as a copy.')
+        throw new Error(t('brew.data.error.protectedProfileCopyRequired'))
       }
       const expectedParentId = shouldOverwrite ? sourceRecord?.parentId ?? null : sourceProfileId ?? null
 
@@ -1471,14 +1472,14 @@ export function useBrewingData() {
         allProfilesRef.current = domainProfiles
         setAllProfiles(domainProfiles)
         setFavoriteProfileSlots(resolveFavoriteProfileSlots(domainProfiles, favoriteAssignments.current))
-        showSettingFeedback({ status: 'saved', message: shouldOverwrite ? `${profile.title} updated.` : `${profile.title} saved as a new profile.` })
+        showSettingFeedback({ status: 'saved', message: shouldOverwrite ? t('brew.data.feedback.profileUpdated', { name: profile.title }) : t('brew.data.feedback.profileSavedAsNew', { name: profile.title }) })
         return savedRecord
       }
       const savedRecord = shouldOverwrite && sourceProfileId
         ? await updateProfile(sourceProfileId, authoredProfile, metadata)
         : await createProfile(authoredProfile, sourceProfileId, metadata)
       assertVerifiedProfileRecord(authoredProfile, metadata, expectedParentId, savedRecord)
-      if (!savedRecord.id) throw new ProfileSaveVerificationError('Decaid did not return an identifier for the saved profile.')
+      if (!savedRecord.id) throw new ProfileSaveVerificationError(t('brew.data.error.missingSavedProfileId'))
       const verifiedRecord = await getProfile(savedRecord.id)
       assertMatchingProfileReadback(savedRecord, verifiedRecord)
       assertVerifiedProfileRecord(authoredProfile, metadata, expectedParentId, verifiedRecord)
@@ -1512,7 +1513,7 @@ export function useBrewingData() {
             ...current,
             profiles: carouselProfiles(carouselSource, favoriteAssignments.current, current.activeProfileId),
           }))
-          showSettingFeedback({ status: 'error', message: `${profile.title} was saved, but could not be applied to the machine.` })
+          showSettingFeedback({ status: 'error', message: t('brew.data.feedback.profileSavedNotApplied', { name: profile.title }) })
           return verifiedRecord
         }
       } else {
@@ -1521,25 +1522,25 @@ export function useBrewingData() {
           profiles: carouselProfiles(carouselSource, favoriteAssignments.current, current.activeProfileId),
         }))
       }
-      showSettingFeedback({ status: 'saved', message: shouldOverwrite ? `${profile.title} updated.` : `${profile.title} saved as a new profile.` })
+      showSettingFeedback({ status: 'saved', message: shouldOverwrite ? t('brew.data.feedback.profileUpdated', { name: profile.title }) : t('brew.data.feedback.profileSavedAsNew', { name: profile.title }) })
       return verifiedRecord
     } catch (error) {
       const message = error instanceof ProfileSaveVerificationError || error instanceof DecaidApiError
         ? error.message
         : error instanceof Error && error.message
           ? error.message
-          : `${profile.title} could not be saved.`
+          : t('brew.data.feedback.saveFailed', { name: profile.title })
       showSettingFeedback({ status: 'error', message })
       throw new Error(message)
     }
   }
 
   const deleteSavedProfile = async (profileId: string) => {
-    if (profileDeletionInFlight.current) throw new Error('A profile is already being deleted.')
+    if (profileDeletionInFlight.current) throw new Error(t('brew.data.error.profileDeletionInProgress'))
     const record = profileRecords.current.find(candidate => candidate.id === profileId)
     const busy = () => Boolean(liveShotSession.current || demoBrewSession.current || utilityOperationSession.current || pendingCleaningSequence.current)
     assertProfileDeletionAllowed(record, latestModel.current.activeProfileId, busy())
-    if (connection !== 'connected' && connection !== 'fixture') throw new Error('Connect to Decaid before deleting a profile.')
+    if (connection !== 'connected' && connection !== 'fixture') throw new Error(t('brew.data.error.connectBeforeDelete'))
     profileDeletionInFlight.current = true
     try {
       if (connection === 'connected') {
@@ -1572,8 +1573,8 @@ export function useBrewingData() {
       setFavoriteProfileSlots(resolveFavoriteProfileSlots(remaining, assignments))
       setModel(current => ({ ...current, profiles: carouselProfiles(remaining, assignments, current.activeProfileId, retainedAdHocProfileId.current) }))
       showSettingFeedback({ status: cleanupFailed ? 'error' : 'saved', message: cleanupFailed
-        ? 'Profile deleted. Some saved shortcuts could not be updated; reconnect to Decaid. Saved shots are unchanged.'
-        : 'Profile deleted from your library and favorites. Saved shots are unchanged.' })
+        ? t('brew.data.feedback.profileDeletedCleanupFailed')
+        : t('brew.data.feedback.profileDeleted') })
     } finally { profileDeletionInFlight.current = false }
   }
 
@@ -1584,7 +1585,7 @@ export function useBrewingData() {
     if (profileDeletionInFlight.current) return false
     const profile = allProfiles.find((candidate) => candidate.id === profileId)
     if (!profile) {
-      showSettingFeedback({ status: 'error', message: 'That profile is no longer available.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.profileUnavailable') })
       return false
     }
     const favoriteSlots = resolveFavoriteProfileSlots(allProfiles, favoriteAssignments.current)
@@ -1597,7 +1598,7 @@ export function useBrewingData() {
           const workflow = await getWorkflow()
           setModel((current) => applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
         } catch {
-          showSettingFeedback({ status: 'error', message: `${profile.name} could not be synchronized with Decaid.` })
+          showSettingFeedback({ status: 'error', message: t('brew.data.feedback.profileSyncFailed', { name: profile.name }) })
           return false
         }
         await setSharedSetting(LAST_SELECTED_PROFILE_SHARED_KEY, profileId).catch(() => undefined)
@@ -1615,12 +1616,12 @@ export function useBrewingData() {
       return true
     }
     if (connection !== 'connected') {
-      showSettingFeedback({ status: 'error', message: 'Connect to Decaid before selecting a profile.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.connectBeforeSelect') })
       return false
     }
     const record = profileRecords.current.find((candidate) => candidate.id === profileId)
     if (!record?.profile?.steps?.length) {
-      showSettingFeedback({ status: 'error', message: 'This profile cannot be applied to Decaid.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.profileCannotApply') })
       return false
     }
     try {
@@ -1631,7 +1632,7 @@ export function useBrewingData() {
       await setSharedSetting(LAST_SELECTED_PROFILE_SHARED_KEY, profileId).catch(() => undefined)
       return true
     } catch {
-      showSettingFeedback({ status: 'error', message: `${profile.name} could not be selected.` })
+      showSettingFeedback({ status: 'error', message: t('brew.data.feedback.profileSelectFailed', { name: profile.name }) })
       return false
     }
   }
@@ -1640,11 +1641,11 @@ export function useBrewingData() {
     if (profileDeletionInFlight.current) return false
     const profile = allProfiles.find((candidate) => candidate.id === profileId)
     if (!profile || slot < 0 || slot > 4) {
-      showSettingFeedback({ status: 'error', message: 'That favorite slot is not available.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.favoriteSlotUnavailable') })
       return false
     }
     if (connection !== 'connected' && connection !== 'fixture') {
-      showSettingFeedback({ status: 'error', message: 'Connect to Decaid before changing favorites.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.connectBeforeFavorites') })
       return false
     }
     const currentSlots = resolveFavoriteProfileSlots(allProfiles, favoriteAssignments.current)
@@ -1668,7 +1669,7 @@ export function useBrewingData() {
       }))
       return true
     } catch {
-      showSettingFeedback({ status: 'error', message: 'Favorite profiles could not be saved.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.favoritesSaveFailed') })
       return false
     }
   }
@@ -1676,7 +1677,7 @@ export function useBrewingData() {
   const removeFavoriteProfile = async (profileId: string) => {
     if (profileDeletionInFlight.current) return false
     if (connection !== 'connected' && connection !== 'fixture') {
-      showSettingFeedback({ status: 'error', message: 'Connect to Decaid before changing favorites.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.connectBeforeFavorites') })
       return false
     }
     const currentSlots = resolveFavoriteProfileSlots(allProfiles, favoriteAssignments.current)
@@ -1697,7 +1698,7 @@ export function useBrewingData() {
       }))
       return true
     } catch {
-      showSettingFeedback({ status: 'error', message: 'Favorite profiles could not be saved.' })
+      showSettingFeedback({ status: 'error', message: t('brew.data.error.favoritesSaveFailed') })
       return false
     }
   }

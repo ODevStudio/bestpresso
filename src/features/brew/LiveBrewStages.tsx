@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import type { MouseEvent, PointerEvent } from 'react'
 import skipNext from '../../assets/figma/skip-next.svg'
+import { formatDecimal, t } from '../../i18n/index.ts'
 import type { LiveShotPoint } from '../../domain/brewing'
 import { formatTemperatureValue, temperatureUnitLabel } from '../../domain/temperature'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
@@ -79,7 +80,7 @@ function pressureMovementReadings(pressures: number[]) {
 function summarizeLiveBrewStages(points: LiveShotPoint[], elapsedMs: number): StageSummary[] {
   const groups: Array<{ key: string; name: string; points: LiveShotPoint[] }> = []
   for (const point of points) {
-    const name = point.stageName?.trim() || 'Extraction'
+    const name = point.stageName?.trim() || t('brew.stage.extractionFallback')
     const key = point.stageIndex === undefined ? `name:${name}` : `frame:${point.stageIndex}`
     const current = groups.at(-1)
     if (!current || current.key !== key) groups.push({ key, name, points: [point] })
@@ -107,7 +108,7 @@ function summarizeLiveBrewStages(points: LiveShotPoint[], elapsedMs: number): St
   })
 }
 
-const reading = (value: number | undefined, digits = 1) => value === undefined ? '—' : value.toFixed(digits)
+const reading = (value: number | undefined, digits = 1) => value === undefined ? '—' : formatDecimal(value, digits)
 
 function PressureSequence({ values, sizing = false }: { values: string[]; sizing?: boolean }) {
   return <span className={`live-brew-stage__pressure-sequence${sizing ? ' live-brew-stage__pressure-sequence--sizing' : ''}`}>
@@ -263,9 +264,9 @@ export function LiveBrewStages({ points, elapsedMs, reasons, active = false, sho
     }
   }, [active, selectedStageKey, stages.length])
 
-  if (!stages.length) return <section className="live-brew-stages live-brew-stages--empty" aria-label="Pull stages"><p>Waiting for the first stage…</p></section>
+  if (!stages.length) return <section className="live-brew-stages live-brew-stages--empty" aria-label={t('brew.liveStages.pullStagesAriaLabel')}><p>{t('brew.liveStages.waitingForFirstStage')}</p></section>
 
-  return <section className={`live-brew-stages${active ? ' live-brew-stages--active' : ''}${showYield ? '' : ' live-brew-stages--no-yield'}`} aria-label="Pull stages" ref={stripRef} onPointerDown={handleStagePointerDown} onPointerMove={handleStagePointerMove} onPointerUp={finishStagePointerDrag} onPointerCancel={finishStagePointerDrag}>
+  return <section className={`live-brew-stages${active ? ' live-brew-stages--active' : ''}${showYield ? '' : ' live-brew-stages--no-yield'}`} aria-label={t('brew.liveStages.pullStagesAriaLabel')} ref={stripRef} onPointerDown={handleStagePointerDown} onPointerMove={handleStagePointerMove} onPointerUp={finishStagePointerDrag} onPointerCancel={finishStagePointerDrag}>
     <div className="live-brew-stages__track" ref={trackRef}>
     {stages.map((stage, index) => {
       const isActive = active && index === stages.length - 1
@@ -273,7 +274,7 @@ export function LiveBrewStages({ points, elapsedMs, reasons, active = false, sho
       const reason = reasons?.reasons[stageReasonKey(stage.points[0])]
       const wasSkipped = skippedStageKeys.has(stage.key)
       const selectable = Boolean(onStageSelect)
-      const pressureLabel = stage.pressureMovements.length ? stage.pressureMovements.map((pressure) => reading(pressure)).join(' to ') : 'No pressure reading'
+      const pressureLabel = stage.pressureMovements.length ? stage.pressureMovements.map((pressure) => reading(pressure)).join(` ${t('brew.liveStages.pressureRangeSeparator')} `) : t('brew.liveStages.noPressureReading')
       const toggleSelection = () => {
         if (suppressStageClick.current) {
           suppressStageClick.current = false
@@ -289,28 +290,28 @@ export function LiveBrewStages({ points, elapsedMs, reasons, active = false, sho
         if (node) stageRefs.current.set(stage.key, node)
         else stageRefs.current.delete(stage.key)
       }} role={selectable ? 'button' : undefined} tabIndex={selectable ? 0 : undefined}>
-      <header><div className="live-brew-stage__heading"><b>{index + 1}</b><h2>{stage.name}</h2></div><div className="live-brew-stage__time"><time>{timedLabel(stage.endedAt - stage.startedAt)}</time>{wasSkipped && <span className="live-brew-stage__skipped" aria-label="Skipped phase"><img src={skipNext} alt="" /></span>}</div>
+      <header><div className="live-brew-stage__heading"><b>{index + 1}</b><h2>{stage.name}</h2></div><div className="live-brew-stage__time"><time>{timedLabel(stage.endedAt - stage.startedAt)}</time>{wasSkipped && <span className="live-brew-stage__skipped" aria-label={t('brew.liveStages.skippedPhaseAriaLabel')}><img src={skipNext} alt="" /></span>}</div>
       {isActive ? <p className="live-brew-stage__move-on live-brew-stage__move-on--active">
-        <span className="live-brew-stage__loader" aria-hidden="true" />Active stage
-      </p> : <p className="live-brew-stage__move-on" title={reason?.source === 'telemetry' ? 'Derived from saved profile and telemetry' : undefined}>
+        <span className="live-brew-stage__loader" aria-hidden="true" />{t('brew.liveStages.activeStage')}
+      </p> : <p className="live-brew-stage__move-on" title={reason?.source === 'telemetry' ? t('brew.liveStages.derivedFromTelemetry') : undefined}>
         {index === stages.length - 1 && !active
-          ? <svg className="live-brew-stage__stop-icon" viewBox="0 0 24 24" role="img" aria-label="Shot ended"><rect x="5" y="5" width="14" height="14" rx="1" fill="currentColor" /></svg>
-          : <img className="live-brew-stage__advance-icon" src={skipNext} alt="Move on" />}
+          ? <svg className="live-brew-stage__stop-icon" viewBox="0 0 24 24" role="img" aria-label={t('brew.liveStages.shotEndedAriaLabel')}><rect x="5" y="5" width="14" height="14" rx="1" fill="currentColor" /></svg>
+          : <img className="live-brew-stage__advance-icon" src={skipNext} alt={t('brew.liveStages.moveOnAlt')} />}
         {stageReasonLabels(reason?.label).map((label, reasonIndex) => <Fragment key={reasonIndex}>
-          {reasonIndex > 0 && <span> or </span>}
+          {reasonIndex > 0 && <span> {t('brew.liveStages.reasonSeparator')} </span>}
           <span className="live-brew-stage__reason">{label}</span>
         </Fragment>)}
       </p>}
       </header>
       <dl>
-        {showYield && <div><dt>Yield</dt><dd><span className="live-brew-stage__yield-value">{reading(stage.yield)}<small>g</small></span></dd></div>}
-        <div><dt>Temperature range</dt><dd>{formatTemperatureValue(stage.minimumTemperature, preferences.temperatureUnit)} – {formatTemperatureValue(stage.maximumTemperature, preferences.temperatureUnit)}<small className="temperature-unit">{temperatureUnitLabel(preferences.temperatureUnit)}</small></dd></div>
-        <div><dt>Pressure</dt><dd className="live-brew-stage__pressure-value" aria-label={pressureLabel}><PressureChain pressures={stage.pressureMovements} slotCount={stage.pressureSlotCount} /></dd></div>
+        {showYield && <div><dt>{t('brew.metric.yield')}</dt><dd><span className="live-brew-stage__yield-value">{reading(stage.yield)}<small>g</small></span></dd></div>}
+        <div><dt>{t('brew.metric.temperatureRange')}</dt><dd>{formatTemperatureValue(stage.minimumTemperature, preferences.temperatureUnit)} – {formatTemperatureValue(stage.maximumTemperature, preferences.temperatureUnit)}<small className="temperature-unit">{temperatureUnitLabel(preferences.temperatureUnit)}</small></dd></div>
+        <div><dt>{t('brew.metric.pressure')}</dt><dd className="live-brew-stage__pressure-value" aria-label={pressureLabel}><PressureChain pressures={stage.pressureMovements} slotCount={stage.pressureSlotCount} /></dd></div>
       </dl>
     </article>})}
-    {active && onSkipStage && <button className={`live-brew-skip${skipPending ? ' live-brew-skip--pending' : ''}`} type="button" disabled={skipPending} aria-label="Double tap to skip to the next phase" aria-pressed="false" onPointerDown={consumeSkipPointer} onPointerUp={consumeSkipPointer} onPointerCancel={consumeSkipPointer} onClick={handleSkipTap} onDoubleClick={consumeSkipDoubleClick} ref={skipButtonRef}>
+    {active && onSkipStage && <button className={`live-brew-skip${skipPending ? ' live-brew-skip--pending' : ''}`} type="button" disabled={skipPending} aria-label={t('brew.liveStages.doubleTapToSkipAriaLabel')} aria-pressed="false" onPointerDown={consumeSkipPointer} onPointerUp={consumeSkipPointer} onPointerCancel={consumeSkipPointer} onClick={handleSkipTap} onDoubleClick={consumeSkipDoubleClick} ref={skipButtonRef}>
       <img className="live-brew-skip__icon" src={skipNext} alt="" />
-      <span>double tap to skip</span>
+      <span>{t('brew.liveStages.doubleTapToSkipHint')}</span>
     </button>}
     </div>
   </section>
