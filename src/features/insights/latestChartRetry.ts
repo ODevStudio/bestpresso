@@ -1,3 +1,5 @@
+import { t } from '../../i18n/index.ts'
+
 export type LatestChartStatus = 'loading' | 'retrying' | 'waiting' | 'ready' | 'empty'
 
 // One request at a time; keep retrying transient failures without polling cached graphs.
@@ -38,8 +40,8 @@ export function startLatestChartRetry(options: {
 }
 
 export function latestChartMessage(status: LatestChartStatus) {
-  if (status === 'waiting') return 'Chart unavailable · retrying automatically'
-  if (status === 'retrying') return 'Retrying chart…'
-  if (status === 'empty') return 'No graph recorded for this shot'
-  return 'Loading chart…'
+  if (status === 'waiting') return t('insights.chart.unavailableRetrying')
+  if (status === 'retrying') return t('insights.chart.retrying')
+  if (status === 'empty') return t('insights.chart.empty')
+  return t('insights.chart.loading')
 }

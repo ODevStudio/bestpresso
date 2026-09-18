@@ -1,9 +1,14 @@
 import type { PaginatedShots, ShotRecord } from '../../api/decaid/types.ts'
 import type { PreviousShot } from '../../domain/brewing.ts'
+import { dateFormatter, formatDecimal } from '../../i18n/index.ts'
 
 export const HISTORY_LIMIT = 1000
 export const HISTORY_PAGE_SIZE = 100
-export const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+// Monday=0..Sunday=6, matching HistoryRecord.weekday. 2024-01-01 was a Monday, so it
+// anchors a reference week; the actual year never appears in the formatted output.
+const weekdayReference = (index: number) => new Date(Date.UTC(2024, 0, 1 + index))
+export const weekdayShort = (index: number) => dateFormatter({ weekday: 'short', timeZone: 'UTC' }).format(weekdayReference(index))
+export const weekdayNarrow = (index: number) => dateFormatter({ weekday: 'narrow', timeZone: 'UTC' }).format(weekdayReference(index))
 export const timeWindows = Array.from({ length: 12 }, (_, i) => ({ start: i * 2, end: i * 2 + 2, label: `${String(i * 2).padStart(2, '0')}:00–${String(i * 2 + 2).padStart(2, '0')}:00` }))
 export type Beverage = 'espresso' | 'pourover' | 'other' | 'excluded'
 export interface HistoryRecord {
@@ -160,13 +165,13 @@ export function summarize(shots: HistoryRecord[]) {
   return { count: shots.length, days: new Set(shots.map(r => r.date)).size, yieldCoverage: yields.length,
     typicalYield: yields.length >= 5 ? median(yields) : null, averageYield: yields.length ? yields.reduce((a, b) => a + b, 0) / yields.length : null,
     profileCounts: [...profileMap.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
-    weekdays: weekdays.map((_, i) => shots.filter(s => s.weekday === i).length) }
+    weekdays: Array.from({ length: 7 }, (_, i) => shots.filter(s => s.weekday === i).length) }
 }
 export const timeWindowCounts = (shots: HistoryRecord[]) => timeWindows.map(w => shots.filter(s => s.hour >= w.start && s.hour < w.end).length)
 export const matches = (r: HistoryRecord, f: InsightFilter) => !f || (f.kind === 'weekday' ? r.weekday === Number(f.value) : f.kind === 'profile' ? r.profileKey === f.value : r.hour >= Number(f.value) * 2 && r.hour < Number(f.value) * 2 + 2)
-export const dateLabel = (date: string, includeYear = false) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', ...(includeYear ? { year: 'numeric' as const } : {}), timeZone: 'UTC' }).format(new Date(`${date.slice(0, 10)}T12:00:00Z`))
+export const dateLabel = (date: string, includeYear = false) => dateFormatter({ month: 'short', day: 'numeric', ...(includeYear ? { year: 'numeric' as const } : {}), timeZone: 'UTC' }).format(new Date(`${date.slice(0, 10)}T12:00:00Z`))
 export const timeLabel = (r: HistoryRecord) => `${String(r.hour).padStart(2, '0')}:${String(r.minute).padStart(2, '0')}`
-export const shotRecipeLabel = (r: Pick<HistoryRecord, 'dose' | 'yield' | 'duration'>) => `${r.dose !== null ? `${r.dose} → ` : ''}${r.yield !== null ? `${r.yield.toFixed(1)} g` : '—'} • ${r.duration ?? '—'}s`
+export const shotRecipeLabel = (r: Pick<HistoryRecord, 'dose' | 'yield' | 'duration'>) => `${r.dose !== null ? `${r.dose} → ` : ''}${r.yield !== null ? `${formatDecimal(r.yield, 1)} g` : '—'} • ${r.duration ?? '—'}s`
 
 export function validHistoryCache(value: unknown, source: string): value is HistoryCache {
   if (!plain(value) || value.version !== 1 || value.source !== source || typeof value.timezone !== 'string' || typeof value.syncedAt !== 'string' || !Number.isFinite(Date.parse(value.syncedAt)) || !Number.isInteger(value.total) || !Number.isInteger(value.omitted) || !Array.isArray(value.records) || value.records.length > HISTORY_LIMIT || !plain(value.details)) return false
