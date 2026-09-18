@@ -1,5 +1,5 @@
 import { clockOptions, type ClockFormat } from '../sleep/deviceTime.ts'
-import { dateFormatter } from '../../i18n/index.ts'
+import { dateFormatter, t } from '../../i18n/index.ts'
 import { shiftDate } from './historyData.ts'
 
 // Derives the am/pm marker from Intl's own dayPeriod data instead of a hardcoded word,
@@ -19,10 +19,11 @@ export const insightHourRange = (index: number, format: ClockFormat) =>
 export function insightPeriods(current: { start: string; end: string }, previous: { start: string; end: string }): [string, string] {
   const windows = [current, previous].map(window => ({ start: window.start, end: shiftDate(window.end, -1) }))
   const showYear = new Set(windows.flatMap(window => [window.start.slice(0, 4), window.end.slice(0, 4)])).size > 1
-  const month = (date: string) => dateFormatter({ month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))
-  const full = (date: string) => `${Number(date.slice(8, 10))} ${month(date)}${showYear ? ` ${date.slice(0, 4)}` : ''}`
+  // Month name in its day-month form ("Sep" / "Sept."); the day-month order comes from the catalog.
+  const month = (date: string) => dateFormatter({ day: 'numeric', month: 'short', timeZone: 'UTC' }).formatToParts(new Date(`${date}T12:00:00Z`)).find(part => part.type === 'month')?.value ?? ''
+  const full = (date: string) => `${t('insights.period.dayMonth', { day: Number(date.slice(8, 10)), month: month(date) })}${showYear ? ` ${date.slice(0, 4)}` : ''}`
   return windows.map(({ start, end }) => start === end ? full(start)
-    : start.slice(0, 7) === end.slice(0, 7) ? `${Number(start.slice(8, 10))}–${full(end)}`
+    : start.slice(0, 7) === end.slice(0, 7) ? `${t('insights.period.dayOnly', { day: Number(start.slice(8, 10)) })}–${full(end)}`
       : `${full(start)}–${full(end)}`) as [string, string]
 }
 export const toggleHour = (selected: number | null, index: number) => selected === index ? null : index

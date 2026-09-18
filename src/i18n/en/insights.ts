@@ -175,4 +175,6 @@ export const insightsEn = {
   'insights.chart.retrying': 'Retrying chart…',
   'insights.chart.empty': 'No graph recorded for this shot',
   'insights.chart.loading': 'Loading chart…',
+  'insights.period.dayMonth': '{day} {month}',
+  'insights.period.dayOnly': '{day}',
 } as const

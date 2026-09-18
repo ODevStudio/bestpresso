@@ -95,3 +95,13 @@ test('dot-decimal model values are shown with the locale separator without chang
   assert.equal(localizeDecimalText('42'), '42')
   setActiveLanguage('en', ['en-US'])
 })
+
+test('insight period labels keep the English order and use German day-month order', async () => {
+  const { insightPeriods } = await import('../src/features/insights/insightClock.ts')
+  const windows: [{ start: string; end: string }, { start: string; end: string }] = [{ start: '2026-09-12', end: '2026-09-19' }, { start: '2026-09-05', end: '2026-09-12' }]
+  setActiveLanguage('en', ['en-US'])
+  assert.deepEqual(insightPeriods(...windows), ['12–18 Sep', '5–11 Sep'])
+  setActiveLanguage('de', ['de-DE'])
+  assert.deepEqual(insightPeriods(...windows), ['12.–18. Sept.', '5.–11. Sept.'])
+  setActiveLanguage('en', ['en-US'])
+})

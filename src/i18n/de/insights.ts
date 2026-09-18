@@ -177,4 +177,6 @@ export const insightsDe = {
   'insights.chart.retrying': 'Diagramm wird erneut versucht…',
   'insights.chart.empty': 'Kein Diagramm für diesen Bezug gespeichert',
   'insights.chart.loading': 'Diagramm wird geladen…',
+  'insights.period.dayMonth': '{day}. {month}',
+  'insights.period.dayOnly': '{day}.',
 } satisfies Translation<typeof insightsEn>
