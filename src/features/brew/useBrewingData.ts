@@ -32,6 +32,7 @@ import { rinseWorkflowPatchFromMachineSettings } from './flushSettings'
 import { isSuccessfulEspressoCompletion, shouldPlayCompletionCue } from './completionCue'
 import { DEMO_BREW_TICK_MS, demoBrewForProfile, demoBrewPointsAtElapsed, demoPullIsEnabled, isConnectedMockDe1, type DemoBrewDefinition } from './demoBrew'
 import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, shouldAutoTareAtShotStart, type SkipTransition } from './liveShotState'
+import { requestMachineStop } from './stopRequest'
 import { backgroundScaleScanDelayMs, shouldRunBackgroundScaleScan, sleepMachineWithConfiguredScalePolicy } from './sleepControl'
 import { utilityElapsedMs, utilityTimerStartedAt } from './utilityOperationTiming'
 import { readBestpressoPreferences, useBestpressoPreferences } from '../settings/bestpressoPreferences'
@@ -1248,13 +1249,18 @@ export function useBrewingData() {
     brewSkipTransition.current = null
     setBrewStopPending(true)
     showMachineActionError(null)
-    try {
-      await setMachineState('idle')
-    } catch {
-      brewStopRequestInFlight.current = false
-      setBrewStopPending(false)
-      showMachineActionError('The machine did not accept the stop command.')
-    }
+    const session = liveShotSession.current
+    const result = await requestMachineStop({
+      sendIdle: () => setMachineState('idle'),
+      stillRunning: () => liveShotSession.current === session,
+      wait: (ms) => new Promise((resolve) => window.setTimeout(resolve, ms)),
+    })
+    if (result === 'confirmed' || liveShotSession.current !== session) return
+    brewStopRequestInFlight.current = false
+    setBrewStopPending(false)
+    showMachineActionError(result === 'failed'
+      ? 'The machine did not accept the stop command.'
+      : 'The machine has not confirmed the stop. Tap Stop again.')
   }
 
   const skipBrewStage = async (): Promise<boolean> => {

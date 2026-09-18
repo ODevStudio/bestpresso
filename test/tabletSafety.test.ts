@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { shouldAutoTareAtShotStart } from '../src/features/brew/liveShotState.ts'
+import { requestMachineStop } from '../src/features/brew/stopRequest.ts'
 import { backgroundScaleScanDelayMs, BACKGROUND_SCALE_SCAN_MAX_DELAY_MS, shouldRunBackgroundScaleScan } from '../src/features/brew/sleepControl.ts'
 
 const brewingSource = readFileSync(new URL('../src/features/brew/useBrewingData.ts', import.meta.url), 'utf8')
@@ -40,4 +41,57 @@ test('M1: unsuccessful background scans back off exponentially up to five minute
   assert.equal(backgroundScaleScanDelayMs(-3), 5_000)
   assert.match(brewingSource, /\}, backgroundScaleScanDelayMs\(unsuccessfulBackgroundScaleScans\)\)/)
   assert.match(brewingSource, /unsuccessfulBackgroundScaleScans = connectedScale\.current \? 0 : unsuccessfulBackgroundScaleScans \+ 1/)
+})
+
+const clientSource = readFileSync(new URL('../src/api/decaid/client.ts', import.meta.url), 'utf8')
+
+function stopHarness(outcomes: Array<'ok' | 'throw'>, stopsAfterSend: number | null) {
+  const calls: string[] = []
+  let sends = 0
+  let running = true
+  return {
+    calls,
+    api: {
+      sendIdle: async () => {
+        const outcome = outcomes[sends] ?? 'ok'
+        sends += 1
+        calls.push(`idle:${outcome}`)
+        if (outcome === 'throw') throw new Error('409')
+        if (stopsAfterSend === sends) running = false
+      },
+      stillRunning: () => running,
+      wait: async (ms: number) => { calls.push(`wait:${ms}`) },
+    },
+  }
+}
+
+test('M2: a confirmed stop sends idle exactly once', async () => {
+  const { api, calls } = stopHarness(['ok'], 1)
+  assert.equal(await requestMachineStop(api), 'confirmed')
+  assert.deepEqual(calls, ['idle:ok', 'wait:2500'])
+})
+
+test('M2: an accepted but unconfirmed stop is resent once, then released', async () => {
+  const resent = stopHarness(['ok', 'ok'], 2)
+  assert.equal(await requestMachineStop(resent.api), 'confirmed')
+  assert.deepEqual(resent.calls, ['idle:ok', 'wait:2500', 'idle:ok', 'wait:2500'])
+
+  const lost = stopHarness(['ok', 'ok'], null)
+  assert.equal(await requestMachineStop(lost.api), 'unconfirmed')
+  assert.equal(lost.calls.filter((call) => call.startsWith('idle')).length, 2)
+})
+
+test('M2: a rejected stop is retried and reported when it keeps failing', async () => {
+  const recovered = stopHarness(['throw', 'ok'], 2)
+  assert.equal(await requestMachineStop(recovered.api), 'confirmed')
+  const rejected = stopHarness(['throw', 'throw'], null)
+  assert.equal(await requestMachineStop(rejected.api), 'failed')
+})
+
+test('M2: the stop button is released after an unconfirmed stop and state writes time out', () => {
+  assert.match(brewingSource, /stillRunning: \(\) => liveShotSession\.current === session/)
+  assert.match(brewingSource, /brewStopRequestInFlight\.current = false\n\s+setBrewStopPending\(false\)\n\s+showMachineActionError\(result === 'failed'\n\s+\? 'The machine did not accept the stop command\.'\n\s+: 'The machine has not confirmed the stop\. Tap Stop again\.'\)/)
+  const setMachineStateSource = clientSource.slice(clientSource.indexOf('export async function setMachineState'), clientSource.indexOf('export async function setMachineProfile'))
+  assert.match(setMachineStateSource, /controller\.abort\(\)/)
+  assert.match(setMachineStateSource, /signal: controller\.signal/)
 })
