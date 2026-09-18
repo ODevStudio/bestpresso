@@ -28,6 +28,7 @@ test('water warning preferences remain ordered and within the reservoir control 
     temperatureUnit: 'C',
     clockFormat: 'device',
     screensaverBrightness: 7,
+    language: 'auto',
   })
   const maximum = normalizeBestpressoPreferences({ waterCriticalLevelMl: 9_000, waterWarningLevelMl: 9_000 })
   assert.equal(maximum.waterCriticalLevelMl, 1_999)

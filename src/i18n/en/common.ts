@@ -1,0 +1,20 @@
+/** Shared wording: machine metrics, utilities and the language picker. */
+export const commonEn = {
+  'common.metric.volume': 'Volume',
+  'common.metric.temperature': 'Temperature',
+  'common.metric.maxDuration': 'Max duration',
+  'common.metric.current': 'Current',
+  'common.metric.target': 'Target',
+  'common.metric.duration': 'Duration',
+  'common.metric.flow': 'Flow',
+  'common.metric.weight': 'Weight',
+  'common.utility.water': 'Hot water',
+  'common.utility.steam': 'Steam',
+  'common.utility.scale': 'Scale',
+  'common.utility.tank': 'Reservoir',
+  'common.language.label': 'Language',
+  'common.language.hint': 'Bestpresso only; Decaid and profile names stay as they are',
+  'common.language.auto': 'Follow device ({language})',
+  'common.language.en': 'English',
+  'common.language.de': 'Deutsch',
+} as const

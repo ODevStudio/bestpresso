@@ -145,13 +145,13 @@ export function applyWorkflow(model: BrewingScreenModel, workflow: DecaidWorkflo
   const profiles = carouselProfiles(allProfiles, assignments, active?.id, retainedAdHocProfileId)
   const utilities = model.utilities.map((utility) => {
     if (utility.id === 'water') {
-      const waterMetrics = utility.metrics.some(metric => metric.label === 'Max duration')
+      const waterMetrics = utility.metrics.some(metric => metric.id === 'maxDuration')
         ? utility.metrics
-        : [...utility.metrics, { label: 'Max duration', value: '—', unit: 's' }]
+        : [...utility.metrics, { id: 'maxDuration' as const, value: '—', unit: 's' }]
       return { ...utility, metrics: waterMetrics.map(metric => {
-        const value = metric.label === 'Volume' ? workflow.hotWaterData?.volume
-          : metric.label === 'Temperature' ? workflow.hotWaterData?.targetTemperature
-          : metric.label === 'Max duration' ? workflow.hotWaterData?.duration : undefined
+        const value = metric.id === 'volume' ? workflow.hotWaterData?.volume
+          : metric.id === 'temperature' ? workflow.hotWaterData?.targetTemperature
+          : metric.id === 'maxDuration' ? workflow.hotWaterData?.duration : undefined
         return { ...metric, value: numberString(value, metric.value) }
       }) }
     }
@@ -161,11 +161,11 @@ export function applyWorkflow(model: BrewingScreenModel, workflow: DecaidWorkflo
       return {
         ...utility,
         enabled,
-        metrics: utility.metrics.map((metric) => metric.label === 'Target'
+        metrics: utility.metrics.map((metric) => metric.id === 'target'
           ? enabled ? { ...metric, value: numberString(targetTemperature, metric.value) } : metric
-          : metric.label === 'Duration'
+          : metric.id === 'duration'
             ? { ...metric, value: numberString(workflow.steamSettings?.duration, metric.value) }
-            : metric.label === 'Flow'
+            : metric.id === 'flow'
               ? { ...metric, value: numberString(workflow.steamSettings?.flow, metric.value) }
               : metric),
       }

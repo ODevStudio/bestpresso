@@ -20,7 +20,7 @@ import { createMachineReadinessTracker } from '../../api/decaid/readiness'
 import { subscribe } from '../../api/decaid/socket'
 import type { DecaidProfile, DecaidProfileRecord, DecaidWorkflowPatch, FavoriteAssignments, MachineSnapshot, ScaleSnapshot, TimeToReadyFrame, WaterLevels } from '../../api/decaid/types'
 import { liveScaleDisplayWeight, liveShotYield, normalizedLiveScaleWeight, scaleConnectionIsActive, WATER_TANK_SENSOR_FULL_MM, waterTankLevelState } from '../../domain/brewing'
-import type { AvailableScale, BrewProfile, BrewingScreenModel, DataConnection, EditableMachineSetting, EditableProfileSetting, LiveBrewState, LiveShotPoint, LiveUtilityOperation, MachineReadiness, PreviousShot, PreviousShotStatus, ScaleConnection, SettingFeedback, UtilityOperationKind } from '../../domain/brewing'
+import type { AvailableScale, BrewProfile, BrewingScreenModel, DataConnection, EditableMachineSetting, EditableProfileSetting, LiveBrewState, LiveShotPoint, LiveUtilityOperation, MachineReadiness, PreviousShot, PreviousShotStatus, ScaleConnection, SettingFeedback, UtilityMetricId, UtilityOperationKind } from '../../domain/brewing'
 import { brewingFixture, demoLiveBrewFixture } from '../../fixtures/brewingFixture'
 import { scaleFixtureForKey } from '../../fixtures/scaleFixtures'
 import { cleaningRestorePatch, isCleaningSequenceRun, prepareCleaningProfileForEspressoStart, profileForCleaningShortcut } from '../cleaning/cleaningSequence'
@@ -112,8 +112,8 @@ const operationKindForSnapshot = (snapshot: MachineSnapshot): UtilityOperationKi
 
 const machineStateForSnapshot = (snapshot: MachineSnapshot) => (typeof snapshot.state === 'string' ? snapshot.state : snapshot.state?.state)?.toLowerCase()
 
-const metricNumber = (model: BrewingScreenModel, utilityId: 'water' | 'steam', label: string) => {
-  const value = Number(model.utilities.find((utility) => utility.id === utilityId)?.metrics.find((metric) => metric.label === label)?.value)
+const metricNumber = (model: BrewingScreenModel, utilityId: 'water' | 'steam', metricId: UtilityMetricId) => {
+  const value = Number(model.utilities.find((utility) => utility.id === utilityId)?.metrics.find((metric) => metric.id === metricId)?.value)
   return Number.isFinite(value) ? value : undefined
 }
 
@@ -124,7 +124,7 @@ const withHotWaterReadback = (model: BrewingScreenModel): BrewingScreenModel => 
   return { ...model, utilities: model.utilities.map((utility) => utility.id !== 'water' ? utility : {
     ...utility,
     metrics: utility.metrics.map((metric) => {
-      const value = metric.label === 'Volume' ? water.volume : metric.label === 'Temperature' ? water.targetTemperature : metric.label === 'Max duration' ? water.duration : undefined
+      const value = metric.id === 'volume' ? water.volume : metric.id === 'temperature' ? water.targetTemperature : metric.id === 'maxDuration' ? water.duration : undefined
       return value === undefined ? metric : { ...metric, value: String(value) }
     }),
   }) }
@@ -782,8 +782,8 @@ export function useBrewingData() {
           volumeMl: session.volumeMl,
           scaleConnected: operationKind === 'hotWater' && connectedScale.current,
           weightGrams: operationKind === 'hotWater' ? session.weightGrams : undefined,
-          targetDuration: operationKind === 'flush' ? latestFlushDuration.current : operationKind === 'steam' ? metricNumber(model, 'steam', 'Duration') : undefined,
-          targetVolume: operationKind === 'hotWater' ? metricNumber(model, 'water', 'Volume') : undefined,
+          targetDuration: operationKind === 'flush' ? latestFlushDuration.current : operationKind === 'steam' ? metricNumber(model, 'steam', 'duration') : undefined,
+          targetVolume: operationKind === 'hotWater' ? metricNumber(model, 'water', 'volume') : undefined,
         })
       } else if (utilityOperationSession.current) {
         if (utilityOperationSession.current.kind === 'hotWater') {
@@ -873,7 +873,7 @@ export function useBrewingData() {
         ...current,
         readiness,
         utilities: current.utilities.map((utility) => {
-          if (utility.id === 'steam') return { ...utility, metrics: utility.metrics.map((metric) => metric.label === 'Current' && snapshot.steamTemperature !== undefined ? { ...metric, value: String(Math.round(snapshot.steamTemperature)), highlight: snapshot.steamTemperature < STEAM_HEATER_READY_C } : metric) }
+          if (utility.id === 'steam') return { ...utility, metrics: utility.metrics.map((metric) => metric.id === 'current' && snapshot.steamTemperature !== undefined ? { ...metric, value: String(Math.round(snapshot.steamTemperature)), highlight: snapshot.steamTemperature < STEAM_HEATER_READY_C } : metric) }
           if (utility.id === 'tank') {
             const tankState = waterTankLevelState(latestTankVolume.current ?? Number.POSITIVE_INFINITY, machineNeedsWater.current, currentWaterThresholds())
             return { ...utility, alert: tankState === 'needsWater', warning: tankState === 'warning' }

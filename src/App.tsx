@@ -15,6 +15,7 @@ import { useShotInsights } from './features/insights/useShotInsights'
 import { defaultInsightsRoute, readInsightsRoute, writeInsightsRoute, type InsightsRoute } from './features/insights/insightsRoute'
 import { DecaidUpdatePrompt } from './features/updates/DecaidUpdatePrompt'
 import { SettingsScreen } from './features/settings/SettingsScreen'
+import { useLanguage } from './i18n/index.ts'
 import './styles/index.css'
 import './styles/cardSurfaces.css'
 import './styles/lightMode.css'
@@ -32,6 +33,8 @@ const currentPage = (): AppPage => {
 const requestedProfileId = () => new URLSearchParams(window.location.search).get('profileId') ?? undefined
 
 export default function App() {
+  // Re-render the whole shell when the display language changes; texts are resolved at render time.
+  useLanguage()
   const data = useBrewingData()
   const [importedProfileRecord, setImportedProfileRecord] = useState<DecaidProfileRecord | undefined>()
   const [, setPage] = useState(0)

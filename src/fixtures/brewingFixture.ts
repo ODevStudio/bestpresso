@@ -53,10 +53,10 @@ export const brewingFixture: BrewingScreenModel = {
   readiness: 'ready',
   activeProfileId: 'adaptive-v2',
   utilities: [
-    { id: 'water', label: 'Hot water', metrics: [{ label: 'Volume', value: '50', unit: 'ml' }, { label: 'Temperature', value: '92', unit: '°' }, { label: 'Max duration', value: '30', unit: 's' }] },
-    { id: 'steam', label: 'Steam', enabled: true, metrics: [{ label: 'Current', value: '121', unit: '°', highlight: true }, { label: 'Target', value: '160', unit: '°' }, { label: 'Duration', value: '50', unit: 's' }, { label: 'Flow', value: '0.6', unit: 'ml/s' }] },
-    { id: 'scale', label: 'Scale', metrics: [{ label: 'Weight', value: '0.0', unit: 'g' }] },
-    { id: 'tank', label: 'Reservoir', metrics: [{ label: 'Current', value: '1,234', unit: 'ml' }] },
+    { id: 'water', metrics: [{ id: 'volume', value: '50', unit: 'ml' }, { id: 'temperature', value: '92', unit: '°' }, { id: 'maxDuration', value: '30', unit: 's' }] },
+    { id: 'steam', enabled: true, metrics: [{ id: 'current', value: '121', unit: '°', highlight: true }, { id: 'target', value: '160', unit: '°' }, { id: 'duration', value: '50', unit: 's' }, { id: 'flow', value: '0.6', unit: 'ml/s' }] },
+    { id: 'scale', metrics: [{ id: 'weight', value: '0.0', unit: 'g' }] },
+    { id: 'tank', metrics: [{ id: 'current', value: '1,234', unit: 'ml' }] },
   ],
   profiles: [
     { id: 'trendy-six-bar', name: 'D-Flow / Trendy 6 bar low pressure shot', description: 'A gentle low-pressure profile with a long, declining finish for sweet and expressive espresso.', temperature: '91', grindSetting: '13.2', dose: '20', targetYield: '42', targetPoints: [{ elapsedMs: 0, pressure: 0, flow: 0 }, { elapsedMs: 5000, pressure: 2, flow: 4 }, { elapsedMs: 9000, pressure: 6, flow: 2.8 }, { elapsedMs: 36000, pressure: 5, flow: 2.2 }] },

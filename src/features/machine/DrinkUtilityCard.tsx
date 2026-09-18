@@ -4,7 +4,8 @@ import steamIcon from '../../assets/figma/steam.svg'
 import steamCompactConnector from '../../assets/figma/steam-compact-connector.svg'
 import { Metric, type MetricEdit } from '../../components/Metric/Metric'
 import { useValueAdjustment } from '../../components/ValueAdjustment/ValueAdjustmentContext'
-import type { DisplayMetric, MachineUtility } from '../../domain/brewing'
+import type { DisplayMetric, MachineUtility, UtilityMetric, UtilityMetricId } from '../../domain/brewing'
+import { displayUtilityMetric, utilityLabel, utilityMetricLabel } from '../../domain/utilityLabels'
 import { formatTemperatureValue, temperatureBoundToDisplay, type TemperatureUnit } from '../../domain/temperature'
 import { VALUE_ADJUSTMENTS } from '../../domain/valueAdjustments'
 import { TemperatureReading } from './TemperatureReading'
@@ -12,13 +13,13 @@ import { GAUGE_MIN_C, GAUGE_CENTER, GAUGE_RADIUS, gaugeArcPath, gaugeFraction, g
 
 interface Props {
   utility: MachineUtility
-  metrics: DisplayMetric[]
+  metrics: (UtilityMetric & DisplayMetric)[]
   compact: boolean
   temperatureUnit: TemperatureUnit
   disabled?: boolean
   onExpand?: () => void
   onToggleSteam: () => void
-  getEdit: (label: string) => MetricEdit | undefined
+  getEdit: (metricId: UtilityMetricId) => MetricEdit | undefined
 }
 
 export function DrinkUtilityCard({ utility, metrics, compact, temperatureUnit, disabled, onExpand, onToggleSteam, getEdit }: Props) {
@@ -39,35 +40,35 @@ export function DrinkUtilityCard({ utility, metrics, compact, temperatureUnit, d
   const gaugeViewHeight = tallGauge ? 158 : 80
   const gaugePath = gaugeArcPath(1, gaugeSweep)
   const enabled = utility.enabled !== false
-  const metric = (label: string): DisplayMetric => metrics.find(item => item.label === label) ?? { label, value: '—' }
-  const currentC = Number(utility.metrics.find(item => item.label === 'Current')?.value)
-  const targetC = Number(utility.metrics.find(item => item.label === 'Target')?.value)
+  const metric = (id: UtilityMetricId): UtilityMetric & DisplayMetric => metrics.find(item => item.id === id) ?? displayUtilityMetric({ id, value: '—' })
+  const currentC = Number(utility.metrics.find(item => item.id === 'current')?.value)
+  const targetC = Number(utility.metrics.find(item => item.id === 'target')?.value)
   const currentValid = Number.isFinite(currentC)
   const targetValid = Number.isFinite(targetC)
   const heating = steamBelowReadyRange(currentC, targetC, enabled)
   const maxC = VALUE_ADJUSTMENTS.steamTemperature.max
   const fraction = gaugeFraction(currentC, GAUGE_MIN_C, maxC)
   const marker = gaugeGeometry(targetC, GAUGE_MIN_C, maxC, gaugeSweep)
-  const target = metric('Target')
-  const targetEdit = getEdit('Target')
+  const target = metric('target')
+  const targetEdit = getEdit('target')
   const targetDisabled = disabled || !targetEdit || !Number.isFinite(Number(target.value))
   const currentText = currentValid ? `${formatTemperatureValue(currentC, temperatureUnit)}°` : '—'
   const targetText = targetValid ? `${target.value}°` : '—'
-  const displayMetric = (label: string, displayLabel = label) => <Metric size="small" metric={{ ...metric(label), label: displayLabel }} edit={getEdit(label)} />
+  const displayMetric = (id: UtilityMetricId, displayLabel = metric(id).label) => <Metric size="small" metric={{ ...metric(id), label: displayLabel }} edit={getEdit(id)} />
   const icon = steam ? steamIcon : hotWaterIcon
-  const compactMetrics = steam ? metrics.map(item => item.label === 'Current' ? { ...item, value: enabled ? item.value : '—', highlight: heating } : item)
-    : ['Volume', 'Temperature'].map(metric)
+  const compactMetrics = steam ? metrics.map(item => item.id === 'current' ? { ...item, value: enabled ? item.value : '—', highlight: heating } : item)
+    : (['volume', 'temperature'] as const).map(metric)
 
   return <section className={`utility-card utility-card--${utility.id} drink-card${compact ? ' is-compact' : ''}${steam && !enabled ? ' utility-card--steam-off' : ''}`} data-layout={compact ? 'compact' : 'expanded'}>
     <div className={`drink-card__face drink-card__compact utility-card--compact utility-card--${utility.id}`} inert={!compact} aria-hidden={!compact}>
-      <button className="drink-card__expand" type="button" aria-label={`Expand utility panels to view ${utility.label}`} onClick={onExpand} />
-      <header><img src={icon} alt="" /><span>{utility.label}</span></header>
-      <div className="utility-card__metrics">{compactMetrics.map(item => <Metric key={item.label} metric={item} compact size="small" />)}</div>
+      <button className="drink-card__expand" type="button" aria-label={`Expand utility panels to view ${utilityLabel(utility.id)}`} onClick={onExpand} />
+      <header><img src={icon} alt="" /><span>{utilityLabel(utility.id)}</span></header>
+      <div className="utility-card__metrics">{compactMetrics.map(item => <Metric key={item.id} metric={item} compact size="small" />)}</div>
       {steam && <span className="utility-card__steam-connector" aria-hidden="true"><img src={steamCompactConnector} alt="" /></span>}
     </div>
     <div className="drink-card__face drink-card__expanded" inert={compact} aria-hidden={compact}>
-      <header><img src={icon} alt="" /><h2>{utility.label}</h2>{steam && <button className="drink-card__toggle" type="button" role="switch" aria-checked={enabled} aria-label={enabled ? 'Disable steam heating' : 'Enable steam heating'} disabled={disabled} onClick={onToggleSteam}><span /></button>}</header>
-      {!steam ? <div className="drink-card__water-settings"><div>{displayMetric('Temperature')}</div><div>{displayMetric('Volume')}</div></div>
+      <header><img src={icon} alt="" /><h2>{utilityLabel(utility.id)}</h2>{steam && <button className="drink-card__toggle" type="button" role="switch" aria-checked={enabled} aria-label={enabled ? 'Disable steam heating' : 'Enable steam heating'} disabled={disabled} onClick={onToggleSteam}><span /></button>}</header>
+      {!steam ? <div className="drink-card__water-settings"><div>{displayMetric('temperature')}</div><div>{displayMetric('volume')}</div></div>
         : <div className="drink-card__steam-settings">
           <div className="drink-card__temperature-space" ref={temperatureSpace}>
           <div className={`drink-card__gauge${heating ? ' is-heating' : ''}`} data-tall={tallGauge} style={{ '--gauge-target-angle': `${marker.angle}deg`, '--gauge-view-height': gaugeViewHeight } as CSSProperties}>
@@ -89,7 +90,7 @@ export function DrinkUtilityCard({ utility, metrics, compact, temperatureUnit, d
             </button>
           </div>
           </div>
-          <div className="drink-card__steam-secondary"><div>{displayMetric('Flow')}</div><div>{displayMetric('Duration', 'Max duration')}</div></div>
+          <div className="drink-card__steam-secondary"><div>{displayMetric('flow')}</div><div>{displayMetric('duration', utilityMetricLabel('maxDuration'))}</div></div>
         </div>}
     </div>
   </section>

@@ -7,21 +7,21 @@ import { VALUE_ADJUSTMENTS } from '../src/domain/valueAdjustments.ts'
 import { SETTINGS_PROTOCOL } from '../src/features/settings/settingsProtocol.ts'
 
 const model = { profiles: [], utilities: [
-  { id: 'water', label: 'Hot water', metrics: [{ label: 'Volume', value: '50', unit: 'ml' }, { label: 'Temperature', value: '92', unit: '°' }] },
-  { id: 'steam', label: 'Steam', enabled: true, metrics: [{ label: 'Current', value: '45', unit: '°' }, { label: 'Target', value: '160', unit: '°' }, { label: 'Duration', value: '50', unit: 's' }, { label: 'Flow', value: '0.7', unit: 'ml/s' }] },
+  { id: 'water', metrics: [{ id: 'volume', value: '50', unit: 'ml' }, { id: 'temperature', value: '92', unit: '°' }] },
+  { id: 'steam', enabled: true, metrics: [{ id: 'current', value: '45', unit: '°' }, { id: 'target', value: '160', unit: '°' }, { id: 'duration', value: '50', unit: 's' }, { id: 'flow', value: '0.7', unit: 'ml/s' }] },
 ] } as BrewingScreenModel
-const water = (value: BrewingScreenModel) => Object.fromEntries(value.utilities[0].metrics.map(m => [m.label, m.value]))
+const water = (value: BrewingScreenModel) => Object.fromEntries(value.utilities[0].metrics.map(m => [m.id, m.value]))
 
 test('adds max duration to an older two-metric hot-water model from the workflow', () => {
   const updated = applyWorkflow(model, { hotWaterData: { duration: 35 } }, [])
-  assert.deepEqual(water(updated), { Volume: '50', Temperature: '92', 'Max duration': '35' })
+  assert.deepEqual(water(updated), { volume: '50', temperature: '92', maxDuration: '35' })
   assert.equal(model.utilities[0].metrics.length, 2)
   assert.equal(applyWorkflow(updated, { hotWaterData: { duration: 40 } }, []).utilities[0].metrics.length, 3)
 })
 
 test('partial workflow refreshes keep independent hot-water values and preserve zero', () => {
   const updated = applyWorkflow(model, { hotWaterData: { volume: 70, targetTemperature: 60, duration: 30 } }, [])
-  assert.deepEqual(water(applyWorkflow(updated, { hotWaterData: { duration: 0 } }, [])), { Volume: '70', Temperature: '60', 'Max duration': '0' })
+  assert.deepEqual(water(applyWorkflow(updated, { hotWaterData: { duration: 0 } }, [])), { volume: '70', temperature: '60', maxDuration: '0' })
   assert.deepEqual(water(applyWorkflow(updated, {}, [])), water(updated))
 })
 
@@ -42,7 +42,7 @@ test('hot-water duration remains supported with the same adjustment range as Set
 test('only the home hot-water duration shortcut is removed, not the Settings limit', () => {
   const source = readFileSync(new URL('../src/features/machine/DrinkUtilityCard.tsx', import.meta.url), 'utf8')
   const waterCard = source.split('!steam ? <div className="drink-card__water-settings">')[1].split(': <div className="drink-card__steam-settings">')[0]
-  assert.deepEqual([...waterCard.matchAll(/displayMetric\('([^']+)'\)/g)].map(match => match[1]), ['Temperature', 'Volume'])
+  assert.deepEqual([...waterCard.matchAll(/displayMetric\('([^']+)'\)/g)].map(match => match[1]), ['temperature', 'volume'])
   const settings = readFileSync(new URL('../src/features/settings/SettingsScreen.tsx', import.meta.url), 'utf8')
   assert.match(settings, /NumberSetting label="Max duration" value=\{numberValue\(settings\.draft\.workflow\.hotWaterData\?\.duration\)\}/)
   assert.match(settings, /onChange=\{\(duration\) => settings\.patchWorkflow\('hotWaterData', \{ duration \}\)\}/)
@@ -50,11 +50,11 @@ test('only the home hot-water duration shortcut is removed, not the Settings lim
 
 test('collapsed cards keep their original summaries and hidden controls cannot receive focus', () => {
   const source = readFileSync(new URL('../src/features/machine/DrinkUtilityCard.tsx', import.meta.url), 'utf8')
-  assert.match(source, /\['Volume', 'Temperature'\]\.map\(metric\)/)
+  assert.match(source, /\(\['volume', 'temperature'\] as const\)\.map\(metric\)/)
   assert.match(source, /inert=\{!compact\} aria-hidden=\{!compact\}/)
   assert.match(source, /inert=\{compact\} aria-hidden=\{compact\}/)
-  assert.match(source, /displayMetric\('Duration', 'Max duration'\)/)
-  assert.doesNotMatch(source, /displayMetric\('Max duration'\)/)
+  assert.match(source, /displayMetric\('duration', utilityMetricLabel\('maxDuration'\)\)/)
+  assert.doesNotMatch(source, /displayMetric\('maxDuration'\)/)
   assert.match(source, /metric__edit-indicator/)
 })
 

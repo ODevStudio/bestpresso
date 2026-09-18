@@ -41,10 +41,19 @@ export interface DisplayMetric {
   highlight?: boolean
 }
 
+/** Stable metric identities; the visible label comes from the catalog (`common.metric.<id>`). */
+export type UtilityMetricId = 'volume' | 'temperature' | 'maxDuration' | 'current' | 'target' | 'duration' | 'flow' | 'weight'
+
+export interface UtilityMetric {
+  id: UtilityMetricId
+  value: string
+  unit?: string
+  highlight?: boolean
+}
+
 export interface MachineUtility {
   id: UtilityId
-  label: string
-  metrics: DisplayMetric[]
+  metrics: UtilityMetric[]
   enabled?: boolean
   alert?: boolean
   warning?: boolean
