@@ -4,6 +4,7 @@ import cleaningProfile from '../../assets/figma/cleaning-profile.svg'
 import cleaningProfileSelected from '../../assets/figma/cleaning-profile-selected.svg'
 import type { BrewProfile } from '../../domain/brewing'
 import { cleaningPreparationStatus } from './cleaningSequence'
+import { t } from '../../i18n/index.ts'
 
 interface CleaningSequencePickerProps {
   profiles: BrewProfile[]
@@ -15,6 +16,10 @@ interface CleaningSequencePickerProps {
 
 export function CleaningSequencePicker({ profiles, pending, preparedProfileId, onPrepare, onDismiss }: CleaningSequencePickerProps) {
   const visibleProfiles = profiles.slice(0, 8)
+  // The guidance sentence carries a literal %ICON% marker (not a `{name}` placeholder) so the
+  // translated copy keeps natural word order around the inline cup icon without becoming a
+  // typed t() placeholder that would have to accept a React node.
+  const [tapBefore, tapAfter] = t('shell.cleaning.tapHint').split('%ICON%')
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(visibleProfiles.length === 1 ? visibleProfiles[0].id : null)
   const autoPrepareRequested = useRef(false)
   const preparationInFlight = useRef(false)
@@ -58,14 +63,14 @@ export function CleaningSequencePicker({ profiles, pending, preparedProfileId, o
     <section className="cleaning-picker" style={panelStyle} role="dialog" aria-modal="true" aria-labelledby="cleaning-picker-title" aria-busy={interactionLocked}>
       <header className="cleaning-picker__header">
         <div>
-          <h2 id="cleaning-picker-title">Cleaning</h2>
+          <h2 id="cleaning-picker-title">{t('shell.cleaning.title')}</h2>
           {status === 'ready'
-            ? <p>Tap <span className="cleaning-picker__brew-guide"><img src={brewAction} alt="cup" /></span> on your machine to start.</p>
-            : status === 'loading' ? <p role="status">Loading cleaning profile…</p>
-            : status === 'error' ? <p role="alert">Could not load. Select a profile to retry.</p>
-            : <p>Select a cleaning profile.</p>}
+            ? <p>{tapBefore}<span className="cleaning-picker__brew-guide"><img src={brewAction} alt="cup" /></span>{tapAfter}</p>
+            : status === 'loading' ? <p role="status">{t('shell.cleaning.loading')}</p>
+            : status === 'error' ? <p role="alert">{t('shell.cleaning.loadError')}</p>
+            : <p>{t('shell.cleaning.selectProfile')}</p>}
         </div>
-        <button className="cleaning-picker__close" type="button" disabled={interactionLocked} onClick={() => void onDismiss()}>Close</button>
+        <button className="cleaning-picker__close" type="button" disabled={interactionLocked} onClick={() => void onDismiss()}>{t('shell.cleaning.close')}</button>
       </header>
       <div className="cleaning-picker__profiles">
         {visibleProfiles.map((profile) => {
@@ -82,7 +87,7 @@ export function CleaningSequencePicker({ profiles, pending, preparedProfileId, o
             <strong>{profile.name}</strong>
           </button>
         })}
-        {!visibleProfiles.length && <p className="cleaning-picker__empty">No cleaning sequences are available yet.</p>}
+        {!visibleProfiles.length && <p className="cleaning-picker__empty">{t('shell.cleaning.empty')}</p>}
       </div>
     </section>
   </div>

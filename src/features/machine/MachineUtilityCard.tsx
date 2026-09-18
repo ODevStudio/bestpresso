@@ -8,13 +8,14 @@ import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import type { EditableMachineSetting, MachineUtility, ScaleConnection, UtilityMetricId } from '../../domain/brewing'
 import { displayUtilityMetric, utilityLabel } from '../../domain/utilityLabels'
 import { VALUE_ADJUSTMENTS } from '../../domain/valueAdjustments'
+import { t } from '../../i18n/index.ts'
 import { scalePresentationForDevice } from './scaleArtwork'
 import { steamTargetForToggle } from './steamHeating'
 import { DrinkUtilityCard } from './DrinkUtilityCard'
 
 const withoutGenericScaleSuffix = (name: string | undefined) => {
   const title = name?.replace(/\s+scale$/i, '').trim()
-  return title || name || 'Scale'
+  return title || name || t('common.utility.scale')
 }
 
 interface MachineUtilityCardProps {
@@ -72,12 +73,12 @@ export function MachineUtilityCard({ utility, compact = false, scale, onExpand, 
     const level = Math.max(0, Math.min(100, utility.levelPercent ?? fallbackLevel))
     const needsWater = Boolean(utility.alert)
     const warnsWater = !needsWater && Boolean(utility.warning)
-    const valueLabel = Number.isFinite(volume) ? `${metric.value} ${metric.unit ?? 'ml'}` : 'unknown level'
+    const valueLabel = Number.isFinite(volume) ? `${metric.value} ${metric.unit ?? 'ml'}` : t('shell.tank.unknownLevel')
     const statusLabel = needsWater
-      ? `Water reservoir needs water, ${valueLabel}`
+      ? t('shell.tank.needsWater', { value: valueLabel })
       : warnsWater
-        ? `Water reservoir is getting low, ${valueLabel}`
-      : `Water reservoir, ${valueLabel}`
+        ? t('shell.tank.low', { value: valueLabel })
+      : t('shell.tank.status', { value: valueLabel })
     const style = { '--reservoir-level': `${level}%` } as CSSProperties
     const className = `reservoir-meter${needsWater ? ' reservoir-meter--needs-water' : warnsWater ? ' reservoir-meter--warning' : ''}`
 
@@ -91,7 +92,7 @@ export function MachineUtilityCard({ utility, compact = false, scale, onExpand, 
   const steamHeatingEnabled = utility.enabled !== false
   const steamTarget = Number(utility.metrics.find((metric) => metric.id === 'target')?.value)
   const scaleConnected = isScale && scale?.status === 'connected'
-  const connectedScaleName = scaleConnected ? scale.name || 'Scale' : undefined
+  const connectedScaleName = scaleConnected ? scale.name || t('common.utility.scale') : undefined
   const scalePresentation = scaleConnected ? scalePresentationForDevice(connectedScaleName, scale.id) : undefined
   const scaleWeight = Number(utility.metrics[0]?.value)
   const scaleCanTare = scaleConnected && scaleWeightCanTare(scaleWeight) && Boolean(onTareScale)
@@ -108,15 +109,15 @@ export function MachineUtilityCard({ utility, compact = false, scale, onExpand, 
     onToggleSteam={() => onUpdateSetting?.('steamTemperature', steamTargetForToggle(!steamHeatingEnabled, steamTarget))}
   />
   const cardClassName = `utility-card utility-card--scale${compact ? ' utility-card--compact' : ''}${scalePresentation?.imageSrc ? ' utility-card--scale-with-art' : ''}`
-  const expandLabel = `Expand utility panels to view ${title}`
+  const expandLabel = t('shell.machine.expandToView', { label: title })
 
   return <section className={cardClassName} data-layout={compact ? 'compact' : 'expanded'} data-scale-model={scalePresentation?.id} data-scale-image={scalePresentation?.imageName}>
     {compact && <button className="utility-card__expand-surface" type="button" aria-label={expandLabel} onClick={onExpand} />}
     <header><img src={scaleIcon} alt="" /><span>{title}</span></header>
     {!scaleConnected
-      ? <button className={compact ? 'scale-search scale-compact-summary' : 'scale-search'} type="button" onClick={onSearchScale} disabled={scale?.status === 'searching'}>{scale?.status === 'searching' ? 'Searching…' : 'Search'}</button>
+      ? <button className={compact ? 'scale-search scale-compact-summary' : 'scale-search'} type="button" onClick={onSearchScale} disabled={scale?.status === 'searching'}>{scale?.status === 'searching' ? t('shell.scale.searching') : t('shell.scale.search')}</button>
       : <div className="utility-card__metrics">{metrics.map((metric) => scaleCanTare
-        ? <button className={`scale-tare-control${scaleTarePending ? ' scale-tare-control--pending' : ''}`} key={metric.id} type="button" aria-label={`Tare scale, current weight ${metric.value}${metric.unit ?? ''}`} title="Tare scale" disabled={scaleTarePending} onClick={onTareScale}>
+        ? <button className={`scale-tare-control${scaleTarePending ? ' scale-tare-control--pending' : ''}`} key={metric.id} type="button" aria-label={t('shell.scale.tareAria', { value: metric.value, unit: metric.unit ?? '' })} title={t('shell.scale.tareTitle')} disabled={scaleTarePending} onClick={onTareScale}>
           <Metric metric={metric} compact size="large" />
           <svg className="scale-tare-control__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M6.1 9a7 7 0 0 1 11.6-2.6L20 8.8M4 15.2l2.3 2.4A7 7 0 0 0 17.9 15" /></svg>
         </button>

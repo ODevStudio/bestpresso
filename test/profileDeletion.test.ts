@@ -106,8 +106,8 @@ test('detail deletion is confirmed, does not purge records, and is wired to libr
 
 test('Sleep is leftmost in machine controls and retains the same handler and pending guard', () => {
   const shell = readFileSync(new URL('../src/app/AppShell.tsx', import.meta.url), 'utf8')
-  const controls = shell.slice(shell.indexOf('<nav aria-label="Machine controls">'), shell.indexOf('</nav></header>'))
-  assert.ok(controls.indexOf('onClick={onSleep}') < controls.indexOf('aria-label="Cleaning sequences"'))
-  assert.ok(controls.indexOf('aria-label="Cleaning sequences"') < controls.indexOf('aria-label="Settings"'))
+  const controls = shell.slice(shell.indexOf("<nav aria-label={t('shell.appShell.machineControls')}>"), shell.indexOf('</nav></header>'))
+  assert.ok(controls.indexOf('onClick={onSleep}') < controls.indexOf("aria-label={t('shell.appShell.cleaningSequences')}"))
+  assert.ok(controls.indexOf("aria-label={t('shell.appShell.cleaningSequences')}") < controls.indexOf("aria-label={t('shell.appShell.settings')}"))
   assert.match(controls, /disabled=\{sleepPending\} onClick=\{onSleep\}/)
 })

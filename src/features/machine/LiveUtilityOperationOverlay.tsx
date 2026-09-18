@@ -5,12 +5,16 @@ import type { ReactNode } from 'react'
 import { liveHotWaterMeasurement } from '../../domain/brewing'
 import type { LiveUtilityOperation } from '../../domain/brewing'
 import { formatTemperatureValue, temperatureUnitLabel } from '../../domain/temperature'
+import { utilityMetricLabel } from '../../domain/utilityLabels'
+import { t } from '../../i18n/index.ts'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 
+// Getters keep this a module-level constant while still translating lazily at read time,
+// the same pattern as domain/valueAdjustments.ts.
 const presentation = {
-  hotWater: { title: 'Dispensing hot water', icon: hotWaterIcon },
-  steam: { title: 'Steaming', icon: steamIcon },
-  flush: { title: 'Flushing', icon: flushIcon },
+  hotWater: { get title() { return t('shell.liveOperation.hotWater') }, icon: hotWaterIcon },
+  steam: { get title() { return t('shell.liveOperation.steaming') }, icon: steamIcon },
+  flush: { get title() { return t('shell.liveOperation.flushing') }, icon: flushIcon },
 } as const
 
 const elapsedSeconds = (elapsedMs: number) => Math.max(0, Math.floor(elapsedMs / 1000))
@@ -37,11 +41,11 @@ export function LiveUtilityOperationOverlay({ operation }: { operation: LiveUtil
         <img src={state.icon} alt="" />
       </header>
       <div className="live-utility-card__metrics metric-scale--medium">
-        <Reading label="Duration">{seconds}{duration !== undefined && <> <em>/</em> {duration}</>}<small>s</small></Reading>
+        <Reading label={t('common.metric.duration')}>{seconds}{duration !== undefined && <> <em>/</em> {duration}</>}<small>s</small></Reading>
         {hotWaterMeasurement
-          ? <Reading label={hotWaterMeasurement.label} align="center">{hotWaterMeasurement.value === undefined ? '—' : decimal(hotWaterMeasurement.value)} <em>/</em> {hotWaterMeasurement.target ?? '—'}<small>{hotWaterMeasurement.unit}</small></Reading>
-          : <Reading label="Flow" align="center">{decimal(operation.flow)}<small>ml/s</small></Reading>}
-        <Reading label="Temperature" align="end">{formatTemperatureValue(operation.temperature, preferences.temperatureUnit)}<small className="temperature-unit">{temperatureUnitLabel(preferences.temperatureUnit)}</small></Reading>
+          ? <Reading label={utilityMetricLabel(hotWaterMeasurement.label === 'Weight' ? 'weight' : 'volume')} align="center">{hotWaterMeasurement.value === undefined ? '—' : decimal(hotWaterMeasurement.value)} <em>/</em> {hotWaterMeasurement.target ?? '—'}<small>{hotWaterMeasurement.unit}</small></Reading>
+          : <Reading label={t('common.metric.flow')} align="center">{decimal(operation.flow)}<small>ml/s</small></Reading>}
+        <Reading label={t('common.metric.temperature')} align="end">{formatTemperatureValue(operation.temperature, preferences.temperatureUnit)}<small className="temperature-unit">{temperatureUnitLabel(preferences.temperatureUnit)}</small></Reading>
       </div>
     </section>
   </div>

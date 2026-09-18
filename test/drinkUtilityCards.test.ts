@@ -134,7 +134,7 @@ test('only steam temperature places its adjustment label after the values', () =
   const group = source.split('<button className="drink-card__temperature')[1].split('</button>')[0]
   assert.ok(group.indexOf('drink-card__temperature-pair') < group.indexOf('className="metric__label"'))
   assert.ok(group.indexOf('drink-card__target') < group.indexOf('className="metric__label"'))
-  assert.match(group, /Temperature\{!targetDisabled/)
+  assert.match(group, /\{t\('common\.metric\.temperature'\)\}\{!targetDisabled/)
 })
 
 test('steam temperature block shifts independently from the arc and target value', () => {

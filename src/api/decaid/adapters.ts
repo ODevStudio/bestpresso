@@ -3,6 +3,7 @@ import { createId } from '../../utils/browserCompatibility.ts'
 import { reconcileStageReasons } from '../../features/brew/stageMoveOn.ts'
 import { sourceForRecord } from '../../features/profiles/profileLibraryModel.ts'
 import { isSteamHeatingEnabled } from '../../features/machine/steamHeating.ts'
+import { t } from '../../i18n/index.ts'
 import { profileStepsToTargetPoints } from './profileTargetPoints.ts'
 import { profileConfiguredTargetYield, profileTargetYield } from './profileWorkflow.ts'
 import type { DecaidProfileRecord, DecaidWorkflow, FavoriteAssignments, ShotRecord } from './types.ts'
@@ -23,19 +24,19 @@ export function shotStage(profileFrame: number | undefined, substate: string | u
 
   const normalizedSubstate = substate?.toLowerCase()
   const stageName = normalizedSubstate === 'preinfusion'
-    ? 'Pre-infusion'
+    ? t('shell.brewStage.preinfusion')
     : normalizedSubstate === 'pouringdone'
-      ? 'Cooling'
+      ? t('shell.brewStage.cooling')
       : normalizedSubstate === 'pouring'
-        ? 'Extraction'
-        : frame === undefined ? 'Extraction' : `Stage ${frame + 1}`
+        ? t('shell.brewStage.extraction')
+        : frame === undefined ? t('shell.brewStage.extraction') : t('shell.brewStage.stageNumber', { n: frame + 1 })
   return { stageIndex: frame, stageName }
 }
 
 export { profileStepsToTargetPoints }
 
 export function parseProfileTitle(title: string | undefined) {
-  const fullTitle = title?.trim() || 'Untitled profile'
+  const fullTitle = title?.trim() || t('shell.profile.untitled')
   const separatorIndex = fullTitle.indexOf('/')
   if (separatorIndex < 0) return { name: fullTitle, category: undefined }
 
@@ -88,7 +89,7 @@ export function profileRecordsToDomain(records: DecaidProfileRecord[], workflow:
       dose: numberString(isActive ? workflow.context?.targetDoseWeight : metadata.targetDoseWeight ?? profile.dose_weight, '18'),
       targetYield: numberString(profileConfiguredTargetYield(profile, metadata, isActive ? workflow.context?.targetYield ?? workflow.profile?.target_weight : undefined), '—'),
       targetPoints: profileStepsToTargetPoints(chartSteps),
-      stepNames: chartSteps?.map((step, index) => textValue(step.name) ?? `Stage ${index + 1}`),
+      stepNames: chartSteps?.map((step, index) => textValue(step.name) ?? t('shell.brewStage.stageNumber', { n: index + 1 })),
       profileSteps: isActive && workflow.profile?.steps?.length ? workflow.profile.steps : chartSteps,
     }
   }))
@@ -199,7 +200,7 @@ export function shotToDomain(shot: ShotRecord): PreviousShot {
   const duration = firstTimestamp && lastTimestamp ? Math.max(0, Math.round((Date.parse(lastTimestamp) - Date.parse(firstTimestamp)) / 1000)) : undefined
   const lastWeight = [...extraction].reverse().find((entry) => entry.scale?.weight !== undefined)?.scale?.weight
   const startedAt = firstTimestamp ? Date.parse(firstTimestamp) : Number.NaN
-  const stepNames = shot.workflow?.profile?.steps?.map((step, index) => textValue(step.name) ?? `Stage ${index + 1}`)
+  const stepNames = shot.workflow?.profile?.steps?.map((step, index) => textValue(step.name) ?? t('shell.brewStage.stageNumber', { n: index + 1 }))
   const points = Number.isFinite(startedAt) ? extraction.flatMap((entry) => {
     const timestamp = entry.machine?.timestamp ? Date.parse(entry.machine.timestamp) : Number.NaN
     if (!Number.isFinite(timestamp)) return []
@@ -215,7 +216,7 @@ export function shotToDomain(shot: ShotRecord): PreviousShot {
       ...shotStage(entry.machine?.profileFrame, entry.machine?.state?.substate, stepNames),
     }]
   }) : []
-  const shotProfileTitle = shot.workflow?.profile?.title || shot.workflow?.name || 'Previous pull'
+  const shotProfileTitle = shot.workflow?.profile?.title || shot.workflow?.name || t('shell.profile.previousPull')
   return reconcileStageReasons({
     profileSteps: shot.workflow?.profile?.steps,
     telemetryStartedAt: Number.isFinite(startedAt) ? startedAt : undefined,
