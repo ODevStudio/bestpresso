@@ -7,6 +7,7 @@ import { assertVerifiedProfileRecord, canonicalProfileForVerification } from '..
 import { nextBuilderStepperValue } from '../src/features/profiles/profileBuilderStepper.ts'
 import { validateProfileDraft } from '../src/features/profiles/profileBuilderValidation.ts'
 import { VALUE_ADJUSTMENTS } from '../src/domain/valueAdjustments.ts'
+import { en } from '../src/i18n/en/index.ts'
 
 const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
 const profilesPanel = readFileSync(new URL('../src/features/profiles/ProfilesPanel.tsx', import.meta.url), 'utf8')
@@ -42,11 +43,15 @@ test('profile builder entry points support create, import, safe copy, and user-o
   assert.match(app, /onCheckVisualizer=\{checkVisualizerImport\}/)
   assert.match(app, /onImportVisualizer=\{importFromVisualizer\}/)
   assert.match(app, /profileEditMode=\{\(selectedProfileId\) => data\.profileRecordForEditing\(selectedProfileId\)\?\.isDefault === false \? 'edit' : 'copy'\}/)
-  assert.match(profilesPanel, /onClick=\{onStartProfile\}[\s\S]*?Create profile/)
-  assert.match(profilesPanel, /aria-label="Import profile JSON"/)
+  assert.match(profilesPanel, /onClick=\{onStartProfile\}[\s\S]*?t\('library\.action\.createProfile'\)/)
+  assert.match(profilesPanel, /aria-label=\{t\('library\.aria\.importProfileJson'\)\}/)
   assert.match(profilesPanel, /parseProfileImport\(await file.text\(\)\)/)
   assert.doesNotMatch(profilesPanel, />Import from Visualizer</)
-  assert.match(profilesPanel, /profileEditMode\?\.\(detail.id\)==='edit'\?'Edit':'Edit a copy'/)
+  assert.match(profilesPanel, /profileEditMode\?\.\(detail.id\)==='edit'\?t\('library\.action\.edit'\):t\('library\.action\.editCopy'\)/)
+  assert.equal(en['library.action.createProfile'], 'Create profile')
+  assert.equal(en['library.aria.importProfileJson'], 'Import profile JSON')
+  assert.equal(en['library.action.edit'], 'Edit')
+  assert.equal(en['library.action.editCopy'], 'Edit a copy')
 })
 
 test('cancel protects a changed profile draft while leaving an untouched draft immediately closable', () => {
