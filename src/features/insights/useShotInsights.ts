@@ -122,6 +122,6 @@ export function useShotInsights(active: boolean, shotId: string) {
   const latestChartStatus: LatestChartStatus = latestCached
     ? state.cache!.details[latestId!].points?.length ? 'ready' : 'empty'
     : chartState?.key === chartKey ? chartState.status : 'loading'
-  return { ...state, now, repository, latestChartStatus, refreshHistory }
+  return useMemo(() => ({ ...state, now, repository, latestChartStatus, refreshHistory }), [state, now, repository, latestChartStatus, refreshHistory])
 }
 export type ShotInsights = ReturnType<typeof useShotInsights>

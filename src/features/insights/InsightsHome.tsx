@@ -1,26 +1,24 @@
+import { memo, useMemo } from 'react'
 import { MiniShotChart } from '../history/MiniShotChart'
 import { parseProfileTitle } from '../../api/decaid/adapters'
 import { latestChartMessage } from './latestChartRetry'
 import { historyStatus } from './historyStatus'
 import type { ShotInsights } from './useShotInsights'
-import { calendarParts, coversWindow, dateLabel, inWindow, reportingWindow, shiftDate, shotRecipeLabel, summarize, timeLabel, weekdays } from './historyData'
+import { calendarParts, coversWindow, dateLabel, shotRecipeLabel, timeLabel, type HistoryRecord } from './historyData'
+import { homeInsightSummary } from './homeInsightSummary'
 
-export function InsightsHome({ data, onOpen, onLatest }: { data: ShotInsights; onOpen: () => void; onLatest: (id: string) => void }) {
+const emptyRecords: HistoryRecord[] = []
+
+function InsightsHomeComponent({ data, onOpen, onLatest }: { data: ShotInsights; onOpen: () => void; onLatest: (id: string) => void }) {
   const cache = data.cache
-  const timezone = cache?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
-  const window = reportingWindow(7, timezone, data.now, false, true)
-  const shots = cache?.records.filter(r => r.beverage === 'espresso' && inWindow(r, window)) ?? []
+  const timezone = useMemo(() => cache?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone, [cache?.timezone])
+  const today = useMemo(() => calendarParts(data.now.toISOString(), timezone)!.date, [data.now, timezone])
+  const records = cache?.records ?? emptyRecords
+  const { window, summary, daily, max } = useMemo(() => homeInsightSummary(records, today), [records, today])
   const latest = cache?.records.find(r => r.beverage !== 'excluded')
   const latestName = latest ? parseProfileTitle(latest.profile).name : 'Brew history'
   const detail = latest && cache?.details[latest.id]
-  const summary = summarize(shots)
   const complete = coversWindow(cache, window, data.now)
-  const daily = Array.from({ length: 7 }, (_, i) => {
-    const date = shiftDate(window.start, i)
-    const weekday = calendarParts(`${date}T12:00:00Z`, 'UTC')!.weekday
-    return { date, name: weekdays[weekday], count: shots.filter(s => s.date === date).length }
-  })
-  const max = Math.max(1, ...daily.map(d => d.count))
   const status = historyStatus(!!cache, !!data.error, complete)
   return <section className="ins-theme ins-home-entry" aria-label="Brewing insights and latest shot">
     <button className="ins-entry-card ins-entry-insight" onClick={onOpen} aria-label="Open brewing insights" aria-describedby="ins-home-period-context">
@@ -42,3 +40,5 @@ export function InsightsHome({ data, onOpen, onLatest }: { data: ShotInsights; o
     </button>
   </section>
 }
+
+export const InsightsHome = memo(InsightsHomeComponent)

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { CSSProperties } from 'react'
 import reservoirIcon from '../../assets/figma/reservoir.svg'
 import scaleIcon from '../../assets/figma/scale.svg'
@@ -60,7 +61,7 @@ const editForMetric = (utility: MachineUtility, label: string, temperatureUnit: 
   }
 }
 
-export function MachineUtilityCard({ utility, compact = false, scale, onExpand, onSearchScale, onTareScale, scaleTarePending = false, settingsDisabled, onUpdateSetting }: MachineUtilityCardProps) {
+function MachineUtilityCardComponent({ utility, compact = false, scale, onExpand, onSearchScale, onTareScale, scaleTarePending = false, settingsDisabled, onUpdateSetting }: MachineUtilityCardProps) {
   const { preferences } = useBestpressoPreferences()
   const temperatureUnit = preferences.temperatureUnit
   if (utility.id === 'tank') {
@@ -123,3 +124,5 @@ export function MachineUtilityCard({ utility, compact = false, scale, onExpand, 
     {scalePresentation?.imageSrc && <span className="scale-device-art" aria-hidden="true"><img src={scalePresentation.imageSrc} alt="" /></span>}
   </section>
 }
+
+export const MachineUtilityCard = memo(MachineUtilityCardComponent)

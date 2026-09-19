@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { withDisplayedScaleWeight, withHomeMachineDisplay, withHomeTankDisplay, withScaleConnection } from './homeDisplayUpdates'
 import { cloneJsonData, createId } from '../../utils/browserCompatibility'
 import { playCompletionSound } from '../../audio/completionSound'
 import { deleteProfile, updateSettings } from '../../api/decaid/client'
@@ -362,12 +363,7 @@ export function useBrewingData() {
   }
 
   const setDisplayedScaleWeight = (weight: number) => {
-    setModel((current) => ({
-      ...current,
-      utilities: current.utilities.map((utility) => utility.id === 'scale'
-        ? { ...utility, metrics: utility.metrics.map((metric) => ({ ...metric, value: weight.toFixed(1) })) }
-        : utility),
-    }))
+    setModel(current => withDisplayedScaleWeight(current, weight))
   }
 
   const requestScaleTare = async (silent = false) => {
@@ -496,17 +492,17 @@ export function useBrewingData() {
       const activeScale = localScaleFixture ?? devices.find((device) => device.type === 'scale' && device.state === 'connected')
       const scaleConnected = scaleConnectionIsActive(Boolean(activeScale), scaleStreamConnected.current)
       connectedScale.current = scaleConnected
-      if (scaleConnected) setAvailableScales([])
+      if (scaleConnected) setAvailableScales(current => current.length ? [] : current)
       setMockDe1Connected(isConnectedMockDe1(connectedMachine))
       updateMachineConnection(connectedMachine ? 'connected' : 'disconnected')
       backgroundScaleSearch.refresh()
-      setScale((current) => current.status === 'searching'
+      setScale((current) => withScaleConnection(current, current.status === 'searching'
         ? current
         : activeScale
           ? { status: 'connected', id: activeScale.id, name: activeScale.name || 'Scale' }
           : scaleStreamConnected.current
             ? { ...current, status: 'connected', name: current.name || 'Scale' }
-            : { status: 'disconnected' })
+            : { status: 'disconnected' }))
     }
 
     const refreshConnectedDevices = () => getDevices().then((devices) => {
@@ -650,11 +646,11 @@ export function useBrewingData() {
         setScale(localScaleFixture)
         return
       }
-      setScale((current) => ({ ...current, status: 'connected' }))
+      setScale((current) => current.status === 'connected' ? current : { ...current, status: 'connected' })
       refreshConnectedDevices().then((devices) => {
         if (disposed) return
         const connectedScale = devices.find((device) => device.type === 'scale' && device.state === 'connected')
-        setScale({ status: 'connected', id: connectedScale?.id, name: connectedScale?.name || 'Scale' })
+        setScale(current => withScaleConnection(current, { status: 'connected', id: connectedScale?.id, name: connectedScale?.name || 'Scale' }))
       }).catch(() => undefined)
     }
 
@@ -897,18 +893,8 @@ export function useBrewingData() {
         timeToReadyEstimate = null
         setHeatingSeconds(null)
       }
-      setModel((current) => ({
-        ...current,
-        readiness,
-        utilities: current.utilities.map((utility) => {
-          if (utility.id === 'steam') return { ...utility, metrics: utility.metrics.map((metric) => metric.label === 'Current' && snapshot.steamTemperature !== undefined ? { ...metric, value: String(Math.round(snapshot.steamTemperature)), highlight: snapshot.steamTemperature < STEAM_HEATER_READY_C } : metric) }
-          if (utility.id === 'tank') {
-            const tankState = waterTankLevelState(latestTankVolume.current ?? Number.POSITIVE_INFINITY, machineNeedsWater.current, currentWaterThresholds())
-            return { ...utility, alert: tankState === 'needsWater', warning: tankState === 'warning' }
-          }
-          return utility
-        }),
-      }))
+      setModel(current => withHomeMachineDisplay(current, readiness, snapshot.steamTemperature, STEAM_HEATER_READY_C,
+        waterTankLevelState(latestTankVolume.current ?? Number.POSITIVE_INFINITY, machineNeedsWater.current, currentWaterThresholds())))
     }, (connected) => {
       snapshotConnected = connected
       if (!connected) {
@@ -969,7 +955,7 @@ export function useBrewingData() {
         latestScaleSnapshot.current = {}
         if (utilityOperationSession.current?.kind === 'hotWater') utilityOperationSession.current.weightGrams = undefined
         setUtilityOperation((current) => current?.kind === 'hotWater' ? { ...current, scaleConnected: false, weightGrams: undefined } : current)
-        setScale((current) => current.status === 'searching' ? current : { status: 'disconnected' })
+        setScale((current) => current.status === 'searching' ? current : withScaleConnection(current, { status: 'disconnected' }))
         return
       }
     }, (socketConnected) => {
@@ -983,16 +969,7 @@ export function useBrewingData() {
       const levelPercent = Math.max(0, Math.min(100, sensorLevel / WATER_TANK_SENSOR_FULL_MM * 100))
       const tankState = waterTankLevelState(volume, machineNeedsWater.current, currentWaterThresholds())
       latestTankVolume.current = volume
-      setModel((current) => ({
-        ...current,
-        utilities: current.utilities.map((utility) => utility.id === 'tank' ? {
-          ...utility,
-          alert: tankState === 'needsWater',
-          warning: tankState === 'warning',
-          levelPercent,
-          metrics: utility.metrics.map((metric) => ({ ...metric, value: volume.toLocaleString('en-US') })),
-        } : utility),
-      }))
+      setModel(current => withHomeTankDisplay(current, volume.toLocaleString('en-US'), levelPercent, tankState))
     }, () => undefined)
 
     const timeToReady = subscribe<TimeToReadyFrame>('/plugins/time-to-ready.reaplugin/timeToReady', (frame) => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent, PointerEvent } from 'react'
 import { Metric } from '../../components/Metric/Metric'
 import type { BrewProfile, EditableProfileSetting } from '../../domain/brewing'
@@ -8,7 +8,7 @@ import { VALUE_ADJUSTMENTS } from '../../domain/valueAdjustments'
 import { doseToYieldRatio } from './brewRatio'
 import { DEMO_PROFILE_LONG_PRESS_MS } from './demoBrew'
 import { ProfileTargetChart } from './ProfileTargetChart'
-import { profileCardMotion, profileCardPosition, projectedProfileSteps, wrappedProfileOffset } from './profileCarouselMotion'
+import { createFramePublisher, profileCardMotion, profileCardPosition, projectedProfileSteps, wrappedProfileOffset } from './profileCarouselMotion'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 
 interface CarouselDrag {
@@ -21,7 +21,7 @@ interface CarouselDrag {
   moved: boolean
 }
 
-export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demoMode = false, onUpdateProfile, onSelectProfile, onStartDemoBrew, onManageProfiles }: { profiles: BrewProfile[]; activeProfileId?: string; settingsDisabled?: boolean; demoMode?: boolean; onUpdateProfile: (profileId: string, setting: EditableProfileSetting, value: number) => void; onSelectProfile: (profileId: string) => Promise<boolean>; onStartDemoBrew?: (profileId: string) => void; onManageProfiles: () => void }) {
+function BrewingPanelComponent({ profiles, activeProfileId, settingsDisabled, demoMode = false, onUpdateProfile, onSelectProfile, onStartDemoBrew, onManageProfiles }: { profiles: BrewProfile[]; activeProfileId?: string; settingsDisabled?: boolean; demoMode?: boolean; onUpdateProfile: (profileId: string, setting: EditableProfileSetting, value: number) => void; onSelectProfile: (profileId: string) => Promise<boolean>; onStartDemoBrew?: (profileId: string) => void; onManageProfiles: () => void }) {
   const { preferences } = useBestpressoPreferences()
   const temperatureUnit = preferences.temperatureUnit
   const selectedIndex = profiles.findIndex((profile) => profile.id === activeProfileId)
@@ -31,6 +31,8 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
   const optimisticIndex = profiles.findIndex((profile) => profile.id === optimisticProfileId)
   const activeIndex = optimisticIndex >= 0 ? optimisticIndex : initialIndex
   const [dragProgress, setDragProgress] = useState(0)
+  const carousel = useRef<HTMLDivElement>(null)
+  const dragFrame = useRef<ReturnType<typeof createFramePublisher> | null>(null)
   const pointerStart = useRef<CarouselDrag | null>(null)
   const demoHold = useRef<{ pointerId: number; timeout: number; triggered: boolean } | null>(null)
   const suppressClick = useRef(false)
@@ -54,8 +56,26 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
     demoHold.current = null
   }
 
-  useEffect(() => () => {
-    if (demoHold.current) window.clearTimeout(demoHold.current.timeout)
+  useEffect(() => {
+    const publisher = createFramePublisher(setDragProgress, callback => window.requestAnimationFrame(callback), id => window.cancelAnimationFrame(id))
+    dragFrame.current = publisher
+    return () => {
+      if (demoHold.current) window.clearTimeout(demoHold.current.timeout)
+      publisher.cancel()
+      dragFrame.current = null
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    const element = carousel.current
+    if (!element) return
+    // Percentage translations use the card's width, but spacing uses the carousel's width.
+    // Observe that width outside pointermove, including utility-panel expansion and rotation.
+    const setWidth = (width: number) => element.style.setProperty('--profile-carousel-width', `${width}px`)
+    setWidth(element.getBoundingClientRect().width)
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width))
+    observer.observe(element)
+    return () => observer.disconnect()
   }, [])
 
   const editProfileSetting = (setting: EditableProfileSetting, valueHint?: (value: number) => string | undefined, fixedSuggestions?: readonly FixedValueSuggestion[]) => {
@@ -130,7 +150,7 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
       cancelDemoHold()
     }
     const maximumProgress = Math.max(1, profiles.length - 1)
-    setDragProgress(Math.max(-maximumProgress, Math.min(maximumProgress, distance / gesture.stride)))
+    dragFrame.current?.schedule(Math.max(-maximumProgress, Math.min(maximumProgress, distance / gesture.stride)))
   }
 
   const handlePointerUp = (event: PointerEvent<HTMLDivElement>) => {
@@ -140,6 +160,7 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
     const demoTriggered = demoHold.current?.triggered === true
     cancelDemoHold()
     pointerStart.current = null
+    dragFrame.current?.cancel()
     setDragProgress(0)
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
     if (demoTriggered) {
@@ -157,6 +178,7 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
     if (pointerStart.current?.pointerId !== event.pointerId) return
     cancelDemoHold()
     pointerStart.current = null
+    dragFrame.current?.cancel()
     setDragProgress(0)
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
   }
@@ -167,13 +189,13 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
   }
 
   return <section className="brew-panel">
-    <div className={`profile-carousel${dragProgress !== 0 ? ' profile-carousel--dragging' : ''}`} aria-label="Profiles" aria-roledescription="carousel" tabIndex={0} onKeyDown={handleKeyDown} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancelPointerGesture} onContextMenu={demoMode ? (event) => event.preventDefault() : undefined}>
+    <div ref={carousel} className={`profile-carousel${dragProgress !== 0 ? ' profile-carousel--dragging' : ''}`} aria-label="Profiles" aria-roledescription="carousel" tabIndex={0} onKeyDown={handleKeyDown} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancelPointerGesture} onContextMenu={demoMode ? (event) => event.preventDefault() : undefined}>
       {profiles.map((profile, index) => {
         const offset = wrappedProfileOffset(index, activeIndex - dragProgress, profiles.length)
         const position = profileCardPosition(offset)
         const motion = profileCardMotion(offset)
         const style = {
-          '--profile-free-x': `${motion.xPercent}%`,
+          '--profile-free-x': motion.xPercent / 100,
           '--profile-free-scale': motion.scale,
           '--profile-free-opacity': motion.opacity,
           zIndex: motion.zIndex,
@@ -194,3 +216,5 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
     </div>
   </section>
 }
+
+export const BrewingPanel = memo(BrewingPanelComponent)

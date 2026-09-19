@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useStableEvent } from '../utils/useStableEvent'
 import cleaning from '../assets/figma/cleaning-profile.svg'
 import logo from '../assets/figma/decent-logo.png'
 import settings from '../assets/figma/settings-glyph.svg'
@@ -77,9 +78,16 @@ export function AppShell({ historyEntry, model, allProfiles, liveBrew, utilityOp
   const [utilitiesCollapsed, setUtilitiesCollapsed] = useState(initialUtilityLayout)
   const [utilityLayoutHasChanged, setUtilityLayoutHasChanged] = useState(false)
   const [cleaningPickerOpen, setCleaningPickerOpen] = useState(false)
+  const updateSetting = useStableEvent(onUpdateMachineSetting)
+  const updateProfile = useStableEvent(onUpdateProfileSetting)
+  const selectProfile = useStableEvent(onSelectProfile)
+  const startDemo = useStableEvent(onStartDemoBrew)
+  const manageProfiles = useStableEvent(onManageProfiles)
+  const searchScale = useStableEvent(onSearchScale)
+  const tareScale = useStableEvent(onTareScale)
   const cleaningProfiles = allProfiles.filter(isCleaningProfile).slice(0, 8)
   const sleepLabel = model.readiness === 'sleeping' ? 'Wake' : 'Sleep'
-  const toggleUtilityLayout = () => {
+  const toggleUtilityLayout = useStableEvent(() => {
     setUtilityLayoutHasChanged(true)
     setUtilitiesCollapsed((collapsed) => {
       const nextCollapsed = !collapsed
@@ -90,7 +98,7 @@ export function AppShell({ historyEntry, model, allProfiles, liveBrew, utilityOp
       }
       return nextCollapsed
     })
-  }
+  })
   const dismissCleaningPicker = async () => {
     if (await onCancelCleaning()) setCleaningPickerOpen(false)
   }
@@ -103,7 +111,7 @@ export function AppShell({ historyEntry, model, allProfiles, liveBrew, utilityOp
       {machineActionError && <div className="system-message system-message--error" role="alert">{machineActionError}</div>}
       {settingFeedback && <div className={`system-message system-message--${settingFeedback.status}`} role={settingFeedback.status === 'error' ? 'alert' : 'status'} aria-live="polite">{settingFeedback.message}</div>}
     </div>}
-    <div className="dashboard"><aside className="utilities" id="machine-utilities">{model.utilities.map((utility) => <MachineUtilityCard key={utility.id} utility={utility} compact={utilitiesCollapsed} scale={utility.id === 'scale' ? scale : undefined} scaleTarePending={utility.id === 'scale' && scaleTarePending} onExpand={utility.id === 'tank' ? undefined : toggleUtilityLayout} onSearchScale={utility.id === 'scale' ? onSearchScale : undefined} onTareScale={utility.id === 'scale' ? onTareScale : undefined} settingsDisabled={settingsDisabled} onUpdateSetting={onUpdateMachineSetting} />)}</aside><div className="primary"><BrewingPanel profiles={model.profiles} activeProfileId={model.activeProfileId} settingsDisabled={settingsDisabled} demoMode={demoPullEnabled} onUpdateProfile={onUpdateProfileSetting} onSelectProfile={onSelectProfile} onStartDemoBrew={onStartDemoBrew} onManageProfiles={onManageProfiles} />{historyEntry ?? <HistoryPanel shot={model.previousShot} status={previousShotStatus} onOpen={onOpenPreviousShot} />}</div></div>
+    <div className="dashboard"><aside className="utilities" id="machine-utilities">{model.utilities.map((utility) => <MachineUtilityCard key={utility.id} utility={utility} compact={utilitiesCollapsed} scale={utility.id === 'scale' ? scale : undefined} scaleTarePending={utility.id === 'scale' && scaleTarePending} onExpand={utility.id === 'tank' ? undefined : toggleUtilityLayout} onSearchScale={utility.id === 'scale' ? searchScale : undefined} onTareScale={utility.id === 'scale' ? tareScale : undefined} settingsDisabled={settingsDisabled} onUpdateSetting={updateSetting} />)}</aside><div className="primary"><BrewingPanel profiles={model.profiles} activeProfileId={model.activeProfileId} settingsDisabled={settingsDisabled} demoMode={demoPullEnabled} onUpdateProfile={updateProfile} onSelectProfile={selectProfile} onStartDemoBrew={startDemo} onManageProfiles={manageProfiles} />{historyEntry ?? <HistoryPanel shot={model.previousShot} status={previousShotStatus} onOpen={onOpenPreviousShot} />}</div></div>
     {utilityOperation && <LiveUtilityOperationOverlay operation={utilityOperation} />}
     <ScaleDevicePicker devices={availableScales} pendingDeviceId={scaleConnectPendingId} onSelect={onConnectScale} onDismiss={onDismissScalePicker} />
     {cleaningPickerOpen && <CleaningSequencePicker profiles={cleaningProfiles} pending={cleaningStartPending} preparedProfileId={cleaningPreparedProfileId} onPrepare={onPrepareCleaning} onDismiss={dismissCleaningPicker} />}
