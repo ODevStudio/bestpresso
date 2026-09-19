@@ -2,6 +2,7 @@ import type { builderEn } from '../en/builder.ts'
 import type { Translation } from '../types.ts'
 
 export const builderDe = {
+  'builder.details.limiterRangeHint': 'Steuert die Reaktion des Begrenzers im Bereich seines Grenzwerts.',
   // Shared axis names (pump/exit direction)
   'builder.axis.pressure': 'Druck',
   'builder.axis.flow': 'Durchfluss',
@@ -104,8 +105,8 @@ export const builderDe = {
   'builder.details.versionPlaceholder': 'Version wählen oder eingeben',
   'builder.details.endShotVolumeLabel': 'Endvolumen (ohne Waage)',
   'builder.details.endShotVolumeFallbackLabel': 'Ersatz-Endvolumen',
-  'builder.details.flowToleranceLabel': 'Durchfluss-Toleranz',
-  'builder.details.pressureToleranceLabel': 'Druck-Toleranz',
+  'builder.details.flowToleranceLabel': 'Durchflussbegrenzer-Reaktionsbereich',
+  'builder.details.pressureToleranceLabel': 'Druckbegrenzer-Reaktionsbereich',
   'builder.details.volumeStartLabel': 'Volumenmessung starten ab',
   'builder.details.chooseStage': 'Phase wählen',
   'builder.details.authorLabel': 'Autor',

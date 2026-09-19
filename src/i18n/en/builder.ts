@@ -1,5 +1,6 @@
 /** Profile builder: stage editor, target chart, validation panel, and profile metadata form. */
 export const builderEn = {
+  'builder.details.limiterRangeHint': 'Controls the limiter’s response around its limit.',
   // Shared axis names (pump/exit direction)
   'builder.axis.pressure': 'Pressure',
   'builder.axis.flow': 'Flow',
@@ -102,8 +103,8 @@ export const builderEn = {
   'builder.details.versionPlaceholder': 'Choose or enter a version',
   'builder.details.endShotVolumeLabel': 'End shot volume (without scale)',
   'builder.details.endShotVolumeFallbackLabel': 'End shot volume fallback',
-  'builder.details.flowToleranceLabel': 'Flow tolerance',
-  'builder.details.pressureToleranceLabel': 'Pressure tolerance',
+  'builder.details.flowToleranceLabel': 'Flow limiter range',
+  'builder.details.pressureToleranceLabel': 'Pressure limiter range',
   'builder.details.volumeStartLabel': 'Start measuring volume from',
   'builder.details.chooseStage': 'Choose a stage',
   'builder.details.authorLabel': 'Author',

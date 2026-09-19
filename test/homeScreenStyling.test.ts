@@ -10,6 +10,19 @@ const historyScreen = readFileSync(new URL('../src/features/history/PreviousShot
 const styles = readFileSync(new URL('../src/styles/index.css', import.meta.url), 'utf8')
 const utilityIcons = ['hot-water.svg', 'steam.svg', 'scale.svg'].map((name) => readFileSync(new URL(`../src/assets/figma/${name}`, import.meta.url), 'utf8'))
 
+test('status pills hug their localized content without fixed breakpoint widths or shrinking icons', () => {
+  const utilityStyles = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
+  assert.match(styles, /\.status-pill \{[^}]*width:max-content;[^}]*flex:0 0 auto;/)
+  assert.match(styles, /\.status-pill img \{[^}]*flex-shrink:0/)
+  assert.match(styles, /\.status-pill \{[^}]*padding:0 12px 0 24px;/)
+  assert.match(styles, /\.status-pill\{height:46px;padding-left:16px\}/)
+  assert.match(styles, /\.status-pill\{height:48px;padding-left:18px\}/)
+  assert.doesNotMatch(styles, /\.status-pill\s*\{[^}]*padding-inline:/)
+  for (const css of [styles, utilityStyles]) {
+    assert.doesNotMatch(css, /[^{}]*\.status-pill(?:--[\w-]+)?\s*\{[^}]*\bwidth:\s*\d+px/)
+  }
+})
+
 test('suppresses native tap flashes throughout the app without removing keyboard focus styles', () => {
   assert.match(styles, /#root,#root \*\s*\{[^}]*-webkit-tap-highlight-color:transparent/)
   assert.match(styles, /\.metric__edit-button:focus-visible\s*\{[^}]*outline:2px solid/)

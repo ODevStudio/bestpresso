@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { hotWaterWeightStoppingPatch } from '../src/features/settings/yieldLookAhead.ts'
+import { en } from '../src/i18n/en/index.ts'
 
 test('scale connection enables weight stopping without overwriting either calibration', () => {
   for (const hotWaterFlowMultiplier of [0, 0.3, 0.7, 1]) {
@@ -24,7 +25,8 @@ test('settings save changes only requested fields and exposes independent hot-wa
   assert.match(screen, /patchRea\(\{ hotWaterFlowMultiplier \}\)/)
   assert.doesNotMatch(screen, /Reset hot-water calibration|patchRea\(\{ hotWaterFlowMultiplier: 0\.3 \}\)/)
   assert.match(screen, /label=\{t\('common\.metric\.volume'\)\} hint=\{t\('settings\.prepare\.volumeHint'\)\}/)
-  const en = readFileSync(new URL('../src/i18n/en/settings.ts', import.meta.url), 'utf8')
-  assert.match(en, /'settings\.prepare\.espressoYield': 'Espresso yield'/)
-  assert.match(en, /'settings\.prepare\.hotWaterYield': 'Hot-water yield'/)
+  assert.equal(en['settings.prepare.espressoYield'], 'Espresso')
+  assert.equal(en['settings.prepare.hotWaterYield'], 'Hot water')
+  assert.equal(en['settings.prepare.calibration.title'], 'Early-stop calibration')
+  assert.equal(en['settings.prepare.calibration.description'], 'Compensates for liquid still reaching the cup after stopping. Higher values stop earlier.')
 })

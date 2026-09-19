@@ -9,28 +9,87 @@ import { validateCatalog } from '../src/i18n/validation.ts'
 
 const added = ['fr', 'it', 'zh-Hant', 'zh-Hans'] as const
 
-test('partial source imports preserve blanks and track every reused token', async () => {
+test('contextual drafts complete approved terminology and preserve native date formatting', async () => {
   const provenance = JSON.parse(readFileSync(new URL('../docs/streamline-translation-provenance.json', import.meta.url), 'utf8'))
+  const authored = JSON.parse(readFileSync(new URL('../docs/localisation-contextual-drafts.json', import.meta.url), 'utf8'))
   const pending = JSON.parse(readFileSync(new URL('../docs/localisation-pending.json', import.meta.url), 'utf8'))
+  const formattingKeys = ['insights.period.dayMonth', 'insights.period.dayOnly']
+  assert.deepEqual(authored.heldForClarification, [])
+  assert.deepEqual(Object.keys(pending).sort(), [...formattingKeys].sort())
   for (const language of added) {
     const catalog = await languageRegistry[language].load()
     assert.deepEqual(validateCatalog(en, catalog, languageRegistry[language].locale), [])
-    assert.equal(Object.keys(catalog).length, language.startsWith('zh') ? 130 : 145)
+    assert.equal(Object.keys(catalog).length, Object.keys(en).length - formattingKeys.length)
     for (const [key, value] of Object.entries(catalog)) {
       assert.ok(value)
-      assert.equal(provenance.entries[key].english, en[key as keyof typeof en])
-      assert.ok(provenance.entries[key].languages.includes(language))
-      assert.ok(provenance.entries[key].row > 1)
+      const isAuthored = authored.entries[key]?.languages.includes(language)
+      const entry = isAuthored ? authored.entries[key] : provenance.entries[key]
+      assert.deepEqual(entry.english, en[key as keyof typeof en])
+      assert.ok(entry.languages.includes(language))
+      if (!isAuthored) assert.ok(entry.row > 1)
     }
-    assert.equal('library.field.source' in catalog, false)
-    assert.equal('brew.liveScreen.timerLabel' in catalog, false)
-    assert.equal(pending['library.field.source'][language], '')
     await setActiveLanguage(language, [])
-    assert.equal(t('library.field.source'), en['library.field.source'])
-    assert.equal(plural('insights.common.brewsPct', 1, { pct: 50 }), '1 brew · 50%')
-    assert.equal(plural('insights.common.brewsPct', 2, { pct: 50 }), '2 brews · 50%')
+    for (const key of [...authored.heldForClarification, ...formattingKeys]) {
+      assert.equal(key in catalog, false, key)
+      assert.equal(pending[key][language], '', key)
+    }
+    for (const key of ['settings.prepare.espressoYield', 'settings.prepare.hotWaterYield', 'builder.details.flowToleranceLabel', 'builder.details.pressureToleranceLabel', 'builder.details.limiterRangeHint', 'builder.validation.label.limiterResponseRange', 'builder.import.limiterRangeRequired'] as const) {
+      assert.ok(key in catalog, key)
+      assert.equal(t(key), catalog[key])
+      assert.equal(key in pending, false)
+    }
+    for (const key of ['settings.advanced.gatewayMode.tracking', 'settings.advanced.gatewayMode.full', 'settings.purge.twoTap', 'shell.status.thirsty'] as const) {
+      assert.ok(key in catalog)
+      assert.notEqual(t(key), en[key])
+      assert.equal(key in pending, false)
+      assert.equal(authored.heldForClarification.includes(key), false)
+    }
+    assert.notEqual(t('library.field.source'), en['library.field.source'])
+    assert.notEqual(t('brew.liveScreen.timerLabel'), en['brew.liveScreen.timerLabel'])
+    assert.equal(t('brew.metric.yield'), t('insights.common.yield'))
+    assert.equal(t('brew.metric.dose'), t('library.metric.dose'))
+    assert.equal(t('brew.metric.flowRate'), t('common.metric.flow'))
+    for (const count of [0, 1, 2, 1000000]) {
+      const category = new Intl.PluralRules(languageRegistry[language].locale).select(count)
+      const message = catalog['insights.common.brewsPct'] as Record<string, string>
+      const expected = message[category].replace('{count}', formatNumber(count)).replace('{pct}', '50')
+      assert.equal(plural('insights.common.brewsPct', count, { pct: 50 }), expected)
+    }
+    const reason = t('brew.stage.reason.sensorExitReached', { type: t('brew.metric.pressure'), symbol: '>', value: '7', unit: 'bar' })
+    assert.ok(reason.includes('>7 bar'), reason)
+    assert.ok(!reason.includes('{'), reason)
   }
   await setActiveLanguage('en', ['en-US'])
+})
+
+test('French and Italian status pills use compact labels while retaining full power guidance', async () => {
+  const expected = {
+    fr: { heating: 'chauffe', notHeating: 'Sans chauffe', sleeping: 'veille', disconnected: 'hors ligne', connecting: 'connexion', checkPowerButton: 'Vérifier marche/arrêt' },
+    it: { heating: 'scalda', notHeating: 'Non scalda', sleeping: 'standby', disconnected: 'scollegata', connecting: 'connessione', checkPowerButton: 'Verifica accensione' },
+  }
+  for (const language of ['fr', 'it'] as const) {
+    const catalog = await languageRegistry[language].load()
+    for (const [status, label] of Object.entries(expected[language])) {
+      assert.equal(catalog[`shell.status.${status}` as keyof typeof catalog], label)
+    }
+    assert.ok(String(catalog['shell.status.notHeatingTooltip']).length > expected[language].checkPowerButton.length)
+  }
+})
+
+test('compact French and Italian settings navigation matches its page headings', async () => {
+  const sections = {
+    fr: { prepare: 'Boissons', clean: 'Entretien', devices: 'Appareils', power: 'Écran et veille', experience: 'Préférences', data: 'Données' },
+    it: { prepare: 'Bevande', clean: 'Pulizia', devices: 'Dispositivi', power: 'Schermo e standby', experience: 'Preferenze' },
+  }
+  for (const language of ['fr', 'it'] as const) {
+    const catalog = await languageRegistry[language].load()
+    for (const [section, label] of Object.entries(sections[language])) {
+      assert.equal(catalog[`settings.section.${section}.label` as keyof typeof catalog], label)
+      assert.equal(catalog[`settings.section.${section}.title` as keyof typeof catalog], label)
+      assert.ok(catalog[`settings.section.${section}.description` as keyof typeof catalog])
+      assert.ok(catalog[`settings.section.${section}.keywords` as keyof typeof catalog])
+    }
+  }
 })
 
 test('Chinese script matching respects explicit script, regions and older WebViews', () => {
