@@ -231,9 +231,15 @@ export async function setSharedSetting(key: string, value: unknown) {
   if (!response.ok) throw new Error(`Decaid shared setting returned ${response.status}`)
 }
 
-export async function setMachineState(state: 'idle' | 'sleeping' | 'espresso' | 'cleaning' | 'skipStep' | 'descaling' | 'airPurge') {
-  const response = await fetch(`${getDecaidEndpoints().apiBase}/machine/state/${state}`, { method: 'PUT' })
-  if (!response.ok) throw new Error(`Decaid machine state returned ${response.status}`)
+export async function setMachineState(state: 'idle' | 'sleeping' | 'espresso' | 'cleaning' | 'skipStep' | 'descaling' | 'airPurge', timeoutMs = 4500) {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(`${getDecaidEndpoints().apiBase}/machine/state/${state}`, { method: 'PUT', signal: controller.signal })
+    if (!response.ok) throw new Error(`Decaid machine state returned ${response.status}`)
+  } finally {
+    window.clearTimeout(timeout)
+  }
 }
 
 export async function setMachineProfile(profile: DecaidProfile) {

@@ -31,8 +31,10 @@ import { assertMatchingProfileReadback, assertVerifiedProfileRecord, ProfileSave
 import { rinseWorkflowPatchFromMachineSettings } from './flushSettings'
 import { isSuccessfulEspressoCompletion, shouldPlayCompletionCue } from './completionCue'
 import { DEMO_BREW_TICK_MS, demoBrewForProfile, demoBrewPointsAtElapsed, demoPullIsEnabled, isConnectedMockDe1, type DemoBrewDefinition } from './demoBrew'
-import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, type SkipTransition } from './liveShotState'
-import { shouldRunBackgroundScaleScan, sleepMachineWithConfiguredScalePolicy } from './sleepControl'
+import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, shouldAutoTareAtShotStart, type SkipTransition } from './liveShotState'
+import { createStopObservation, requestMachineStop } from './stopRequest'
+import { createBackgroundScaleSearch } from './backgroundScaleSearch'
+import { sleepMachineWithConfiguredScalePolicy } from './sleepControl'
 import { utilityElapsedMs, utilityTimerStartedAt } from './utilityOperationTiming'
 import { readBestpressoPreferences, useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import { UNIFIED_SETTINGS_SAVED_EVENT, type UnifiedSettingsSnapshot } from '../settings/useUnifiedSettings'
@@ -44,7 +46,6 @@ const currentWaterThresholds = () => {
 
 const shotToDomain = (shot: ShotRecord) => reconcileStageReasons(withStageEvidence(rawShotToDomain(shot), readStageEvidence(getDecaidEndpoints().apiBase, shot.id)))
 const MINIMUM_SCALE_SCAN_MS = 10_000
-const SCALE_SCAN_RETRY_DELAY_MS = 5_000
 const fixtureProfiles = profilesWithParsedTitles(brewingFixture.profiles)
 const localScaleFixture = import.meta.env.DEV
   ? scaleFixtureForKey(new URLSearchParams(window.location.search).get('mockScale'))
@@ -222,6 +223,8 @@ export function useBrewingData() {
   const scaleStreamConnected = useRef(Boolean(localScaleFixture))
   const scaleTareInFlight = useRef(false)
   const brewStopRequestInFlight = useRef(false)
+  const latestMachineTimestamp = useRef<string | undefined>(undefined)
+  const pendingStopRequest = useRef<{ session: LiveShotSession; evidence: ReturnType<typeof createStopObservation<LiveShotSession>> } | null>(null)
   const brewSkipRequestInFlight = useRef(false)
   const brewSkipTransition = useRef<SkipTransition | null>(null)
   const cleaningStartInFlight = useRef(false)
@@ -421,6 +424,21 @@ export function useBrewingData() {
     let timeToReadyEstimate: { deadline: number; receivedAt: number } | null = null
     let latestShotRefreshTimeout: number | null = null
     let preferredScaleId: string | null = null
+    let snapshotConnected = false
+    const backgroundScaleSearch = createBackgroundScaleSearch({
+      state: () => ({ preferredScaleId, scaleConnected: connectedScale.current,
+        machineConnected: machineConnectionRef.current === 'connected' && snapshotConnected, readiness: previousReadiness.current,
+        machineBusy: Boolean(liveShotSession.current || utilityOperationSession.current || pendingCleaningSequence.current),
+      }),
+      scan: async () => {
+        const devices = await runScaleScan()
+        if (!disposed && devices.some(device => device.type === 'scale' && device.state === 'connected')) connectedScale.current = true
+      },
+      schedule: (callback, delay) => window.setTimeout(callback, delay),
+      cancel: timer => window.clearTimeout(timer),
+    })
+    const resumeScaleSearch = () => { if (document.visibilityState === 'visible') backgroundScaleSearch.reset() }
+    document.addEventListener('visibilitychange', resumeScaleSearch)
     let pendingYieldFinalization: PendingYieldFinalization | null = null
     let pendingScaleRenderWeight: { display: number; operational: number } | null = null
     let scaleRenderFrame: number | null = null
@@ -458,6 +476,8 @@ export function useBrewingData() {
       machineConnectionRef.current = next
       setMachineConnection(next)
       if (next !== 'connected') {
+        pendingStopRequest.current?.evidence.disconnect()
+        latestMachineTimestamp.current = undefined
         hotWaterMachineState = undefined
         hotWaterSettings.disconnect()
         previousReadiness.current = null
@@ -468,6 +488,7 @@ export function useBrewingData() {
           void restoreDisplay()
         }
       }
+      backgroundScaleSearch.refresh()
     }
 
     const applyConnectedDevices = (devices: Awaited<ReturnType<typeof getDevices>>) => {
@@ -478,6 +499,7 @@ export function useBrewingData() {
       if (scaleConnected) setAvailableScales([])
       setMockDe1Connected(isConnectedMockDe1(connectedMachine))
       updateMachineConnection(connectedMachine ? 'connected' : 'disconnected')
+      backgroundScaleSearch.refresh()
       setScale((current) => current.status === 'searching'
         ? current
         : activeScale
@@ -639,7 +661,10 @@ export function useBrewingData() {
     refreshConnectedDevices().catch(() => undefined)
 
     const refreshPreferredScale = () => getSettings().then((settings) => {
-      if (!disposed) preferredScaleId = settings.preferredScaleId?.trim() || null
+      if (!disposed) {
+        preferredScaleId = settings.preferredScaleId?.trim() || null
+        backgroundScaleSearch.refresh()
+      }
     }).catch(() => undefined)
     void refreshPreferredScale()
 
@@ -742,6 +767,8 @@ export function useBrewingData() {
 
     const machine = subscribe<MachineSnapshot>('/machine/snapshot', (snapshot) => {
       if (machineConnectionRef.current !== 'connected') return
+      pendingStopRequest.current?.evidence.observe(snapshot, liveShotSession.current)
+      if (snapshot.timestamp && Number.isFinite(Date.parse(snapshot.timestamp)) && (!latestMachineTimestamp.current || Date.parse(snapshot.timestamp) > Date.parse(latestMachineTimestamp.current))) latestMachineTimestamp.current = snapshot.timestamp
       const machineState = (typeof snapshot.state === 'string' ? snapshot.state : snapshot.state?.state)?.toLowerCase()
       const wasIdle = hotWaterMachineState === 'idle'
       hotWaterMachineState = machineState
@@ -819,7 +846,7 @@ export function useBrewingData() {
             points: [],
           }
           if (!isCleaning) {
-            void requestScaleTare(true)
+            if (shouldAutoTareAtShotStart(snapshot)) void requestScaleTare(true)
             const adHocProfileAtBrewStart = retainedAdHocProfileAtBrewStart(currentModel.activeProfileId, retainedAdHocProfileId.current)
             if (adHocProfileAtBrewStart !== retainedAdHocProfileId.current) {
               retainedAdHocProfileId.current = adHocProfileAtBrewStart
@@ -865,6 +892,7 @@ export function useBrewingData() {
         setSleepScreenActive(false)
       }
       previousReadiness.current = readiness
+      backgroundScaleSearch.refresh()
       if (readiness !== 'heating') {
         timeToReadyEstimate = null
         setHeatingSeconds(null)
@@ -882,7 +910,11 @@ export function useBrewingData() {
         }),
       }))
     }, (connected) => {
+      snapshotConnected = connected
       if (!connected) {
+        pendingStopRequest.current?.evidence.disconnect()
+        latestMachineTimestamp.current = undefined
+        previousReadiness.current = null
         readinessTracker.current.reset()
         brewSkipTransition.current = null
         completeLiveShot(true)
@@ -891,6 +923,9 @@ export function useBrewingData() {
       } else if (machineConnectionRef.current === 'fixture') {
         updateMachineConnection('connecting')
       }
+      // A renewed telemetry connection must not retain a five-minute search delay.
+      if (connected) backgroundScaleSearch.reset()
+      else backgroundScaleSearch.refresh()
       setConnection((current) => connected ? 'connected' : current === 'fixture' ? current : 'disconnected')
     })
 
@@ -907,6 +942,7 @@ export function useBrewingData() {
       if (displayWeight !== undefined && liveWeight !== undefined) {
         scaleStreamConnected.current = true
         connectedScale.current = true
+        backgroundScaleSearch.refresh()
         if (utilityOperationSession.current?.kind === 'hotWater') utilityOperationSession.current.weightGrams = liveWeight
         scheduleScaleWeightRender(displayWeight, liveWeight)
       }
@@ -920,6 +956,7 @@ export function useBrewingData() {
       if (snapshot.status === 'connected') {
         scaleStreamConnected.current = true
         connectedScale.current = true
+        backgroundScaleSearch.refresh()
         setUtilityOperation((current) => current?.kind === 'hotWater' ? { ...current, scaleConnected: true } : current)
         refreshConnectedScale()
         return
@@ -928,6 +965,7 @@ export function useBrewingData() {
         finishPendingYield()
         scaleStreamConnected.current = false
         connectedScale.current = false
+        backgroundScaleSearch.refresh()
         latestScaleSnapshot.current = {}
         if (utilityOperationSession.current?.kind === 'hotWater') utilityOperationSession.current.weightGrams = undefined
         setUtilityOperation((current) => current?.kind === 'hotWater' ? { ...current, scaleConnected: false, weightGrams: undefined } : current)
@@ -1004,28 +1042,16 @@ export function useBrewingData() {
       void refreshPreferredScale()
     }, 30000)
 
-    let backgroundScaleSearchTimeout: number | null = null
-    const scheduleBackgroundScaleSearch = () => {
-      backgroundScaleSearchTimeout = window.setTimeout(async () => {
-        backgroundScaleSearchTimeout = null
-        if (disposed) return
-        if (shouldRunBackgroundScaleScan(preferredScaleId, connectedScale.current, previousReadiness.current)) {
-          try {
-            const devices = await runScaleScan()
-            if (devices.some((device) => device.type === 'scale' && device.state === 'connected')) connectedScale.current = true
-          } catch { /* the next scheduled scan can retry */ }
-        }
-        if (!disposed) scheduleBackgroundScaleSearch()
-      }, SCALE_SCAN_RETRY_DELAY_MS)
-    }
-    scheduleBackgroundScaleSearch()
+    backgroundScaleSearch.refresh()
 
     return () => {
       disposed = true
+      pendingStopRequest.current = null
+      backgroundScaleSearch.dispose()
+      document.removeEventListener('visibilitychange', resumeScaleSearch)
       window.clearInterval(refreshWorkflow)
       window.clearInterval(refreshDeviceConnections)
       window.clearInterval(refreshPreferredScaleSetting)
-      if (backgroundScaleSearchTimeout !== null) window.clearTimeout(backgroundScaleSearchTimeout)
       window.clearInterval(heatingCountdown)
       if (latestShotRefreshTimeout !== null) window.clearTimeout(latestShotRefreshTimeout)
       const pendingYieldTimeout = pendingYieldFinalization?.timeout
@@ -1245,13 +1271,24 @@ export function useBrewingData() {
     brewSkipTransition.current = null
     setBrewStopPending(true)
     showMachineActionError(null)
-    try {
-      await setMachineState('idle')
-    } catch {
-      brewStopRequestInFlight.current = false
-      setBrewStopPending(false)
-      showMachineActionError('The machine did not accept the stop command.')
-    }
+    const session = liveShotSession.current
+    const request = { session, evidence: createStopObservation(session, latestMachineTimestamp.current) }
+    pendingStopRequest.current = request
+    const result = await requestMachineStop({
+      sendIdle: () => setMachineState('idle'),
+      observation: () => pendingStopRequest.current === request ? request.evidence.status(liveShotSession.current) : 'superseded',
+      wait: (ms) => new Promise((resolve) => window.setTimeout(resolve, ms)),
+    })
+    if (pendingStopRequest.current !== request) return
+    pendingStopRequest.current = null
+    if (liveShotSession.current && liveShotSession.current !== session) return
+    brewStopRequestInFlight.current = false
+    setBrewStopPending(false)
+    if (result === 'confirmed') return
+    showMachineActionError(result === 'disconnected' || result === 'superseded'
+      ? 'Stop unconfirmed—connection or shot tracking lost. Check the machine.'
+      : result === 'failed' ? 'The stop request failed. Check the machine before retrying.'
+        : 'The machine has not confirmed the stop. Check the machine or tap Stop again.')
   }
 
   const skipBrewStage = async (): Promise<boolean> => {
