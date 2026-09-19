@@ -59,7 +59,7 @@
 .drink-card__current-live,.drink-card__current-off {grid-area:1/1;transition:opacity .24s ease}
 /* Words need more clearance than the diagonal numeric pairing. Keep the
    shared grid and live reading unchanged so toggling does not move the target. */
-.drink-card__current-off {opacity:0;transform:translateX(-14px)}
+.drink-card__current-off {opacity:0;transform:translateX(-8px)}
 .utility-card--steam-off .drink-card__current-live {opacity:0}
 .utility-card--steam-off .drink-card__current-off {opacity:1}
 .app-shell .utility-card--steam-off .drink-card__current {color:var(--metric-label-color)}
