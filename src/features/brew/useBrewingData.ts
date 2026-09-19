@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { cloneJsonData, createId } from '../../utils/browserCompatibility'
 import { playCompletionSound } from '../../audio/completionSound'
-import { deleteProfile } from '../../api/decaid/client'
+import { deleteProfile, updateSettings } from '../../api/decaid/client'
 import { librarySaveMetadata } from '../profiles/profileLibraryModel'
 import { assertProfileDeletionAllowed, canDeleteProfile, deleteVerifiedUserProfile, favoritesWithoutProfile } from '../profiles/profileDeletion'
+import { hotWaterWeightStoppingPatch } from '../settings/yieldLookAhead'
 import { hotWaterSettings } from './hotWaterSettings'
 import type { HotWaterShotSettings } from './hotWaterSync'
 import { activeProfileForWorkflow, applyWorkflow, carouselProfiles, favoriteProfileSlots as resolveFavoriteProfileSlots, isCleaningProfile, profileRecordsToDomain, profilesWithParsedTitles, retainedAdHocProfileAtBrewStart, shotStage, shotToDomain as rawShotToDomain, STEAM_HEATER_READY_C, tankMillilitres } from '../../api/decaid/adapters'
@@ -12,7 +13,7 @@ import { reconcileStageReasons, type StageAdvanceEvidence } from './stageMoveOn'
 import { readStageEvidence, saveStageEvidence, withStageEvidence } from './stageEvidenceStorage'
 import { recordedStopReason, weightAdvanceEvidence } from './stageShotEvents'
 import type { DecaidProfileStep, ShotRecord, ShotStateEvent } from '../../api/decaid/types'
-import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, getDevices, getFavoriteAssignments, getLatestShot, getProfile, getProfiles, getSettings, getSharedSetting, getShot, getShotHistory, getWorkflow, scanForDevices, setMachineProfile, setMachineState, setSharedSetting, tareScale, updateProfile, updateProfileMetadata, updateWorkflow } from '../../api/decaid/client'
+import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, getDevices, getFavoriteAssignments, getLatestShot, getMachineSettings, getProfile, getProfiles, getSettings, getSharedSetting, getShot, getShotHistory, getWorkflow, scanForDevices, setMachineProfile, setMachineState, setSharedSetting, tareScale, updateProfile, updateProfileMetadata, updateWorkflow } from '../../api/decaid/client'
 import { displayBrightness } from '../settings/displayBrightness'
 import { workflowPatchForSavedActiveProfile, workflowValuesForProfile } from '../../api/decaid/profileWorkflow'
 import { createMachineReadinessTracker } from '../../api/decaid/readiness'
@@ -27,11 +28,13 @@ import { observePostShotWeight, reconciledShotPoints, reconciledShotYield, type 
 import { LAST_SELECTED_PROFILE_LOCAL_KEY, LAST_SELECTED_PROFILE_SHARED_KEY, normalizeRememberedProfileId, resolveRememberedProfileId } from '../profiles/profileSelectionPersistence'
 import { profileAuthorForAccount } from '../profiles/profileAuthor'
 import { assertMatchingProfileReadback, assertVerifiedProfileRecord, ProfileSaveVerificationError } from '../profiles/profileSaveVerification'
+import { rinseWorkflowPatchFromMachineSettings } from './flushSettings'
 import { isSuccessfulEspressoCompletion, shouldPlayCompletionCue } from './completionCue'
 import { DEMO_BREW_TICK_MS, demoBrewForProfile, demoBrewPointsAtElapsed, demoPullIsEnabled, isConnectedMockDe1, type DemoBrewDefinition } from './demoBrew'
 import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, shouldAutoTareAtShotStart, type SkipTransition } from './liveShotState'
-import { requestMachineStop } from './stopRequest'
-import { backgroundScaleScanDelayMs, shouldRunBackgroundScaleScan, sleepMachineWithConfiguredScalePolicy } from './sleepControl'
+import { createStopObservation, requestMachineStop } from './stopRequest'
+import { createBackgroundScaleSearch } from './backgroundScaleSearch'
+import { sleepMachineWithConfiguredScalePolicy } from './sleepControl'
 import { utilityElapsedMs, utilityTimerStartedAt } from './utilityOperationTiming'
 import { readBestpressoPreferences, useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import { UNIFIED_SETTINGS_SAVED_EVENT, type UnifiedSettingsSnapshot } from '../settings/useUnifiedSettings'
@@ -182,7 +185,23 @@ export function useBrewingData() {
   const [sleepPending, setSleepPending] = useState(false)
   const [sleepScreenActive, setSleepScreenActive] = useState(false)
   const [machineActionError, setMachineActionError] = useState<string | null>(null)
-  // Decaid's stopHotWaterAtWeight is the user's choice (default on); the skin no longer forces it on scale connect.
+  useEffect(() => {
+    if (connection !== 'connected' || scale.status !== 'connected') return
+    let cancelled = false
+    const enableWeightStopping = async () => {
+      try {
+        const current = await getSettings()
+        const patch = hotWaterWeightStoppingPatch(current)
+        if (!cancelled && Object.keys(patch).length) {
+          await updateSettings(patch)
+        }
+      } catch {
+        if (!cancelled) setMachineActionError('Could not enable hot-water weight stopping. Reconnect the scale to retry.')
+      }
+    }
+    void enableWeightStopping()
+    return () => { cancelled = true }
+  }, [connection, scale.status, scale.id])
   const [settingFeedback, setSettingFeedback] = useState<SettingFeedback | null>(null)
   const [settingFeedbackVisible, setSettingFeedbackVisible] = useState(false)
   const [previousShotStatus, setPreviousShotStatus] = useState<PreviousShotStatus>('loading')
@@ -204,6 +223,8 @@ export function useBrewingData() {
   const scaleStreamConnected = useRef(Boolean(localScaleFixture))
   const scaleTareInFlight = useRef(false)
   const brewStopRequestInFlight = useRef(false)
+  const latestMachineTimestamp = useRef<string | undefined>(undefined)
+  const pendingStopRequest = useRef<{ session: LiveShotSession; evidence: ReturnType<typeof createStopObservation<LiveShotSession>> } | null>(null)
   const brewSkipRequestInFlight = useRef(false)
   const brewSkipTransition = useRef<SkipTransition | null>(null)
   const cleaningStartInFlight = useRef(false)
@@ -382,9 +403,42 @@ export function useBrewingData() {
     let disposed = false
     const evidenceSource = getDecaidEndpoints().apiBase
     let completedSession: LiveShotSession | null = null
+    let hotWaterMachineState: string | undefined
+    let hotWaterWorkflow: Awaited<ReturnType<typeof getWorkflow>> = {}
+    let hotWaterWorkflowLoaded = false
+    let hotWaterSyncPending = false
+    const reconcileHotWater = () => {
+      if (disposed || hotWaterSyncPending || !hotWaterWorkflowLoaded) return
+      hotWaterSyncPending = true
+      void hotWaterSettings.reconcile(hotWaterWorkflow, () => !disposed && machineConnectionRef.current === 'connected' && hotWaterMachineState === 'idle' && !liveShotSession.current && !cleaningRestoreWorkflow.current)
+        .then((workflow) => {
+          if (disposed || !workflow) return
+          hotWaterWorkflow = workflow
+          setModel((current) => withHotWaterReadback(applyWorkflow(current, workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current)))
+        })
+        .catch(() => {
+          if (!disposed) showMachineActionError('Hot water targets could not be synchronised with Decaid. Check the dispenser settings before use.')
+        })
+        .finally(() => { hotWaterSyncPending = false })
+    }
     let timeToReadyEstimate: { deadline: number; receivedAt: number } | null = null
     let latestShotRefreshTimeout: number | null = null
     let preferredScaleId: string | null = null
+    let snapshotConnected = false
+    const backgroundScaleSearch = createBackgroundScaleSearch({
+      state: () => ({ preferredScaleId, scaleConnected: connectedScale.current,
+        machineConnected: machineConnectionRef.current === 'connected' && snapshotConnected, readiness: previousReadiness.current,
+        machineBusy: Boolean(liveShotSession.current || utilityOperationSession.current || pendingCleaningSequence.current),
+      }),
+      scan: async () => {
+        const devices = await runScaleScan()
+        if (!disposed && devices.some(device => device.type === 'scale' && device.state === 'connected')) connectedScale.current = true
+      },
+      schedule: (callback, delay) => window.setTimeout(callback, delay),
+      cancel: timer => window.clearTimeout(timer),
+    })
+    const resumeScaleSearch = () => { if (document.visibilityState === 'visible') backgroundScaleSearch.reset() }
+    document.addEventListener('visibilitychange', resumeScaleSearch)
     let pendingYieldFinalization: PendingYieldFinalization | null = null
     let pendingScaleRenderWeight: { display: number; operational: number } | null = null
     let scaleRenderFrame: number | null = null
@@ -422,6 +476,9 @@ export function useBrewingData() {
       machineConnectionRef.current = next
       setMachineConnection(next)
       if (next !== 'connected') {
+        pendingStopRequest.current?.evidence.disconnect()
+        latestMachineTimestamp.current = undefined
+        hotWaterMachineState = undefined
         hotWaterSettings.disconnect()
         previousReadiness.current = null
         readinessTracker.current.reset()
@@ -431,6 +488,7 @@ export function useBrewingData() {
           void restoreDisplay()
         }
       }
+      backgroundScaleSearch.refresh()
     }
 
     const applyConnectedDevices = (devices: Awaited<ReturnType<typeof getDevices>>) => {
@@ -441,6 +499,7 @@ export function useBrewingData() {
       if (scaleConnected) setAvailableScales([])
       setMockDe1Connected(isConnectedMockDe1(connectedMachine))
       updateMachineConnection(connectedMachine ? 'connected' : 'disconnected')
+      backgroundScaleSearch.refresh()
       setScale((current) => current.status === 'searching'
         ? current
         : activeScale
@@ -602,7 +661,10 @@ export function useBrewingData() {
     refreshConnectedDevices().catch(() => undefined)
 
     const refreshPreferredScale = () => getSettings().then((settings) => {
-      if (!disposed) preferredScaleId = settings.preferredScaleId?.trim() || null
+      if (!disposed) {
+        preferredScaleId = settings.preferredScaleId?.trim() || null
+        backgroundScaleSearch.refresh()
+      }
     }).catch(() => undefined)
     void refreshPreferredScale()
 
@@ -612,13 +674,23 @@ export function useBrewingData() {
     const shotHistoryRequest = getShotHistory()
       .then((history) => ({ history, failed: false }))
       .catch(() => ({ history: null, failed: true }))
-    Promise.all([getWorkflow(), getProfiles(), getFavoriteAssignments().catch(() => null), latestShotRequest, shotHistoryRequest])
-      .then(async ([initialWorkflow, records, assignments, latestShot, historyResult]) => {
+    const machineSettingsRequest = getMachineSettings().catch(() => null)
+
+    Promise.all([getWorkflow(), machineSettingsRequest, getProfiles(), getFavoriteAssignments().catch(() => null), latestShotRequest, shotHistoryRequest])
+      .then(async ([initialWorkflow, machineSettings, records, assignments, latestShot, historyResult]) => {
         if (disposed) return
         profileRecords.current = records
         favoriteAssignments.current = assignments
-        // The workflow's rinseData is what Decaid uploads to the machine; booting the skin does not rewrite it.
-        const workflow = rememberFlushDuration(initialWorkflow)
+        let workflow = rememberFlushDuration(initialWorkflow)
+        const rinsePatch = machineSettings && rinseWorkflowPatchFromMachineSettings(workflow, machineSettings)
+        if (rinsePatch) {
+          try {
+            workflow = rememberFlushDuration(await updateWorkflow(rinsePatch))
+            if (disposed) return
+          } catch {
+            workflow = initialWorkflow
+          }
+        }
         const domainProfiles = profileRecordsToDomain(records, workflow, fixtureProfiles)
         const slots = resolveFavoriteProfileSlots(domainProfiles, assignments)
         const activeProfile = activeProfileForWorkflow(domainProfiles, records, workflow)
@@ -636,6 +708,9 @@ export function useBrewingData() {
         if (latestDomainShot?.id) shotHistoryCache.current.set(latestDomainShot.id, latestDomainShot)
         setShotHistory(reconciledHistory)
         setModel((current) => ({ ...withHotWaterReadback(applyWorkflow(current, workflow, records, assignments, retainedAdHocProfileId.current)), previousShot: latestDomainShot }))
+        hotWaterWorkflow = workflow
+        hotWaterWorkflowLoaded = true
+        reconcileHotWater()
         setPreviousShotStatus(latestShot.failed && historyResult.failed ? 'error' : reconciledHistory.length ? 'loaded' : 'empty')
         setConnection('connected')
       })
@@ -666,8 +741,10 @@ export function useBrewingData() {
 
     const shotSettings = subscribe<HotWaterShotSettings>('/machine/shotSettings', (frame) => {
       if (disposed) return
-      // Display what the machine reports; hot-water targets are only written on a user edit.
-      if (hotWaterSettings.observe(frame)) setModel(withHotWaterReadback)
+      if (hotWaterSettings.observe(frame)) {
+        setModel(withHotWaterReadback)
+        reconcileHotWater()
+      }
     }, (connected) => {
       if (!connected) hotWaterSettings.disconnect()
     })
@@ -690,7 +767,12 @@ export function useBrewingData() {
 
     const machine = subscribe<MachineSnapshot>('/machine/snapshot', (snapshot) => {
       if (machineConnectionRef.current !== 'connected') return
+      pendingStopRequest.current?.evidence.observe(snapshot, liveShotSession.current)
+      if (snapshot.timestamp && Number.isFinite(Date.parse(snapshot.timestamp)) && (!latestMachineTimestamp.current || Date.parse(snapshot.timestamp) > Date.parse(latestMachineTimestamp.current))) latestMachineTimestamp.current = snapshot.timestamp
       const machineState = (typeof snapshot.state === 'string' ? snapshot.state : snapshot.state?.state)?.toLowerCase()
+      const wasIdle = hotWaterMachineState === 'idle'
+      hotWaterMachineState = machineState
+      if (!wasIdle && machineState === 'idle') reconcileHotWater()
       machineNeedsWater.current = machineState === 'needswater'
       const operationKind = operationKindForSnapshot(snapshot)
       if (operationKind) {
@@ -810,6 +892,7 @@ export function useBrewingData() {
         setSleepScreenActive(false)
       }
       previousReadiness.current = readiness
+      backgroundScaleSearch.refresh()
       if (readiness !== 'heating') {
         timeToReadyEstimate = null
         setHeatingSeconds(null)
@@ -827,7 +910,11 @@ export function useBrewingData() {
         }),
       }))
     }, (connected) => {
+      snapshotConnected = connected
       if (!connected) {
+        pendingStopRequest.current?.evidence.disconnect()
+        latestMachineTimestamp.current = undefined
+        previousReadiness.current = null
         readinessTracker.current.reset()
         brewSkipTransition.current = null
         completeLiveShot(true)
@@ -836,6 +923,9 @@ export function useBrewingData() {
       } else if (machineConnectionRef.current === 'fixture') {
         updateMachineConnection('connecting')
       }
+      // A renewed telemetry connection must not retain a five-minute search delay.
+      if (connected) backgroundScaleSearch.reset()
+      else backgroundScaleSearch.refresh()
       setConnection((current) => connected ? 'connected' : current === 'fixture' ? current : 'disconnected')
     })
 
@@ -852,6 +942,7 @@ export function useBrewingData() {
       if (displayWeight !== undefined && liveWeight !== undefined) {
         scaleStreamConnected.current = true
         connectedScale.current = true
+        backgroundScaleSearch.refresh()
         if (utilityOperationSession.current?.kind === 'hotWater') utilityOperationSession.current.weightGrams = liveWeight
         scheduleScaleWeightRender(displayWeight, liveWeight)
       }
@@ -865,6 +956,7 @@ export function useBrewingData() {
       if (snapshot.status === 'connected') {
         scaleStreamConnected.current = true
         connectedScale.current = true
+        backgroundScaleSearch.refresh()
         setUtilityOperation((current) => current?.kind === 'hotWater' ? { ...current, scaleConnected: true } : current)
         refreshConnectedScale()
         return
@@ -873,6 +965,7 @@ export function useBrewingData() {
         finishPendingYield()
         scaleStreamConnected.current = false
         connectedScale.current = false
+        backgroundScaleSearch.refresh()
         latestScaleSnapshot.current = {}
         if (utilityOperationSession.current?.kind === 'hotWater') utilityOperationSession.current.weightGrams = undefined
         setUtilityOperation((current) => current?.kind === 'hotWater' ? { ...current, scaleConnected: false, weightGrams: undefined } : current)
@@ -932,6 +1025,10 @@ export function useBrewingData() {
 
     const refreshWorkflow = window.setInterval(() => {
       getWorkflow().then((workflow) => {
+        if (disposed) return
+        hotWaterWorkflow = workflow
+        hotWaterWorkflowLoaded = true
+        reconcileHotWater()
         if (disposed || liveShotSession.current || (workflow.profile?.beverage_type?.toLowerCase() === 'cleaning' && cleaningRestoreWorkflow.current)) return
         setModel((current) => withHotWaterReadback(applyWorkflow(current, rememberFlushDuration(workflow), profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current)))
       }).catch(() => undefined)
@@ -945,32 +1042,16 @@ export function useBrewingData() {
       void refreshPreferredScale()
     }, 30000)
 
-    let backgroundScaleSearchTimeout: number | null = null
-    let unsuccessfulBackgroundScaleScans = 0
-    const scheduleBackgroundScaleSearch = () => {
-      if (connectedScale.current) unsuccessfulBackgroundScaleScans = 0
-      backgroundScaleSearchTimeout = window.setTimeout(async () => {
-        backgroundScaleSearchTimeout = null
-        if (disposed) return
-        const machineBusy = Boolean(liveShotSession.current || utilityOperationSession.current)
-        if (shouldRunBackgroundScaleScan(preferredScaleId, connectedScale.current, previousReadiness.current, machineBusy)) {
-          try {
-            const devices = await runScaleScan()
-            if (devices.some((device) => device.type === 'scale' && device.state === 'connected')) connectedScale.current = true
-          } catch { /* the next scheduled scan can retry */ }
-          unsuccessfulBackgroundScaleScans = connectedScale.current ? 0 : unsuccessfulBackgroundScaleScans + 1
-        }
-        if (!disposed) scheduleBackgroundScaleSearch()
-      }, backgroundScaleScanDelayMs(unsuccessfulBackgroundScaleScans))
-    }
-    scheduleBackgroundScaleSearch()
+    backgroundScaleSearch.refresh()
 
     return () => {
       disposed = true
+      pendingStopRequest.current = null
+      backgroundScaleSearch.dispose()
+      document.removeEventListener('visibilitychange', resumeScaleSearch)
       window.clearInterval(refreshWorkflow)
       window.clearInterval(refreshDeviceConnections)
       window.clearInterval(refreshPreferredScaleSetting)
-      if (backgroundScaleSearchTimeout !== null) window.clearTimeout(backgroundScaleSearchTimeout)
       window.clearInterval(heatingCountdown)
       if (latestShotRefreshTimeout !== null) window.clearTimeout(latestShotRefreshTimeout)
       const pendingYieldTimeout = pendingYieldFinalization?.timeout
@@ -1191,17 +1272,23 @@ export function useBrewingData() {
     setBrewStopPending(true)
     showMachineActionError(null)
     const session = liveShotSession.current
+    const request = { session, evidence: createStopObservation(session, latestMachineTimestamp.current) }
+    pendingStopRequest.current = request
     const result = await requestMachineStop({
       sendIdle: () => setMachineState('idle'),
-      stillRunning: () => liveShotSession.current === session,
+      observation: () => pendingStopRequest.current === request ? request.evidence.status(liveShotSession.current) : 'superseded',
       wait: (ms) => new Promise((resolve) => window.setTimeout(resolve, ms)),
     })
-    if (result === 'confirmed' || liveShotSession.current !== session) return
+    if (pendingStopRequest.current !== request) return
+    pendingStopRequest.current = null
+    if (liveShotSession.current && liveShotSession.current !== session) return
     brewStopRequestInFlight.current = false
     setBrewStopPending(false)
-    showMachineActionError(result === 'failed'
-      ? 'The machine did not accept the stop command.'
-      : 'The machine has not confirmed the stop. Tap Stop again.')
+    if (result === 'confirmed') return
+    showMachineActionError(result === 'disconnected' || result === 'superseded'
+      ? 'Stop unconfirmed—connection or shot tracking lost. Check the machine.'
+      : result === 'failed' ? 'The stop request failed. Check the machine before retrying.'
+        : 'The machine has not confirmed the stop. Check the machine or tap Stop again.')
   }
 
   const skipBrewStage = async (): Promise<boolean> => {
