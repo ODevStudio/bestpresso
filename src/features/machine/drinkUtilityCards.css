@@ -57,7 +57,9 @@
 .app-shell .drink-card__current.metric__reading {display:grid;align-self:start;transform:translateX(14px);font-size:28px;font-weight:300;line-height:32px;letter-spacing:-.7px;color:var(--metric-value-color);pointer-events:none;transition:color .32s ease}
 .app-shell .drink-card__gauge.is-heating .drink-card__current {color:var(--drink-heating)}
 .drink-card__current-live,.drink-card__current-off {grid-area:1/1;transition:opacity .24s ease}
-.drink-card__current-off {opacity:0}
+/* Words need more clearance than the diagonal numeric pairing. Keep the
+   shared grid and live reading unchanged so toggling does not move the target. */
+.drink-card__current-off {opacity:0;transform:translateX(-14px)}
 .utility-card--steam-off .drink-card__current-live {opacity:0}
 .utility-card--steam-off .drink-card__current-off {opacity:1}
 .app-shell .utility-card--steam-off .drink-card__current {color:var(--metric-label-color)}

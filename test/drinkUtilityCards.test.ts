@@ -157,6 +157,13 @@ test('taller arc lifts the temperature block eight pixels without changing the s
   assert.match(css, /\.drink-card__temperature \{[^}]*transform:translate\(4px,12px\)/)
 })
 
+test('localized off words clear the slash without changing live numeric alignment', () => {
+  const css = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
+  assert.match(css, /\.drink-card__current-off \{opacity:0;transform:translateX\(-14px\)\}/)
+  assert.match(css, /\.drink-card__current\.metric__reading \{[^}]*transform:translateX\(14px\)/)
+  assert.match(css, /\.drink-card__current-live,\.drink-card__current-off \{grid-area:1\/1;transition:opacity/)
+})
+
 test('steam gauge emphasizes the current reading while keeping the target secondary', () => {
   const css = readFileSync(new URL('../src/features/machine/drinkUtilityCards.css', import.meta.url), 'utf8')
   assert.match(css, /\.drink-card__current\.metric__reading \{[^}]*font-size:28px;[^}]*line-height:32px/)
