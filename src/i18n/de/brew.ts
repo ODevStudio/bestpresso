@@ -2,6 +2,13 @@ import type { brewEn } from '../en/brew.ts'
 import type { Translation } from '../types.ts'
 
 export const brewDe = {
+  'brew.stage.reason.alternativesReached': '{conditions} erreicht',
+  'brew.stage.condition.timeLimit': 'Zeitlimit',
+  'brew.stage.condition.stageYield': 'Phasenmenge',
+  'brew.stage.condition.stageVolume': 'Phasenvolumen',
+  'brew.stage.condition.targetYield': 'Zielmenge',
+  'brew.stage.condition.targetVolume': 'Zielvolumen',
+  'brew.stage.condition.sensor': '{type} {symbol}{value} {unit}',
   // Shared metric labels not already covered by common.metric.*
   'brew.metric.pressure': 'Druck',
   'brew.metric.yield': 'Menge',
@@ -84,7 +91,6 @@ export const brewDe = {
   'brew.stage.reason.timeLimitReached': 'Zeitlimit erreicht',
   'brew.stage.reason.stageYieldReached': 'Phasenmenge erreicht',
   'brew.stage.reason.stageVolumeReached': 'Phasenvolumen erreicht',
-  'brew.stage.reason.reachedSuffix': 'erreicht',
   'brew.stage.reason.sensorExitReached': '{type} {symbol}{value} {unit} erreicht',
 
   // useBrewingData.ts

@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts'
 import { getDecaidEndpoints } from './config'
 import { parseJsonBody } from './jsonBody'
 import type { DecaidAdvancedMachineSettings, DecaidDevice, DecaidInfo, DecaidMachineSettings, DecaidProfile, DecaidProfileRecord, DecaidSettings, DecaidWorkflow, DecaidWorkflowPatch, DecentAccountStatus, DisplayState, FavoriteAssignments, MachineCapabilities, PaginatedShots, PresenceSettings, ScalePowerMode, ShotRecord, WakeSchedule } from './types'
@@ -34,7 +35,7 @@ async function getJson<T>(path: string, timeoutMs = 4500): Promise<T> {
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
   try {
     const response = await fetch(`${getDecaidEndpoints().apiBase}${path}`, { signal: controller.signal })
-    if (!response.ok) throw await responseError(response, `Decaid ${path} returned ${response.status}`)
+    if (!response.ok) throw await responseError(response, t('common.error.endpoint', { path, status: response.status }))
     return await response.json() as T
   } finally {
     window.clearTimeout(timeout)
@@ -69,7 +70,7 @@ export async function callPluginEndpoint<T>(pluginId: string, endpoint: string, 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!response.ok) throw await responseError(response, `${pluginId} ${endpoint} returned ${response.status}`)
+  if (!response.ok) throw await responseError(response, t('common.error.pluginEndpoint', { plugin: pluginId, endpoint, status: response.status }))
   return await response.json() as T
 }
 
@@ -79,7 +80,7 @@ export async function createProfile(profile: DecaidProfile, parentId?: string, m
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ profile, parentId: parentId ?? null, metadata: metadata ?? null }),
   })
-  if (!response.ok) throw await responseError(response, `Decaid profile creation returned ${response.status}`)
+  if (!response.ok) throw await responseError(response, t('common.error.profileCreation', { status: response.status }))
   return await response.json() as DecaidProfileRecord
 }
 
@@ -89,7 +90,7 @@ export async function updateProfile(profileId: string, profile: DecaidProfile, m
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ profile, metadata: metadata ?? null }),
   })
-  if (!response.ok) throw await responseError(response, `Decaid profile update returned ${response.status}`)
+  if (!response.ok) throw await responseError(response, t('common.error.profileUpdate', { status: response.status }))
   return await response.json() as DecaidProfileRecord
 }
 
@@ -98,9 +99,9 @@ export async function deleteProfile(profileId: string) {
   const timeout = window.setTimeout(() => controller.abort(), 10000)
   try {
     const response = await fetch(`${getDecaidEndpoints().apiBase}/profiles/${encodeURIComponent(profileId)}`, { method: 'DELETE', signal: controller.signal })
-    if (!response.ok) throw await responseError(response, `Decaid profile deletion returned ${response.status}`)
+    if (!response.ok) throw await responseError(response, t('common.error.profileDeletion', { status: response.status }))
     const result = await response.json() as { success?: boolean; id?: string }
-    if (result.success !== true || result.id !== profileId) throw new Error('Decaid did not confirm deletion of this profile.')
+    if (result.success !== true || result.id !== profileId) throw new Error(t('common.error.deleteUnconfirmed'))
   } finally { window.clearTimeout(timeout) }
 }
 
@@ -113,7 +114,7 @@ export async function connectDevice(deviceId: string) {
   if (response.ok) return
 
   const body = await response.json().catch(() => null) as { message?: string; type?: string } | null
-  throw new DecaidApiError(body?.message || `Decaid device connection returned ${response.status}`, response.status, body?.type)
+  throw new DecaidApiError(body?.message || t('common.error.deviceConnection', { status: response.status }), response.status, body?.type)
 }
 
 export async function tareScale() {
@@ -121,7 +122,7 @@ export async function tareScale() {
   if (response.ok) return
 
   const body = await response.json().catch(() => null) as { message?: string; type?: string } | null
-  throw new DecaidApiError(body?.message || `Decaid scale tare returned ${response.status}`, response.status, body?.type)
+  throw new DecaidApiError(body?.message || t('common.error.scaleTare', { status: response.status }), response.status, body?.type)
 }
 
 export async function setDisplayBrightness(brightness: number) {
@@ -130,7 +131,7 @@ export async function setDisplayBrightness(brightness: number) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ brightness }),
   })
-  if (!response.ok) throw new Error(`Decaid display brightness returned ${response.status}`)
+  if (!response.ok) throw new Error(t('common.error.brightness', { status: response.status }))
   return await response.json() as DisplayState
 }
 
@@ -140,7 +141,7 @@ export async function setScalePowerMode(scalePowerMode: ScalePowerMode) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ scalePowerMode }),
   })
-  if (!response.ok) throw new Error(`Decaid scale power mode returned ${response.status}`)
+  if (!response.ok) throw new Error(t('common.error.scalePower', { status: response.status }))
 }
 
 async function postJson<T>(path: string, body: unknown, method = 'POST'): Promise<T | undefined> {
@@ -149,7 +150,7 @@ async function postJson<T>(path: string, body: unknown, method = 'POST'): Promis
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!response.ok) throw await responseError(response, `Decaid ${path} returned ${response.status}`)
+  if (!response.ok) throw await responseError(response, t('common.error.endpoint', { path, status: response.status }))
   if (!(response.headers.get('content-type') || '').includes('application/json')) return undefined
   return parseJsonBody<T>(await response.text())
 }
@@ -167,7 +168,7 @@ export const updatePresenceSettings = (patch: Partial<PresenceSettings>) => post
 
 export async function setDisplayWakeLock(enabled: boolean) {
   const response = await fetch(`${getDecaidEndpoints().apiBase}/display/wakelock`, { method: enabled ? 'POST' : 'DELETE' })
-  if (!response.ok) throw await responseError(response, `Decaid wake lock returned ${response.status}`)
+  if (!response.ok) throw await responseError(response, t('common.error.wakeLock', { status: response.status }))
   return await response.json() as DisplayState
 }
 
@@ -181,7 +182,7 @@ export async function forgetDevice(deviceId: string) {
 
 export async function enablePlugin(pluginId: string, enabled: boolean) {
   const response = await fetch(`${getDecaidEndpoints().apiBase}/plugins/${encodeURIComponent(pluginId)}/${enabled ? 'enable' : 'disable'}`, { method: 'POST' })
-  if (!response.ok) throw await responseError(response, `Decaid plugin update returned ${response.status}`)
+  if (!response.ok) throw await responseError(response, t('common.error.pluginUpdate', { status: response.status }))
 }
 
 export const createWakeSchedule = (schedule: WakeSchedule) => postJson<WakeSchedule>('/presence/schedules', schedule)
@@ -189,7 +190,7 @@ export const updateWakeSchedule = (id: string, schedule: Partial<WakeSchedule>) 
 
 export async function deleteWakeSchedule(id: string) {
   const response = await fetch(`${getDecaidEndpoints().apiBase}/presence/schedules/${encodeURIComponent(id)}`, { method: 'DELETE' })
-  if (!response.ok) throw await responseError(response, `Decaid wake schedule delete returned ${response.status}`)
+  if (!response.ok) throw await responseError(response, t('common.error.scheduleDelete', { status: response.status }))
 }
 
 export async function importDecaidBackup(file: File, overwrite = false) {
@@ -198,7 +199,7 @@ export async function importDecaidBackup(file: File, overwrite = false) {
     headers: { 'Content-Type': 'application/zip' },
     body: file,
   })
-  if (!response.ok && response.status !== 207) throw await responseError(response, `Decaid backup import returned ${response.status}`)
+  if (!response.ok && response.status !== 207) throw await responseError(response, t('common.error.backupImport', { status: response.status }))
   return await response.json() as Record<string, unknown>
 }
 
@@ -208,7 +209,7 @@ export async function updateWorkflow(patch: DecaidWorkflowPatch) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
   })
-  if (!response.ok) throw new Error(`Decaid workflow update returned ${response.status}: ${await response.text()}`)
+  if (!response.ok) throw new Error(t('common.error.workflowUpdate', { status: response.status }) + ': ' + await response.text())
   return await response.json() as DecaidWorkflow
 }
 
@@ -218,7 +219,7 @@ export async function updateProfileMetadata(profileId: string, metadata: Record<
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ metadata }),
   })
-  if (!response.ok) throw new Error(`Decaid profile update returned ${response.status}: ${await response.text()}`)
+  if (!response.ok) throw new Error(t('common.error.profileUpdate', { status: response.status }) + ': ' + await response.text())
   return await response.json() as DecaidProfileRecord
 }
 
@@ -228,12 +229,12 @@ export async function setSharedSetting(key: string, value: unknown) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(value),
   })
-  if (!response.ok) throw new Error(`Decaid shared setting returned ${response.status}`)
+  if (!response.ok) throw new Error(t('common.error.sharedSetting', { status: response.status }))
 }
 
 export async function setMachineState(state: 'idle' | 'sleeping' | 'espresso' | 'cleaning' | 'skipStep' | 'descaling' | 'airPurge') {
   const response = await fetch(`${getDecaidEndpoints().apiBase}/machine/state/${state}`, { method: 'PUT' })
-  if (!response.ok) throw new Error(`Decaid machine state returned ${response.status}`)
+  if (!response.ok) throw new Error(t('common.error.machineState', { status: response.status }))
 }
 
 export async function setMachineProfile(profile: DecaidProfile) {
@@ -242,7 +243,7 @@ export async function setMachineProfile(profile: DecaidProfile) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(profile),
   })
-  if (!response.ok) throw new Error(`Decaid machine profile upload returned ${response.status}: ${await response.text()}`)
+  if (!response.ok) throw new Error(t('common.error.machineProfile', { status: response.status }) + ': ' + await response.text())
 }
 
 export async function getLatestShot() {

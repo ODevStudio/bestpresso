@@ -18,8 +18,8 @@ test('does not format an unusable dose or yield', () => {
   assert.equal(doseToYieldRatio('not-set', 40), undefined)
 })
 
-test('uses a German decimal comma and wording when the German catalog is active', () => {
-  setActiveLanguage('de', ['de-DE'])
+test('uses a German decimal comma and wording when the German catalog is active', async () => {
+  await setActiveLanguage('de', ['de-DE'])
   try {
     assert.equal(doseToYieldRatio(20, 40), 'Verhältnis 1:2')
     assert.equal(doseToYieldRatio(18, 40), 'Verhältnis 1:2,2')

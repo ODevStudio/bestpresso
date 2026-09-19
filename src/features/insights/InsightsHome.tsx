@@ -4,7 +4,7 @@ import { formatDecimal, t } from '../../i18n/index.ts'
 import { latestChartMessage } from './latestChartRetry'
 import { historyStatus } from './historyStatus'
 import type { ShotInsights } from './useShotInsights'
-import { calendarParts, coversWindow, dateLabel, inWindow, reportingWindow, shiftDate, shotRecipeLabel, summarize, timeLabel, weekdayNarrow, weekdayShort } from './historyData'
+import { calendarParts, coversWindow, historyProfileName, dateLabel, inWindow, reportingWindow, shiftDate, shotRecipeLabel, summarize, timeLabel, weekdayNarrow, weekdayShort } from './historyData'
 
 export function InsightsHome({ data, onOpen, onLatest }: { data: ShotInsights; onOpen: () => void; onLatest: (id: string) => void }) {
   const cache = data.cache
@@ -12,7 +12,7 @@ export function InsightsHome({ data, onOpen, onLatest }: { data: ShotInsights; o
   const window = reportingWindow(7, timezone, data.now, false, true)
   const shots = cache?.records.filter(r => r.beverage === 'espresso' && inWindow(r, window)) ?? []
   const latest = cache?.records.find(r => r.beverage !== 'excluded')
-  const latestName = latest ? parseProfileTitle(latest.profile).name : t('insights.heading.history')
+  const latestName = latest ? parseProfileTitle(historyProfileName(latest)).name : t('insights.heading.history')
   const detail = latest && cache?.details[latest.id]
   const summary = summarize(shots)
   const complete = coversWindow(cache, window, data.now)

@@ -9,7 +9,8 @@ import { DOUBLE_TAP_CONFIRMATION_WINDOW_MS, registerDoubleTap } from './doubleTa
 import { canStartStageMouseDrag, latestStageScrollLeft, STAGE_MOUSE_DRAG_THRESHOLD_PX, stageMouseDragScrollLeft } from './stageStripScroll'
 import { pressureChainSlotCount } from './stageCardSizing'
 import { stageReasonKey, type StageReasonAnalysis } from './stageMoveOn'
-import { stageReasonLabels } from './stageReasonLabels'
+import { displayedStageName } from '../../i18n/dataLabels.ts'
+import { stageReasonParts } from './stageReasonLabels'
 
 interface StageSummary {
   key: string
@@ -80,7 +81,7 @@ function pressureMovementReadings(pressures: number[]) {
 function summarizeLiveBrewStages(points: LiveShotPoint[], elapsedMs: number): StageSummary[] {
   const groups: Array<{ key: string; name: string; points: LiveShotPoint[] }> = []
   for (const point of points) {
-    const name = point.stageName?.trim() || t('brew.stage.extractionFallback')
+    const name = displayedStageName(point)
     const key = point.stageIndex === undefined ? `name:${name}` : `frame:${point.stageIndex}`
     const current = groups.at(-1)
     if (!current || current.key !== key) groups.push({ key, name, points: [point] })
@@ -297,10 +298,7 @@ export function LiveBrewStages({ points, elapsedMs, reasons, active = false, sho
         {index === stages.length - 1 && !active
           ? <svg className="live-brew-stage__stop-icon" viewBox="0 0 24 24" role="img" aria-label={t('brew.liveStages.shotEndedAriaLabel')}><rect x="5" y="5" width="14" height="14" rx="1" fill="currentColor" /></svg>
           : <img className="live-brew-stage__advance-icon" src={skipNext} alt={t('brew.liveStages.moveOnAlt')} />}
-        {stageReasonLabels(reason?.label).map((label, reasonIndex) => <Fragment key={reasonIndex}>
-          {reasonIndex > 0 && <span> {t('brew.liveStages.reasonSeparator')} </span>}
-          <span className="live-brew-stage__reason">{label}</span>
-        </Fragment>)}
+        {stageReasonParts(reason).map((part, reasonIndex) => <span key={reasonIndex} className={part.type === 'reason' ? 'live-brew-stage__reason' : undefined}>{part.text}</span>)}
       </p>}
       </header>
       <dl>

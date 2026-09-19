@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { formatDecimal, t } from '../../i18n/index.ts'
+import { displayedShotName } from '../../i18n/dataLabels.ts'
 import { analyseStageMoveOn } from './stageMoveOn'
 import { liveShotFlowRate, liveShotYield, type BrewingScreenModel, type LiveBrewState } from '../../domain/brewing'
 import type { BrewStageSelection } from './LiveBrewStages'
@@ -34,7 +35,7 @@ export function LiveBrewingScreen({ model, liveBrew, stopPending, skipPending, a
   const profile = model.profiles.find((candidate) => candidate.id === model.activeProfileId) ?? model.profiles[0]
   if (!profile && !liveBrew.profileName) return null
 
-  const profileName = liveBrew.profileName ?? profile?.name ?? t('brew.liveScreen.espressoFallbackName')
+  const profileName = liveBrew.profileName ? displayedShotName({ profileName: liveBrew.profileName, profileNameFallback: liveBrew.profileNameFallback }) : profile?.name ?? t('brew.liveScreen.espressoFallbackName')
   const isCleaning = liveBrew.kind === 'cleaning'
   const profileTargetYield = Number(profile?.targetYield)
   const targetYield = liveBrew.targetYield ?? (Number.isFinite(profileTargetYield) ? profileTargetYield : undefined)

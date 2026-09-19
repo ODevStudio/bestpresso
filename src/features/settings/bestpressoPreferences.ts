@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { TemperatureUnit } from '../../domain/temperature'
-import { resolveLanguage, setActiveLanguage, type LanguagePreference } from '../../i18n/index.ts'
+import { isLanguage, resolveLanguage, setActiveLanguage, type LanguagePreference } from '../../i18n/index.ts'
 import type { ClockFormat } from '../sleep/deviceTime'
 
 export type ChartLineWeight = 'fine' | 'standard' | 'bold'
@@ -57,7 +57,7 @@ export function normalizeBestpressoPreferences(value: unknown): BestpressoPrefer
     chartLineWeight,
     temperatureUnit,
     clockFormat: candidate.clockFormat === '12h' || candidate.clockFormat === '24h' ? candidate.clockFormat : 'device',
-    language: candidate.language === 'en' || candidate.language === 'de' ? candidate.language : 'auto',
+    language: isLanguage(candidate.language) ? candidate.language : 'auto',
   }
 }
 

@@ -1,61 +1,55 @@
-import { formatDecimal, t } from '../../i18n/index.ts'
+import { activeLocaleTag, formatDecimal, t } from '../../i18n/index.ts'
+import type { StageMoveOnReason } from './stageMoveOn.ts'
+import { conditionsFromLegacy, type StageCondition } from './stageReasonData.ts'
 
-type FixedReasonKey =
-  | 'brew.stage.reason.targetYieldReached'
-  | 'brew.stage.reason.targetVolumeReached'
-  | 'brew.stage.reason.manualStop'
-  | 'brew.stage.reason.manualAdvance'
-  | 'brew.stage.reason.machineError'
-  | 'brew.stage.reason.connectionLost'
-  | 'brew.stage.reason.unknown'
-  | 'brew.stage.reason.timeLimitReached'
-  | 'brew.stage.reason.stageYieldReached'
-  | 'brew.stage.reason.stageVolumeReached'
+const keys = {
+  targetYield: 'brew.stage.reason.targetYieldReached', targetVolume: 'brew.stage.reason.targetVolumeReached',
+  manualStop: 'brew.stage.reason.manualStop', manualAdvance: 'brew.stage.reason.manualAdvance',
+  machineError: 'brew.stage.reason.machineError', connectionLost: 'brew.stage.reason.connectionLost',
+  unknown: 'brew.stage.reason.unknown', timeLimit: 'brew.stage.reason.timeLimitReached',
+  stageYield: 'brew.stage.reason.stageYieldReached', stageVolume: 'brew.stage.reason.stageVolumeReached',
+} as const
+const compactKeys = {
+  targetYield: 'brew.stage.condition.targetYield', targetVolume: 'brew.stage.condition.targetVolume',
+  timeLimit: 'brew.stage.condition.timeLimit', stageYield: 'brew.stage.condition.stageYield', stageVolume: 'brew.stage.condition.stageVolume',
+} as const
+const isReached = (condition: StageCondition) => condition.code === 'sensor' || condition.code in compactKeys
 
-/** stageMoveOn.ts always generates these reasons in English (persisted evidence).
- * This is the only place that translates them, at display time. */
-const fixedReasonKeys: Record<string, FixedReasonKey> = {
-  'Target yield reached': 'brew.stage.reason.targetYieldReached',
-  'Target volume reached': 'brew.stage.reason.targetVolumeReached',
-  'Manually stopped': 'brew.stage.reason.manualStop',
-  'Manually advanced': 'brew.stage.reason.manualAdvance',
-  'Machine error': 'brew.stage.reason.machineError',
-  'Connection lost': 'brew.stage.reason.connectionLost',
-  Unknown: 'brew.stage.reason.unknown',
-  'Time limit reached': 'brew.stage.reason.timeLimitReached',
-  'Stage yield reached': 'brew.stage.reason.stageYieldReached',
-  'Stage volume reached': 'brew.stage.reason.stageVolumeReached',
+const conditionText = (condition: StageCondition, compact = false): string => {
+  if (condition.code === 'legacy') return condition.text
+  if (condition.code === 'sensor') return t(compact ? 'brew.stage.condition.sensor' : 'brew.stage.reason.sensorExitReached', {
+    type: t(condition.sensor === 'pressure' ? 'brew.metric.pressure' : 'common.metric.flow'),
+    symbol: condition.comparison === 'over' ? '>' : '<',
+    value: formatDecimal(condition.threshold, String(condition.threshold).split('.')[1]?.length ?? 0),
+    unit: condition.sensor === 'pressure' ? 'bar' : 'ml/s',
+  })
+  if (compact && condition.code in compactKeys) return t(compactKeys[condition.code as keyof typeof compactKeys])
+  return t(keys[condition.code])
 }
 
-const SENSOR_EXIT = /^(Pressure|Flow) (>|<)([\d.]+) (bar|ml\/s) reached$/
-
-const translateReason = (reason: string): string => {
-  const sensorExit = SENSOR_EXIT.exec(reason)
-  if (sensorExit) {
-    const [, type, symbol, rawValue, unit] = sensorExit
-    const digits = rawValue.includes('.') ? rawValue.split('.')[1].length : 0
-    return t('brew.stage.reason.sensorExitReached', {
-      type: t(type === 'Pressure' ? 'brew.metric.pressure' : 'common.metric.flow'),
-      symbol,
-      value: formatDecimal(Number(rawValue), digits),
-      unit,
-    })
+export interface StageReasonPart { type: 'reason' | 'separator'; text: string }
+/** Whole phrase templates own word order. No translated suffix stripping or English matching. */
+export function stageReasonParts(reason?: string | StageMoveOnReason): StageReasonPart[] {
+  const conditions = typeof reason === 'object' && reason.conditions?.length ? reason.conditions
+    : conditionsFromLegacy(typeof reason === 'string' ? reason : reason?.label)
+  if (conditions.length === 1) return [{ type: 'reason', text: conditionText(conditions[0]) }]
+  const sharedReached = conditions.every(isReached)
+  const texts = conditions.map(condition => conditionText(condition, sharedReached))
+  let parts: StageReasonPart[]
+  try {
+    parts = new Intl.ListFormat(activeLocaleTag(), { style: 'long', type: 'disjunction' }).formatToParts(texts)
+      .map(part => ({ type: part.type === 'element' ? 'reason' : 'separator', text: part.value }))
+  } catch {
+    parts = texts.flatMap((text, i): StageReasonPart[] => [...(i ? [{ type: 'separator' as const, text: ' ' + t('brew.liveStages.reasonSeparator') + ' ' }] : []), { type: 'reason', text }])
   }
-  const key = fixedReasonKeys[reason]
-  return key ? t(key) : reason
+  if (!sharedReached) return parts
+  // The unique insertion marker allows the translated verb before OR after the complete list.
+  const marker = '\uFFFC'
+  const [before, after] = t('brew.stage.reason.alternativesReached', { conditions: marker }).split(marker)
+  if (before) parts[0] = { ...parts[0], text: before + parts[0].text }
+  if (after) parts[parts.length - 1] = { ...parts.at(-1)!, text: parts.at(-1)!.text + after }
+  return parts
 }
 
-/** Keep cached evidence unchanged (English); translate only the displayed wording.
- * `label` may join several alternative reasons with " or "; consecutive reasons
- * that both end in the "reached" wording drop it from all but the last one.
- * Unrecognised text (a future stageMoveOn addition) is shown exactly as cached,
- * in English. */
-export function stageReasonLabels(label = 'Unknown'): string[] {
-  const translated = label.split(' or ').map(translateReason)
-  const reachedSuffix = t('brew.stage.reason.reachedSuffix')
-  return translated.map((reason, index) =>
-    reason.endsWith(reachedSuffix) && translated[index + 1]?.endsWith(reachedSuffix)
-      ? reason.slice(0, -(reachedSuffix.length + 1))
-      : reason,
-  )
-}
+/** Compatibility helper for review fixtures/tests; UI uses parts to retain localized separators. */
+export const stageReasonLabels = (reason?: string | StageMoveOnReason) => stageReasonParts(reason).filter(part => part.type === 'reason').map(part => part.text)

@@ -55,6 +55,7 @@ const localLiveBrewFixture = import.meta.env.DEV && new URLSearchParams(window.l
   : undefined
 
 interface LiveShotSession {
+  profileNameFallback?: PreviousShot['profileNameFallback']
   shotId?: string
   profileSteps?: DecaidProfileStep[]
   stageEvidence: StageAdvanceEvidence[]
@@ -71,6 +72,7 @@ interface LiveShotSession {
 }
 
 interface DemoBrewSession extends DemoBrewDefinition {
+  profileNameFallback?: PreviousShot['profileNameFallback']
   startedAt: number
   interval: number | null
 }
@@ -272,14 +274,14 @@ export function useBrewingData() {
     const finalWeight = points.at(-1)?.weight
     const completedShot: PreviousShot = {
       id: `demo-${session.startedAt}`,
-      profileName: session.profileName,
+      profileName: session.profileName, profileNameFallback: session.profileNameFallback,
       timestamp: new Date(session.startedAt).toISOString(),
       totalYield: (finalWeight ?? 0).toFixed(1),
       totalTime: String(Math.max(1, Math.round(finalElapsedMs / 1000))),
       targetYield: session.targetYield,
       points,
     }
-    setLiveBrew({ active: false, visible: true, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, targetYield: session.targetYield, scaleWeight: finalWeight, elapsedMs: finalElapsedMs, points })
+    setLiveBrew({ active: false, visible: true, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, profileNameFallback: session.profileNameFallback, targetYield: session.targetYield, scaleWeight: finalWeight, elapsedMs: finalElapsedMs, points })
     setModel((current) => ({ ...current, previousShot: completedShot }))
     setShotHistory((current) => [completedShot, ...current.filter((shot) => shot.id !== completedShot.id)])
     setPreviousShotStatus('fixture')
@@ -298,7 +300,7 @@ export function useBrewingData() {
       if (demoBrewSession.current !== session) return
       const elapsedMs = Math.min(session.durationMs, Date.now() - session.startedAt)
       const points = demoBrewPointsAtElapsed(session.points, elapsedMs)
-      setLiveBrew({ active: true, visible: true, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, targetYield: session.targetYield, scaleWeight: points.at(-1)?.weight, elapsedMs, points })
+      setLiveBrew({ active: true, visible: true, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, profileNameFallback: session.profileNameFallback, targetYield: session.targetYield, scaleWeight: points.at(-1)?.weight, elapsedMs, points })
       if (elapsedMs >= session.durationMs) finishDemoBrew(session, elapsedMs, true)
     }
     render()
@@ -509,7 +511,7 @@ export function useBrewingData() {
               stageReasons: undefined,
               profileSteps: persistedShot.profileSteps ?? session.profileSteps,
               telemetryStartedAt: persistedShot.points?.length ? persistedShot.telemetryStartedAt : session.telemetryStartedAt,
-              profileName: session.profileName,
+              profileName: session.profileName, profileNameFallback: session.profileNameFallback,
               beverageType: session.beverageType ?? persistedShot.beverageType ?? session.kind,
               totalYield: reconciledShotYield(persistedShot.totalYield, settledYieldBySession.get(session.startedAt)),
               points: reconciledShotPoints(persistedShot.points, session.points),
@@ -557,7 +559,7 @@ export function useBrewingData() {
       const elapsedMs = points.at(-1)?.elapsedMs ?? 0
       if (session.kind === 'cleaning') {
         if (shouldPlayCompletionCue({ kind: session.kind, interrupted, elapsedMs, hasExtraction: false })) void playCompletionSound()
-        setLiveBrew({ active: false, visible: false, startedAt: session.startedAt, kind: 'cleaning', profileName: session.profileName, elapsedMs, points })
+        setLiveBrew({ active: false, visible: false, startedAt: session.startedAt, kind: 'cleaning', profileName: session.profileName, profileNameFallback: session.profileNameFallback, elapsedMs, points })
         pendingCleaningSequence.current = null
         setCleaningPreparedProfileId(null)
         const restorePatch = cleaningRestoreWorkflow.current
@@ -575,7 +577,7 @@ export function useBrewingData() {
         return
       }
       if (points.length === 0) {
-        setLiveBrew({ active: false, visible: false, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, targetYield: session.targetYield, elapsedMs: 0, points })
+        setLiveBrew({ active: false, visible: false, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, profileNameFallback: session.profileNameFallback, targetYield: session.targetYield, elapsedMs: 0, points })
         return
       }
       const finalWeight = liveShotYield(connectedScale.current ? latestScaleSnapshot.current.weight : undefined, points)
@@ -583,7 +585,7 @@ export function useBrewingData() {
         points = points.map((point, index) => index === points.length - 1 ? { ...point, weight: finalWeight } : point)
       }
       session.points = points
-      setLiveBrew({ active: false, visible: true, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, targetYield: session.targetYield, scaleWeight: finalWeight, elapsedMs, points, profileSteps: session.profileSteps, stageEvidence: [...session.stageEvidence], telemetryStartedAt: session.telemetryStartedAt, stopReason: session.stopReason })
+      setLiveBrew({ active: false, visible: true, startedAt: session.startedAt, kind: 'espresso', profileName: session.profileName, profileNameFallback: session.profileNameFallback, targetYield: session.targetYield, scaleWeight: finalWeight, elapsedMs, points, profileSteps: session.profileSteps, stageEvidence: [...session.stageEvidence], telemetryStartedAt: session.telemetryStartedAt, stopReason: session.stopReason })
 
       const hasExtraction = points.some((point) => (point.pressure ?? 0) > 0.5 || (point.flow ?? 0) > 0.1)
       if (!isSuccessfulEspressoCompletion(elapsedMs, hasExtraction)) return
@@ -594,7 +596,7 @@ export function useBrewingData() {
         telemetryStartedAt: session.telemetryStartedAt,
         stopReason: session.stopReason,
         id: `live:${session.startedAt}`,
-        profileName: session.profileName,
+        profileName: session.profileName, profileNameFallback: session.profileNameFallback,
         timestamp: new Date(session.startedAt).toISOString(),
         totalYield: finalWeight === undefined ? '—' : finalWeight.toFixed(1),
         totalTime: String(Math.max(1, Math.round(elapsedMs / 1000))),
@@ -814,7 +816,8 @@ export function useBrewingData() {
             kind: isCleaning ? 'cleaning' : 'espresso',
             beverageType: isCleaning ? 'cleaning' : profile?.beverageType,
             startedAt: now,
-            profileName: isCleaning ? cleaningSequence?.profileName ?? t('brew.stage.cleaningFallbackName') : profile?.name ?? t('brew.liveScreen.espressoFallbackName'),
+            profileName: isCleaning ? cleaningSequence?.profileName ?? 'Cleaning' : profile?.name ?? 'Espresso',
+            profileNameFallback: isCleaning ? (cleaningSequence?.profileName ? undefined : 'cleaning') : (profile?.name ? undefined : 'espresso'),
             targetYield: profile && Number.isFinite(Number(profile.targetYield)) ? Number(profile.targetYield) : undefined,
             stepNames: isCleaning ? cleaningSequence?.stepNames : profile?.stepNames,
             points: [],
@@ -851,7 +854,7 @@ export function useBrewingData() {
           })
           if (appended) session.lastSampleReceivedAt = Date.now()
         }
-        setLiveBrew({ active: true, visible: true, startedAt: session.startedAt, kind: session.kind, profileName: session.profileName, targetYield: session.targetYield, scaleWeight: session.kind === 'espresso' ? normalizedLiveScaleWeight(latestScaleSnapshot.current.weight) : undefined, elapsedMs, points: [...session.points], profileSteps: session.profileSteps, stageEvidence: [...session.stageEvidence], telemetryStartedAt: session.telemetryStartedAt, stopReason: session.stopReason })
+        setLiveBrew({ active: true, visible: true, startedAt: session.startedAt, kind: session.kind, profileName: session.profileName, profileNameFallback: session.profileNameFallback, targetYield: session.targetYield, scaleWeight: session.kind === 'espresso' ? normalizedLiveScaleWeight(latestScaleSnapshot.current.weight) : undefined, elapsedMs, points: [...session.points], profileSteps: session.profileSteps, stageEvidence: [...session.stageEvidence], telemetryStartedAt: session.telemetryStartedAt, stopReason: session.stopReason })
       } else if (liveShotSession.current) {
         completeLiveShot()
       }
@@ -953,7 +956,7 @@ export function useBrewingData() {
           alert: tankState === 'needsWater',
           warning: tankState === 'warning',
           levelPercent,
-          metrics: utility.metrics.map((metric) => ({ ...metric, value: volume.toLocaleString('en-US') })),
+          metrics: utility.metrics.map((metric) => ({ ...metric, value: String(volume) })),
         } : utility),
       }))
     }, () => undefined)

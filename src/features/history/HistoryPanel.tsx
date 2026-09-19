@@ -1,4 +1,5 @@
 import type { PreviousShot, PreviousShotStatus } from '../../domain/brewing'
+import { displayedShotName } from '../../i18n/dataLabels.ts'
 import { MiniShotChart } from './MiniShotChart'
 import { formatDeviceTime, type ClockFormat } from '../sleep/deviceTime'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
@@ -26,6 +27,6 @@ export function HistoryPanel({ shot, status, onOpen }: { shot: PreviousShot | nu
   const { preferences } = useBestpressoPreferences()
   const isCleaning = shot?.beverageType?.toLowerCase() === 'cleaning'
   return <section className="history-section">{shot
-    ? <button className="history-card" type="button" onClick={onOpen} aria-label={t('insights.historyPanel.openAriaLabel', { profile: shot.profileName })}><div className="history-card__summary metric-scale--medium"><h3>{shot.profileName}</h3><time dateTime={shot.timestamp}>{shotTimestamp(shot.timestamp, preferences.clockFormat)}</time><div>{!isCleaning && <span><small>{t('insights.historyPanel.totalYield')}</small>{localizeDecimalText(shot.totalYield)}{shot.totalYield !== '—' && <i>g</i>}</span>}<span><small>{t('insights.historyPanel.totalTime')}</small>{localizeDecimalText(shot.totalTime)}{shot.totalTime !== '—' && <i>s</i>}</span></div></div><MiniShotChart shot={shot} /></button>
+    ? <button className="history-card" type="button" onClick={onOpen} aria-label={t('insights.historyPanel.openAriaLabel', { profile: displayedShotName(shot) })}><div className="history-card__summary metric-scale--medium"><h3>{displayedShotName(shot)}</h3><time dateTime={shot.timestamp}>{shotTimestamp(shot.timestamp, preferences.clockFormat)}</time><div>{!isCleaning && <span><small>{t('insights.historyPanel.totalYield')}</small>{localizeDecimalText(shot.totalYield)}{shot.totalYield !== '—' && <i>g</i>}</span>}<span><small>{t('insights.historyPanel.totalTime')}</small>{localizeDecimalText(shot.totalTime)}{shot.totalTime !== '—' && <i>s</i>}</span></div></div><MiniShotChart shot={shot} /></button>
     : <article className="history-card history-card--empty" aria-live="polite"><p>{emptyMessage(status === 'loaded' || status === 'fixture' ? 'empty' : status)}</p></article>}</section>
 }

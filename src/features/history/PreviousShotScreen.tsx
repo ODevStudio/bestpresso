@@ -1,3 +1,4 @@
+import { displayedShotName } from '../../i18n/dataLabels.ts'
 import { useState } from 'react'
 import { reconcileStageReasons } from '../brew/stageMoveOn'
 import { clockOptions, type ClockFormat } from '../sleep/deviceTime'
@@ -107,7 +108,7 @@ export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, o
       <header><h1>{t('insights.previousShot.title')}</h1><span>{shots.length}</span></header>
       <div className="history-browser-list" role="listbox" aria-label={t('insights.previousShot.title')}>
         {shots.map((shot, index) => <button className={`history-browser-item${shot.id === activeId ? ' history-browser-item--selected' : ''}`} type="button" role="option" aria-selected={shot.id === activeId} aria-busy={loadingId === shot.id} key={shot.id ?? `${shot.timestamp}:${index}`} onClick={() => void selectShot(shot)}>
-          <strong>{shot.profileName}</strong>
+          <strong>{displayedShotName(shot)}</strong>
           <time dateTime={shot.timestamp}>{pullTime(shot.timestamp, preferences.clockFormat)}</time>
         </button>)}
         {!shots.length && <p className="history-browser-empty">{status === 'loading' ? t('insights.previousShot.findingPulls') : t('insights.previousShot.noCupsYet')}</p>}
@@ -117,7 +118,7 @@ export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, o
     <section className="history-browser-detail" aria-live="polite">
       <header className="live-pull-header">
         <div className="history-pull-title">
-          <h1>{activeShot?.profileName ?? t('insights.previousShot.fallbackTitle')}</h1>
+          <h1>{activeShot ? displayedShotName(activeShot) : t('insights.previousShot.fallbackTitle')}</h1>
           {activeShot && <time dateTime={activeShot.timestamp}>{pullTime(activeShot.timestamp, preferences.clockFormat)}</time>}
         </div>
         <div className="live-pull-header__controls">
@@ -131,7 +132,7 @@ export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, o
         </div>
       </header>
 
-      <section className={`live-pull-chart-panel history-pull-chart${loadingId ? ' history-pull-chart--loading' : ''}`} aria-label={activeShot ? t('insights.previousShot.chartAriaLabelWeight', { profile: activeShot.profileName }) : t('insights.previousShot.chartAriaLabelGeneric')}>
+      <section className={`live-pull-chart-panel history-pull-chart${loadingId ? ' history-pull-chart--loading' : ''}`} aria-label={activeShot ? t('insights.previousShot.chartAriaLabelWeight', { profile: displayedShotName(activeShot) }) : t('insights.previousShot.chartAriaLabelGeneric')}>
         {activeShot && <AnimatedHistoryShotChart view={chartView} targetYield={targetYield} />}
         {loadError && <p className="history-pull-error">{t('insights.previousShot.loadError')}</p>}
       </section>

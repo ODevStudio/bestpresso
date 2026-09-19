@@ -168,7 +168,7 @@ export function BrewingPanel({ profiles, activeProfileId, settingsDisabled, demo
   }
 
   return <section className="brew-panel">
-    <div className={`profile-carousel${dragProgress !== 0 ? ' profile-carousel--dragging' : ''}`} aria-label={t('brew.panel.carouselAriaLabel')} aria-roledescription="carousel" tabIndex={0} onKeyDown={handleKeyDown} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancelPointerGesture} onContextMenu={demoMode ? (event) => event.preventDefault() : undefined}>
+    <div className={`profile-carousel${dragProgress !== 0 ? ' profile-carousel--dragging' : ''}`} aria-label={t('brew.panel.carouselAriaLabel')} aria-roledescription={t('common.accessibility.carousel')} tabIndex={0} onKeyDown={handleKeyDown} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={cancelPointerGesture} onContextMenu={demoMode ? (event) => event.preventDefault() : undefined}>
       {profiles.map((profile, index) => {
         const offset = wrappedProfileOffset(index, activeIndex - dragProgress, profiles.length)
         const position = profileCardPosition(offset)

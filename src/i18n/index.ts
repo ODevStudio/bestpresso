@@ -1,14 +1,31 @@
-import { useEffect, useState } from 'react'
-import { de } from './de/index.ts'
+import { useSyncExternalStore } from 'react'
 import { en, type EnglishCatalog } from './en/index.ts'
 import type { PluralMessage, Translation } from './types.ts'
+import { languageRegistry, matchLanguage, type Language, type LanguagePreference } from './registry.ts'
+export { isLanguage, LANGUAGES, languageName, languageRegistry, type Language, type LanguagePreference } from './registry.ts'
 
-export type Language = 'en' | 'de'
-export type LanguagePreference = 'auto' | Language
-export const LANGUAGES: readonly Language[] = ['en', 'de']
+const catalogs: Partial<Record<Language, Translation<EnglishCatalog>>> = { en }
+const loading = new Map<Language, Promise<void>>()
+let revision = 0
+const listeners = new Set<() => void>()
+const notify = () => {
+  revision++
+  listeners.forEach(listener => listener())
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(languageEvent, { detail: active }))
+}
 
-const catalogs: Record<Language, Translation<EnglishCatalog>> = { en, de }
-const defaultRegion: Record<Language, string> = { en: 'en-US', de: 'de-DE' }
+/** Failure leaves English available and permits a later retry; concurrent requests share one load. */
+export function loadLanguage(language: Language): Promise<void> {
+  if (catalogs[language]) return Promise.resolve()
+  const pending = loading.get(language)
+  if (pending) return pending
+  const promise = languageRegistry[language].load().then(catalog => {
+    catalogs[language] = catalog
+    if (active === language) notify()
+  }).catch(() => { /* Offline/unavailable translation: keep English fallback. */ }).finally(() => loading.delete(language))
+  loading.set(language, promise)
+  return promise
+}
 const languageEvent = 'bestpresso:language-changed'
 
 type Catalog = EnglishCatalog
@@ -17,40 +34,42 @@ export type PluralKey = { [Key in keyof Catalog]: Catalog[Key] extends PluralMes
 
 type PlaceholderNames<Text> = Text extends `${string}{${infer Name}}${infer Rest}` ? Name | PlaceholderNames<Rest> : never
 type Params<Text> = [PlaceholderNames<Text>] extends [never] ? [] : [params: Record<PlaceholderNames<Text>, string | number>]
-type PluralParams<Entry> = Entry extends PluralMessage ? Exclude<PlaceholderNames<Entry['one']> | PlaceholderNames<Entry['other']>, 'count'> : never
+type PluralParams<Entry> = Entry extends PluralMessage ? Exclude<PlaceholderNames<Entry[keyof Entry]>, 'count'> : never
 
 let active: Language = 'en'
-let activeLocale = defaultRegion.en
+let activeLocale = languageRegistry.en.locale
 
 const browserLanguages = (): readonly string[] => {
   if (typeof navigator === 'undefined') return []
   return navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : []
 }
 
-const isLanguage = (value: string): value is Language => (LANGUAGES as readonly string[]).includes(value)
-
 /** `auto` follows the first device language Bestpresso supports; anything else falls back to English. */
 export function resolveLanguage(preference: LanguagePreference = 'auto', languages: readonly string[] = browserLanguages()): Language {
   if (preference !== 'auto') return preference
   for (const tag of languages) {
-    const base = tag.toLowerCase().split('-')[0]
-    if (isLanguage(base)) return base
+    const language = matchLanguage(tag, languageRegistry)
+    if (language) return language
   }
   return 'en'
 }
 
 /** Keeps the device region when it matches the language (de-CH, en-GB), so numbers and dates follow it. */
 export function localeFor(language: Language, languages: readonly string[] = browserLanguages()) {
-  return languages.find(tag => tag.toLowerCase().split('-')[0] === language && tag.includes('-')) ?? defaultRegion[language]
+  return languages.find(tag => matchLanguage(tag, languageRegistry) === language && tag.includes('-')) ?? languageRegistry[language].locale
 }
 
 export function setActiveLanguage(language: Language, languages: readonly string[] = browserLanguages()) {
-  const changed = language !== active
+  const locale = localeFor(language, languages)
+  const changed = language !== active || locale !== activeLocale
   active = language
-  activeLocale = localeFor(language, languages)
-  decimalSeparatorCache = undefined
-  if (typeof document !== 'undefined') document.documentElement.lang = language
-  if (changed && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(languageEvent, { detail: language }))
+  activeLocale = locale
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = language
+    document.documentElement.dir = languageRegistry[language].direction
+  }
+  if (changed) notify()
+  return loadLanguage(language)
 }
 
 export const activeLanguage = () => active
@@ -74,43 +93,40 @@ export function pseudoLocalize(text: string) {
 }
 
 const interpolate = (template: string, params?: Record<string, string | number>) => params
-  ? template.replace(/\{(\w+)\}/g, (match, name: string) => name in params ? String(params[name]) : match)
+  ? template.replace(/\{(\w+)\}/g, (match, name: string) => name in params ? (typeof params[name] === 'number' ? formatNumber(params[name], { useGrouping: false, maximumFractionDigits: 20 }) : String(params[name])) : match)
   : template
 
 const finish = (text: string) => pseudoEnabled() ? pseudoLocalize(text) : text
 
 /** Translate a message into the active language. Placeholders are typed from the English source text. */
 export function t<Key extends MessageKey>(key: Key, ...[params]: Params<Catalog[Key]>): string {
-  const message = catalogs[active][key] ?? en[key]
+  const message = catalogs[active]?.[key] || en[key]
   return finish(interpolate(message as string, params as Record<string, string | number> | undefined))
 }
 
-/** Translate a one/other message; `{count}` receives the formatted number. */
-export function plural<Key extends PluralKey>(key: Key, count: number, ...[params]: [PluralParams<Catalog[Key]>] extends [never] ? [] : [params: Record<PluralParams<Catalog[Key]>, string | number>]): string {
-  const entry = (catalogs[active][key] ?? en[key]) as PluralMessage
-  let category = count === 1 ? 'one' : 'other'
+export function pluralTemplate(entry: PluralMessage, count: number, locale: string): string {
   try {
-    category = new Intl.PluralRules(activeLocale).select(count) === 'one' ? 'one' : 'other'
+    return entry[new Intl.PluralRules(locale).select(count)] || entry.other
   } catch {
-    // Older WebViews without PluralRules keep the English/German one-vs-other rule above.
+    return (count === 1 ? entry.one : undefined) || entry.other
   }
-  const template = category === 'one' ? entry.one : entry.other
+}
+
+/** Missing entries use English grammar as well as English text. */
+export function plural<Key extends PluralKey>(key: Key, count: number, ...[params]: [PluralParams<Catalog[Key]>] extends [never] ? [] : [params: Record<PluralParams<Catalog[Key]>, string | number>]): string {
+  const translated = catalogs[active]?.[key]
+  const entry = (translated ?? en[key]) as PluralMessage
+  const template = pluralTemplate(entry, count, translated ? activeLocale : 'en')
   return finish(interpolate(template, { ...(params as Record<string, string | number> | undefined), count: formatNumber(count) }))
 }
 
-let decimalSeparatorCache: string | undefined
-
 /** Decimal separator of the active locale: "," for de-DE, "." for en and de-CH. */
 export function decimalSeparator() {
-  if (decimalSeparatorCache !== undefined) return decimalSeparatorCache
-  let separator = '.'
   try {
-    separator = new Intl.NumberFormat(activeLocale).formatToParts(1.5).find(part => part.type === 'decimal')?.value ?? '.'
+    return new Intl.NumberFormat(activeLocale).formatToParts(1.5).find(part => part.type === 'decimal')?.value ?? '.'
   } catch {
-    separator = active === 'de' ? ',' : '.'
+    return '.'
   }
-  decimalSeparatorCache = separator
-  return separator
 }
 
 /**
@@ -118,33 +134,52 @@ export function decimalSeparator() {
  * locale's decimal separator. Keep plain `toFixed` for values sent to Decaid or used as keys.
  */
 export function formatDecimal(value: number, digits = 0) {
-  const fixed = value.toFixed(digits)
-  const separator = decimalSeparator()
-  return separator === '.' ? fixed : fixed.replace('.', separator)
+  // Preserve existing toFixed rounding, then let Intl handle digits and punctuation.
+  return formatNumber(Number(value.toFixed(digits)), { useGrouping: false, minimumFractionDigits: digits, maximumFractionDigits: digits })
 }
 
 /**
  * Display-only: model values such as grind `14.5` or flow `0.6` are kept as dot-decimal strings because they
  * are parsed again; show them with the locale's separator without touching the stored value.
  */
-export function localizeDecimalText(text: string) {
-  const separator = decimalSeparator()
-  return separator === '.' ? text : text.replace(/(\d)\.(\d)/g, `$1${separator}$2`)
+export function localizeDecimalText(text: string): string {
+  // Only canonical numeric model strings (or a numeric ratio), never arbitrary prose/IDs.
+  if (/^-?\d+(?:\.\d+)?$/.test(text)) return formatDecimal(Number(text), text.split('.')[1]?.length ?? 0)
+  if (/^\d+:\d+(?:\.\d+)?$/.test(text)) return text.split(':').map(localizeDecimalText).join(':')
+  return text
 }
 
 /** Localised number with grouping (`1,234` / `1.234`), replacing `toLocaleString()` in displayed text. */
+const numberFormatters = new Map<string, Intl.NumberFormat>()
 export function formatNumber(value: number, options?: Intl.NumberFormatOptions) {
   try {
-    return new Intl.NumberFormat(activeLocale, options).format(value)
+    const key = activeLocale + JSON.stringify(options ?? {})
+    let formatter = numberFormatters.get(key)
+    if (!formatter) {
+      formatter = new Intl.NumberFormat(activeLocale, options)
+      if (numberFormatters.size >= 100) numberFormatters.clear()
+      numberFormatters.set(key, formatter)
+    }
+    return formatter.format(value)
   } catch {
     return String(value)
   }
 }
 
 /** Parses user-typed numbers that may use the locale's decimal comma. */
-export function parseLocalizedNumber(text: string) {
-  const separator = decimalSeparator()
-  return Number(separator === '.' ? text : text.replace(separator, '.'))
+export function parseLocalizedNumber(text: string, locale = activeLocale) {
+  // Editable measurements never use grouping. Reject ambiguous pasted grouped numbers.
+  const formatter = new Intl.NumberFormat(locale, { useGrouping: false })
+  const decimal = formatter.formatToParts(1.5).find(part => part.type === 'decimal')?.value ?? '.'
+  let normalized = text.trim().replace(/[\u061c\u200e\u200f]/g, '')
+  for (let digit = 0; digit <= 9; digit++) normalized = normalized.split(formatter.format(digit)).join(String(digit))
+  const minus = formatter.formatToParts(-1).find(part => part.type === 'minusSign')?.value ?? '-'
+  normalized = normalized.split(minus).join('-').split(decimal).join('.')
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) return Number.NaN
+  // A foreign dot in a comma-decimal locale could be a thousands separator.
+  if (decimal !== '.' && text.includes('.')) return Number.NaN
+  const value = Number(normalized)
+  return Number.isFinite(value) ? value : Number.NaN
 }
 
 /** Localised date/time formatter for the active language (month and weekday names follow it). */
@@ -154,13 +189,8 @@ export function dateFormatter(options: Intl.DateTimeFormatOptions) {
 
 /** Re-renders a component when the language changes; components that are not memoised follow the app shell. */
 export function useLanguage() {
-  const [language, setLanguage] = useState(active)
-  useEffect(() => {
-    const onChange = () => setLanguage(active)
-    window.addEventListener(languageEvent, onChange)
-    return () => window.removeEventListener(languageEvent, onChange)
-  }, [])
-  return language
+  useSyncExternalStore(listener => { listeners.add(listener); return () => { listeners.delete(listener) } }, () => revision, () => revision)
+  return active
 }
 
-export const hasMessage = (key: string): key is MessageKey => key in en
+export const hasMessage = (key: string): key is MessageKey => Object.prototype.hasOwnProperty.call(en, key) && typeof en[key as keyof typeof en] === 'string'

@@ -87,6 +87,7 @@ export interface BrewProfile {
 }
 
 export interface PreviousShot {
+  profileNameFallback?: 'previousPull' | 'espresso' | 'cleaning'
   profileSteps?: DecaidProfileStep[]
   telemetryStartedAt?: number
   stageEvidence?: StageAdvanceEvidence[]
@@ -116,6 +117,7 @@ export interface SettingFeedback {
 }
 
 export interface LiveShotPoint {
+  stageNameFallback?: 'stageNumber' | 'preinfusion' | 'cooling' | 'extraction'
   elapsedMs: number
   pressure?: number
   flow?: number
@@ -129,6 +131,7 @@ export interface LiveShotPoint {
 }
 
 export interface LiveBrewState {
+  profileNameFallback?: PreviousShot['profileNameFallback']
   profileSteps?: DecaidProfileStep[]
   telemetryStartedAt?: number
   stageEvidence?: StageAdvanceEvidence[]

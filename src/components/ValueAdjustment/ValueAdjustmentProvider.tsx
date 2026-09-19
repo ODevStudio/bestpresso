@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react'
 import logo from '../../assets/figma/decent-logo.png'
 import { MAX_VALUE_SUGGESTIONS } from '../../domain/valueAdjustments'
-import { decimalSeparator, formatNumber, t } from '../../i18n/index.ts'
+import { decimalSeparator, formatNumber, localizeDecimalText, t } from '../../i18n/index.ts'
 import { NumericKeypad } from './NumericKeypad'
 import { ValueAdjustmentContext } from './ValueAdjustmentContext'
 import type { ValueAdjustmentMode, ValueAdjustmentRequest } from './ValueAdjustmentContext'
@@ -16,7 +16,7 @@ type SuggestionStore = Partial<Record<ValueAdjustmentRequest['suggestionKey'], n
 // active locale's decimal separator without touching the parseable value underneath.
 const formatValue = (value: number, mode: ValueAdjustmentMode) => mode === 'decimal' ? value.toFixed(1) : String(Math.round(value))
 const formatSuggestion = (value: number, mode: ValueAdjustmentMode) => mode === 'decimal' && !Number.isInteger(value) ? value.toFixed(1) : String(value)
-const displayNumber = (text: string) => decimalSeparator() === '.' ? text : text.replace('.', decimalSeparator())
+const displayNumber = (text: string) => text.endsWith('.') ? localizeDecimalText(text.slice(0, -1) || '0') + decimalSeparator() : localizeDecimalText(text)
 const displayValue = (value: number, mode: ValueAdjustmentMode) => displayNumber(formatValue(value, mode))
 const displaySuggestion = (value: number, mode: ValueAdjustmentMode) => displayNumber(formatSuggestion(value, mode))
 

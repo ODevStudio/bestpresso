@@ -1,3 +1,4 @@
+import { displayedStageName } from '../../i18n/dataLabels.ts'
 import { useEffect, useId, useRef, useState } from 'react'
 import { formatDecimal, t } from '../../i18n/index.ts'
 import type { LiveShotPoint } from '../../domain/brewing'
@@ -41,7 +42,7 @@ const INSPECTION_MOVE_TOLERANCE_PX = 12
 const stageMarkersForPoints = (points: LiveShotPoint[], elapsedMs: number): ChartStageMarker[] => {
   const stages: ChartStageMarker[] = []
   for (const point of points) {
-    const name = point.stageName?.trim() || t('brew.stage.extractionFallback')
+    const name = displayedStageName(point)
     const identity = point.stageIndex === undefined ? `name:${name}` : `frame:${point.stageIndex}`
     const current = stages[stages.length - 1]
     if (current?.key.startsWith(`${identity}:`)) continue

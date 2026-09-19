@@ -1,5 +1,6 @@
 import type { DecaidProfileStep } from '../../api/decaid/types.ts'
 import type { LiveShotPoint, PreviousShot } from '../../domain/brewing.ts'
+import { conditionsFromLegacy, legacyConditionLabel, type StageCondition } from './stageReasonData.ts'
 
 export const STAGE_REASON_VERSION = 3
 export interface StageAdvanceEvidence {
@@ -8,6 +9,7 @@ export interface StageAdvanceEvidence {
   reason: 'manual' | 'weight'
 }
 export interface StageMoveOnReason {
+  conditions?: StageCondition[]
   label: string
   source: 'recorded' | 'telemetry' | 'unknown'
   kind: 'advance' | 'stop'
@@ -49,10 +51,10 @@ function sensorExitReached(group: LiveShotPoint[], next: LiveShotPoint | undefin
     return trend > 0 && distance <= Math.min(0.5, Math.max(0.1, projectedChange + 1 / 16))
   })
 }
-const stopLabels: Record<string, string> = {
-  targetWeight: 'Target yield reached', targetVolume: 'Target volume reached',
-  apiStop: 'Manually stopped', appStop: 'Manually stopped',
-  error: 'Machine error', disconnected: 'Connection lost',
+const stopConditions: Record<string, StageCondition> = {
+  targetWeight: { code: 'targetYield' }, targetVolume: { code: 'targetVolume' },
+  apiStop: { code: 'manualStop' }, appStop: { code: 'manualStop' },
+  error: { code: 'machineError' }, disconnected: { code: 'connectionLost' },
 }
 
 /** Analyse observed boundaries, never fabricate unobserved stages.
@@ -74,14 +76,17 @@ export function analyseStageMoveOn(points: LiveShotPoint[], steps: DecaidProfile
     const first = group[0], last = group.at(-1)!, next = groups[index + 1]?.[0]
     if (!next && options.active) return
     const kind = next ? 'advance' : 'stop'
-    const put = (label: string, source: StageMoveOnReason['source']) => { reasons[stageReasonKey(first)] = { label, source, kind } }
+    const put = (conditions: StageCondition[], source: StageMoveOnReason['source']) => {
+      if (!conditions.length) conditions = [{ code: 'unknown' }]
+      reasons[stageReasonKey(first)] = { conditions, label: conditions.map(legacyConditionLabel).join(' or '), source, kind }
+    }
     if (!next) {
-      const label = options.stopReason && stopLabels[options.stopReason]
-      if (label) { put(label, 'recorded'); return }
+      const condition = options.stopReason && stopConditions[options.stopReason]
+      if (condition) { put([condition], 'recorded'); return }
       // Only the last configured stage can naturally finish the profile. Never
       // reinterpret an early interruption or an unfamiliar explicit stop code.
       if (first.stageIndex !== steps.length - 1 || (options.stopReason && options.stopReason !== 'machineEnded')) {
-        put('Unknown', 'unknown'); return
+        put([{ code: 'unknown' }], 'unknown'); return
       }
     }
     // An issued request only explains an observed, adjacent advance of its own
@@ -92,17 +97,17 @@ export function analyseStageMoveOn(points: LiveShotPoint[], steps: DecaidProfile
         && e.timestamp >= options.telemetryStartedAt! + first.elapsedMs
         && e.timestamp <= boundary && boundary - e.timestamp <= 2000)
     if (explicit.length) {
-      const labels = [...new Set(explicit.map(e => e.reason === 'manual' ? 'Manually advanced' : 'Stage yield reached'))]
-      put(labels.join(' or '), 'recorded')
+      const codes = [...new Set(explicit.map(e => e.reason === 'manual' ? 'manualAdvance' as const : 'stageYield' as const))]
+      put(codes.map(code => ({ code })), 'recorded')
       return
     }
     const step = first.stageIndex === undefined ? undefined : steps[first.stageIndex]
     const boundaryCovered = !next || closeSamples(last, next)
     const forward = !next || (next.stageIndex !== undefined && next.stageIndex > first.stageIndex!)
-    if (!step || !boundaryCovered || !forward) { put('Unknown', 'unknown'); return }
+    if (!step || !boundaryCovered || !forward) { put([{ code: 'unknown' }], 'unknown'); return }
     const adjacent = next?.stageIndex === first.stageIndex! + 1
     const contiguous = group.every((p, i) => i === 0 || closeSamples(group[i - 1], p))
-    const candidates: string[] = []
+    const candidates: StageCondition[] = []
     const previous = groups[index - 1]?.at(-1)
     const knownStart = index > 0 ? previous?.stageIndex === first.stageIndex! - 1 && closeSamples(previous, first)
       : first.stageIndex === 0 && first.elapsedMs === 0
@@ -115,33 +120,38 @@ export function analyseStageMoveOn(points: LiveShotPoint[], steps: DecaidProfile
     const endUpper = adjacent ? next!.elapsedMs : last.elapsedMs + sampleInterval
     const maximumTime = endUpper - (knownStart ? previous?.elapsedMs ?? first.elapsedMs : first.elapsedMs)
     const seconds = numeric(step.seconds)
-    if (knownStart && positive(seconds) && [seconds, firmwareSeconds(seconds)].some(value => value * 1000 >= minimumTime - 100 && value * 1000 <= maximumTime + 100)) candidates.push('Time limit reached')
+    if (knownStart && positive(seconds) && [seconds, firmwareSeconds(seconds)].some(value => value * 1000 >= minimumTime - 100 && value * 1000 <= maximumTime + 100)) candidates.push({ code: 'timeLimit' })
     const exit = step.exit
     const exitValue = numeric(exit?.value)
     if (exit && positive(exitValue) && (exit.type === 'pressure' || exit.type === 'flow') && (exit.condition === 'over' || exit.condition === 'under')) {
       if (sensorExitReached(group, adjacent ? next : undefined, exit.type, exit.condition, exitValue)) {
         // Show the saved recipe threshold, not the sampled reading or a possible
         // firmware-rounded value. Symbols match the profile's over/under choice.
-        candidates.push(`${exit.type === 'pressure' ? 'Pressure' : 'Flow'} ${exit.condition === 'over' ? '>' : '<'}${exitValue} ${exit.type === 'pressure' ? 'bar' : 'ml/s'} reached`)
+        candidates.push({ code: 'sensor', sensor: exit.type, comparison: exit.condition, threshold: exitValue })
       }
     }
     // Historical projected-weight decisions aren't recoverable. Actual weight
     // crossing is only an inferred candidate, never an explicit override.
     const weight = numeric(step.weight), stageVolume = numeric(step.volume)
-    if (positive(weight) && finite(last.weight) && last.weight >= weight) candidates.push('Stage yield reached')
+    if (positive(weight) && finite(last.weight) && last.weight >= weight) candidates.push({ code: 'stageYield' })
     if (knownStart && contiguous && positive(stageVolume) && group.length > 1 && group.every(p => finite(p.flow))) {
       let volume = 0
       for (let i = 1; i < group.length; i++) volume += Math.max(0, (group[i - 1].flow! + group[i].flow!) / 2) * (group[i].elapsedMs - group[i - 1].elapsedMs) / 1000
       const uncertainty = Math.max(0, first.flow!, last.flow!) * ((first.elapsedMs - (previous?.elapsedMs ?? first.elapsedMs)) + endUpper - last.elapsedMs) / 1000
-      if ([stageVolume, Math.floor(stageVolume)].some(v => v > 0 && v >= volume && v <= volume + uncertainty)) candidates.push('Stage volume reached')
+      if ([stageVolume, Math.floor(stageVolume)].some(v => v > 0 && v >= volume && v <= volume + uncertainty)) candidates.push({ code: 'stageVolume' })
     }
-    put(candidates.join(' or ') || 'Unknown', candidates.length ? 'telemetry' : 'unknown')
+    put(candidates, candidates.length ? 'telemetry' : 'unknown')
   })
   return { version: STAGE_REASON_VERSION, reasons }
 }
 
 export function reconcileStageReasons(detail: PreviousShot, signature?: string): PreviousShot {
-  if (detail.stageReasons?.version === STAGE_REASON_VERSION || !detail.points?.length) return detail
+  if (detail.stageReasons?.version === STAGE_REASON_VERSION || !detail.points?.length) {
+    const analysis = detail.stageReasons
+    if (!analysis || Object.values(analysis.reasons).every(reason => reason.conditions)) return detail
+    // No re-inference: preserve the old decision, source, boundaries and text.
+    return { ...detail, stageReasons: { ...analysis, reasons: Object.fromEntries(Object.entries(analysis.reasons).map(([key, reason]) => [key, reason.conditions ? reason : { ...reason, conditions: conditionsFromLegacy(reason.label) }])) } }
+  }
   // Old cached details didn't retain the recipe, but their revision signature
   // contains the shot-time workflow. Never substitute today's selected recipe.
   let saved: { workflow?: { profile?: { steps?: DecaidProfileStep[] } }; stopReason?: string } = {}

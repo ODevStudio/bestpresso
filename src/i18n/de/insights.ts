@@ -2,13 +2,14 @@ import type { insightsEn } from '../en/insights.ts'
 import type { Translation } from '../types.ts'
 
 export const insightsDe = {
+  'insights.profile.unknown': 'Unbekanntes Profil',
   // Shared across insights + history contexts
   'insights.common.close': 'Schließen',
   'insights.common.retry': 'Erneut versuchen',
   'insights.common.duration': 'Dauer',
   'insights.common.yield': 'Menge',
   'insights.common.savedInDecaid': 'In Decaid gespeichert',
-  'insights.common.brewsPct': '{count} Bezüge · {pct}%',
+  'insights.common.brewsPct': { one: '{count} Bezug · {pct}%', other: '{count} Bezüge · {pct}%' },
 
   // Shot detail overlay
   'insights.detail.loadError': 'Dieses Diagramm ist auf diesem Gerät nicht gespeichert oder nicht mehr verfügbar. Mit Decaid verbinden und erneut versuchen.',

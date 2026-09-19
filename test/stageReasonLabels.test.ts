@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
-import { setActiveLanguage } from '../src/i18n/index.ts'
+import test, { before } from 'node:test'
+import { loadLanguage, setActiveLanguage } from '../src/i18n/index.ts'
 import { stageReasonLabels } from '../src/features/brew/stageReasonLabels.ts'
+
+before(() => loadLanguage('de'))
 
 test('retains reached for a single condition and shares it across alternatives', () => {
   assert.deepEqual(stageReasonLabels('Pressure >7 bar reached'), ['Pressure >7 bar reached'])

@@ -1,5 +1,12 @@
 /** Live brewing screen, charts, stage strip and the useBrewingData status/error wording. */
 export const brewEn = {
+  'brew.stage.reason.alternativesReached': '{conditions} reached',
+  'brew.stage.condition.timeLimit': 'Time limit',
+  'brew.stage.condition.stageYield': 'Stage yield',
+  'brew.stage.condition.stageVolume': 'Stage volume',
+  'brew.stage.condition.targetYield': 'Target yield',
+  'brew.stage.condition.targetVolume': 'Target volume',
+  'brew.stage.condition.sensor': '{type} {symbol}{value} {unit}',
   // Shared metric labels not already covered by common.metric.*
   'brew.metric.pressure': 'Pressure',
   'brew.metric.yield': 'Yield',
@@ -82,7 +89,6 @@ export const brewEn = {
   'brew.stage.reason.timeLimitReached': 'Time limit reached',
   'brew.stage.reason.stageYieldReached': 'Stage yield reached',
   'brew.stage.reason.stageVolumeReached': 'Stage volume reached',
-  'brew.stage.reason.reachedSuffix': 'reached',
   'brew.stage.reason.sensorExitReached': '{type} {symbol}{value} {unit} reached',
 
   // useBrewingData.ts

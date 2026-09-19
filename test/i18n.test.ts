@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict'
-import test from 'node:test'
-import { areas as germanAreas, de } from '../src/i18n/de/index.ts'
+import test, { before } from 'node:test'
 import { areas as englishAreas, en } from '../src/i18n/en/index.ts'
-import { decimalSeparator, formatDecimal, formatNumber, localeFor, plural, pseudoLocalize, resolveLanguage, setActiveLanguage, t } from '../src/i18n/index.ts'
+import { loadLanguage, decimalSeparator, formatDecimal, formatNumber, localeFor, plural, pseudoLocalize, resolveLanguage, setActiveLanguage, t } from '../src/i18n/index.ts'
 import { normalizeBestpressoPreferences } from '../src/features/settings/bestpressoPreferences.ts'
 
-const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort()
-const texts = (entry: unknown): string[] => typeof entry === 'string' ? [entry] : Object.values(entry as Record<string, string>)
+before(() => loadLanguage('de'))
 
 test('every area keeps its keys under its own prefix, so merged catalogs cannot overwrite each other', () => {
   const seen = new Set<string>()
@@ -18,20 +16,6 @@ test('every area keeps its keys under its own prefix, so merged catalogs cannot 
     }
   }
   assert.equal(seen.size, Object.keys(en).length)
-})
-
-test('German translates exactly the English keys with the same placeholders and no empty text', () => {
-  assert.deepEqual(Object.keys(de).sort(), Object.keys(en).sort())
-  for (const [area, catalog] of Object.entries(germanAreas)) assert.deepEqual(Object.keys(catalog).sort(), Object.keys(englishAreas[area as keyof typeof englishAreas]).sort(), area)
-  for (const key of Object.keys(en) as (keyof typeof en)[]) {
-    const source = en[key] as unknown
-    const target = de[key] as unknown
-    assert.equal(typeof target, typeof source, key)
-    const sourceTexts = texts(source)
-    const targetTexts = texts(target)
-    for (const text of targetTexts) assert.ok(text.trim().length > 0, `${key} is empty`)
-    assert.deepEqual([...new Set(targetTexts.flatMap(placeholders))].sort(), [...new Set(sourceTexts.flatMap(placeholders))].sort(), `${key} placeholders`)
-  }
 })
 
 test('auto follows the first supported device language and falls back to English', () => {

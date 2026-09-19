@@ -65,7 +65,7 @@ export function CleaningSequencePicker({ profiles, pending, preparedProfileId, o
         <div>
           <h2 id="cleaning-picker-title">{t('shell.cleaning.title')}</h2>
           {status === 'ready'
-            ? <p>{tapBefore}<span className="cleaning-picker__brew-guide"><img src={brewAction} alt="cup" /></span>{tapAfter}</p>
+            ? <p>{tapBefore}<span className="cleaning-picker__brew-guide"><img src={brewAction} alt={t('common.accessibility.cup')} /></span>{tapAfter}</p>
             : status === 'loading' ? <p role="status">{t('shell.cleaning.loading')}</p>
             : status === 'error' ? <p role="alert">{t('shell.cleaning.loadError')}</p>
             : <p>{t('shell.cleaning.selectProfile')}</p>}

@@ -5,7 +5,7 @@ import keypadBackspaceXA from '../../assets/figma/keypad-backspace-x-a.svg'
 import keypadBackspaceXB from '../../assets/figma/keypad-backspace-x-b.svg'
 import keypadChevronDown from '../../assets/figma/keypad-chevron-down.svg'
 import keypadChevronUp from '../../assets/figma/keypad-chevron-up.svg'
-import { decimalSeparator, t } from '../../i18n/index.ts'
+import { decimalSeparator, formatNumber, t } from '../../i18n/index.ts'
 
 type KeypadAction = 'delete' | 'dismiss' | 'decimal' | `${number}`
 
@@ -67,7 +67,7 @@ export function NumericKeypad({ disabled, label, onDelete, onDismiss, onKey }: N
     runAction(actionFromTarget(event.target))
   }
 
-  const key = (value: string): ReactNode => <button key={value} type="button" data-keypad-action={value}>{value}</button>
+  const key = (value: string): ReactNode => <button key={value} type="button" data-keypad-action={value}>{formatNumber(Number(value), { useGrouping: false })}</button>
 
   return <section ref={root} className="value-adjuster__keypad" aria-label={t('shell.adjust.keypadAria', { label })} onMouseDown={handleMouseDown} onClick={handleAccessibleClick}>
     <div className="value-adjuster__keypad-grid">

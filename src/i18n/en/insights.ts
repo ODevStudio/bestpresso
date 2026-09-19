@@ -1,12 +1,13 @@
 /** Brewing insights (Auswertung), shot history (Historie) and the previous-shot browser. */
 export const insightsEn = {
+  'insights.profile.unknown': 'Unknown profile',
   // Shared across insights + history contexts
   'insights.common.close': 'Close',
   'insights.common.retry': 'Retry',
   'insights.common.duration': 'Duration',
   'insights.common.yield': 'Yield',
   'insights.common.savedInDecaid': 'Saved in Decaid',
-  'insights.common.brewsPct': '{count} brews · {pct}%',
+  'insights.common.brewsPct': { one: '{count} brew · {pct}%', other: '{count} brews · {pct}%' },
 
   // Shot detail overlay
   'insights.detail.loadError': 'This graph isn’t saved on this device yet, or is no longer available. Connect to Decaid and retry.',
