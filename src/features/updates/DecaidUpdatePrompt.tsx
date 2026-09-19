@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { subscribeWithCommands, type CommandSocketSubscription } from '../../api/decaid/socket'
+import { t } from '../../i18n/index.ts'
 import { isUpdateState, shouldPresentUpdate, updateProgressPercent, type DecaidUpdateCommand, type DecaidUpdateMessage, type DecaidUpdateState } from './decaidUpdate'
 
 const dismissalKey = 'bestpresso.decaid-update-dismissed'
@@ -30,7 +31,7 @@ export function DecaidUpdatePrompt({ defer = false }: DecaidUpdatePromptProps) {
         }
         setState(message)
         if (message.phase === 'downloading' || message.phase === 'installing') installRequested.current = true
-        if (message.phase === 'error' && installRequested.current) setActionError(message.error || 'The update could not be started.')
+        if (message.phase === 'error' && installRequested.current) setActionError(message.error || t('shell.updates.installFailed'))
       },
       () => {},
       (send) => { send({ command: 'check' }) },
@@ -44,7 +45,7 @@ export function DecaidUpdatePrompt({ defer = false }: DecaidUpdatePromptProps) {
   const busy = state?.phase === 'downloading' || state?.phase === 'installing'
   if ((defer && !busy) || (!shouldPresentUpdate(state, dismissed) && !actionError)) return null
 
-  const version = state?.latestVersion || 'a newer version'
+  const version = state?.latestVersion || t('shell.updates.newerVersionFallback')
   const progress = updateProgressPercent(state?.progress)
 
   const dismiss = () => {
@@ -63,7 +64,7 @@ export function DecaidUpdatePrompt({ defer = false }: DecaidUpdatePromptProps) {
       return
     }
     if (!channel.current?.send({ command: 'install' })) {
-      setActionError('Bestpresso lost its connection to Decaid. Try again in a moment.')
+      setActionError(t('shell.updates.connectionLost'))
     }
   }
 
@@ -71,17 +72,17 @@ export function DecaidUpdatePrompt({ defer = false }: DecaidUpdatePromptProps) {
     <section className="decaid-update" role="dialog" aria-modal="true" aria-labelledby="decaid-update-title" aria-describedby="decaid-update-description" aria-busy={busy}>
       <div className="decaid-update__mark" aria-hidden="true">↑</div>
       <div className="decaid-update__copy">
-        <h2 id="decaid-update-title">Decaid update available</h2>
-        <p id="decaid-update-description">Version {version} is ready with the latest improvements and fixes.</p>
-        {state?.currentVersion && <small>Installed version {state.currentVersion}</small>}
+        <h2 id="decaid-update-title">{t('shell.updates.title')}</h2>
+        <p id="decaid-update-description">{t('shell.updates.description', { version })}</p>
+        {state?.currentVersion && <small>{t('shell.updates.installedVersion', { version: state.currentVersion })}</small>}
         {actionError && <p className="decaid-update__error" role="alert">{actionError}</p>}
-        {state?.phase === 'downloading' && <div className="decaid-update__progress" aria-label={`Downloading update, ${progress}% complete`}><span style={{ width: `${progress}%` }} /></div>}
-        {state?.phase === 'downloading' && <small>Downloading… {progress}%</small>}
-        {state?.phase === 'installing' && <small>Opening the installer…</small>}
+        {state?.phase === 'downloading' && <div className="decaid-update__progress" aria-label={t('shell.updates.downloadingAria', { progress })}><span style={{ width: `${progress}%` }} /></div>}
+        {state?.phase === 'downloading' && <small>{t('shell.updates.downloading', { progress })}</small>}
+        {state?.phase === 'installing' && <small>{t('shell.updates.installing')}</small>}
       </div>
       <div className="decaid-update__actions">
-        <button className="decaid-update__later" type="button" disabled={busy} onClick={dismiss}>{actionError ? 'Close' : 'Later'}</button>
-        {!actionError && <button className="decaid-update__primary" type="button" disabled={busy} onClick={update}>{busy ? 'Updating…' : state?.installable ? 'Update Decaid' : 'View download'}</button>}
+        <button className="decaid-update__later" type="button" disabled={busy} onClick={dismiss}>{actionError ? t('shell.updates.close') : t('shell.updates.later')}</button>
+        {!actionError && <button className="decaid-update__primary" type="button" disabled={busy} onClick={update}>{busy ? t('shell.updates.updating') : state?.installable ? t('shell.updates.updateDecaid') : t('shell.updates.viewDownload')}</button>}
       </div>
     </section>
   </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '../../i18n/index.ts'
 import { browserFullscreenPromptVariant, isFullscreenElementActive, requestFullscreen, type FullscreenPromptVariant } from '../../lib/fullscreen'
 
 const dismissedKey = 'bestpresso.fullscreen-prompt-dismissed.v1'
@@ -54,17 +55,17 @@ export function FullscreenPrompt({ defer = false }: { defer?: boolean }) {
     <section className="fullscreen-prompt" role="dialog" aria-modal="true" aria-labelledby="fullscreen-prompt-title" aria-describedby="fullscreen-prompt-body">
       {variant === 'ios'
         ? <>
-          <h2 id="fullscreen-prompt-title">Add to Home Screen</h2>
-          <p id="fullscreen-prompt-body">Tap Share, then Add to Home Screen for the best fullscreen experience.</p>
-          <div className="fullscreen-prompt__actions"><button type="button" className="fullscreen-prompt__primary" onClick={dismiss}>Got it</button></div>
+          <h2 id="fullscreen-prompt-title">{t('shell.fullscreen.addToHomeScreenTitle')}</h2>
+          <p id="fullscreen-prompt-body">{t('shell.fullscreen.addToHomeScreenBody')}</p>
+          <div className="fullscreen-prompt__actions"><button type="button" className="fullscreen-prompt__primary" onClick={dismiss}>{t('shell.fullscreen.gotIt')}</button></div>
         </>
         : <>
-          <h2 id="fullscreen-prompt-title">Fullscreen recommended</h2>
-          <p id="fullscreen-prompt-body">Use fullscreen to give your controls more room.</p>
-          {error && <p className="fullscreen-prompt__error" role="alert">Fullscreen could not be opened. You can continue normally.</p>}
+          <h2 id="fullscreen-prompt-title">{t('shell.fullscreen.recommendedTitle')}</h2>
+          <p id="fullscreen-prompt-body">{t('shell.fullscreen.recommendedBody')}</p>
+          {error && <p className="fullscreen-prompt__error" role="alert">{t('shell.fullscreen.error')}</p>}
           <div className="fullscreen-prompt__actions">
-            <button type="button" className="fullscreen-prompt__primary" disabled={pending} onClick={() => void enterFullscreen()}>{pending ? 'Opening…' : 'Enter fullscreen'}</button>
-            <button type="button" className="fullscreen-prompt__secondary" disabled={pending} onClick={dismiss}>Later</button>
+            <button type="button" className="fullscreen-prompt__primary" disabled={pending} onClick={() => void enterFullscreen()}>{pending ? t('shell.fullscreen.opening') : t('shell.fullscreen.enter')}</button>
+            <button type="button" className="fullscreen-prompt__secondary" disabled={pending} onClick={dismiss}>{t('shell.fullscreen.later')}</button>
           </div>
         </>}
     </section>

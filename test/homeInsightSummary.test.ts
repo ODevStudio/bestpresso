@@ -27,7 +27,7 @@ test('new records, midnight, empty history and timezone boundaries refresh the r
   const today = calendarParts('2026-09-19T23:30:00Z', 'Asia/Singapore')!.date
   assert.equal(today, '2026-09-20')
   const next = homeInsightSummary(records, today)
-  assert.equal(next.daily.at(-1)?.name, 'Sun')
+  assert.equal(next.daily.at(-1)?.weekday, 6)
   assert.equal(next.daily.at(-1)?.date, today)
   assert.equal(next.daily[0].count, 0)
 })

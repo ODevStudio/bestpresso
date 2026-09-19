@@ -5,6 +5,7 @@ import keypadBackspaceXA from '../../assets/figma/keypad-backspace-x-a.svg'
 import keypadBackspaceXB from '../../assets/figma/keypad-backspace-x-b.svg'
 import keypadChevronDown from '../../assets/figma/keypad-chevron-down.svg'
 import keypadChevronUp from '../../assets/figma/keypad-chevron-up.svg'
+import { decimalSeparator, formatNumber, t } from '../../i18n/index.ts'
 
 type KeypadAction = 'delete' | 'dismiss' | 'decimal' | `${number}`
 
@@ -66,15 +67,15 @@ export function NumericKeypad({ disabled, label, onDelete, onDismiss, onKey }: N
     runAction(actionFromTarget(event.target))
   }
 
-  const key = (value: string): ReactNode => <button key={value} type="button" data-keypad-action={value}>{value}</button>
+  const key = (value: string): ReactNode => <button key={value} type="button" data-keypad-action={value}>{formatNumber(Number(value), { useGrouping: false })}</button>
 
-  return <section ref={root} className="value-adjuster__keypad" aria-label={`Enter ${label}`} onMouseDown={handleMouseDown} onClick={handleAccessibleClick}>
+  return <section ref={root} className="value-adjuster__keypad" aria-label={t('shell.adjust.keypadAria', { label })} onMouseDown={handleMouseDown} onClick={handleAccessibleClick}>
     <div className="value-adjuster__keypad-grid">
       {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(key)}
-      <button className="value-adjuster__keypad-delete" type="button" data-keypad-action="delete" aria-label="Delete last digit"><span><img src={keypadBackspace} alt="" /><img src={keypadBackspaceXA} alt="" /><img src={keypadBackspaceXB} alt="" /></span></button>
+      <button className="value-adjuster__keypad-delete" type="button" data-keypad-action="delete" aria-label={t('shell.adjust.deleteLastDigit')}><span><img src={keypadBackspace} alt="" /><img src={keypadBackspaceXA} alt="" /><img src={keypadBackspaceXB} alt="" /></span></button>
       {key('0')}
-      <button type="button" data-keypad-action="decimal" aria-label="Decimal point">.</button>
+      <button type="button" data-keypad-action="decimal" aria-label={t('shell.adjust.decimalPoint')}>{decimalSeparator()}</button>
     </div>
-    <button className="value-adjuster__keypad-dismiss" type="button" data-keypad-action="dismiss" aria-label="Dismiss number keypad" disabled={disabled}><img src={keypadChevronUp} alt="" /><img src={keypadChevronDown} alt="" /></button>
+    <button className="value-adjuster__keypad-dismiss" type="button" data-keypad-action="dismiss" aria-label={t('shell.adjust.dismissKeypad')} disabled={disabled}><img src={keypadChevronUp} alt="" /><img src={keypadChevronDown} alt="" /></button>
   </section>
 }

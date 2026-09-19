@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts'
 import type { DecaidWorkflow, DecaidWorkflowPatch } from '../../api/decaid/types'
 
 type Water = NonNullable<DecaidWorkflow['hotWaterData']>
@@ -63,7 +64,7 @@ export function createHotWaterSync(api: {
         for (const [field, key] of fields) {
           const value = patch.hotWaterData?.[field]
           if (value === undefined) continue
-          if (!valid(value)) throw new Error('Invalid hot water target.')
+          if (!valid(value)) throw new Error(t('common.error.waterTarget'))
           // Fail visibly rather than write hardware while other skins can
           // still read the old shared target.
           await api.store(key, value)

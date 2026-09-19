@@ -16,6 +16,7 @@ import { useShotInsights } from './features/insights/useShotInsights'
 import { defaultInsightsRoute, readInsightsRoute, writeInsightsRoute, type InsightsRoute } from './features/insights/insightsRoute'
 import { DecaidUpdatePrompt } from './features/updates/DecaidUpdatePrompt'
 import { SettingsScreen } from './features/settings/SettingsScreen'
+import { t, useLanguage } from './i18n/index.ts'
 import './styles/index.css'
 import './styles/cardSurfaces.css'
 import './styles/lightMode.css'
@@ -34,6 +35,8 @@ const currentPage = (): AppPage => {
 const requestedProfileId = () => new URLSearchParams(window.location.search).get('profileId') ?? undefined
 
 export default function App() {
+  // Re-render the whole shell when the display language changes; texts are resolved at render time.
+  useLanguage()
   const data = useBrewingData()
   const [importedProfileRecord, setImportedProfileRecord] = useState<DecaidProfileRecord | undefined>()
   const [, setPage] = useState(0)
@@ -89,11 +92,11 @@ export default function App() {
     try {
       const [plugins, settings] = await Promise.all([getPlugins(), getPluginSettings('visualizer.reaplugin')])
       const plugin = plugins.find((candidate) => candidate.id === 'visualizer.reaplugin')
-      if (!plugin?.loaded) return { ready: false, message: 'Enable the Visualizer plugin in Decaid settings first.' }
-      if (!visualizerCredentialsConfigured(settings)) return { ready: false, message: 'Sign in to Visualizer in Decaid settings before importing a share code.' }
+      if (!plugin?.loaded) return { ready: false, message: t('shell.app.visualizerPluginDisabled') }
+      if (!visualizerCredentialsConfigured(settings)) return { ready: false, message: t('shell.app.visualizerSignInRequired') }
       return { ready: true }
     } catch {
-      return { ready: false, message: 'Visualizer import is not available in this Decaid setup.' }
+      return { ready: false, message: t('shell.app.visualizerUnavailable') }
     }
   }
 
@@ -101,13 +104,13 @@ export default function App() {
     const before = await getProfiles()
     const beforeIds = new Set(before.map((record) => record.id).filter((id): id is string => Boolean(id)))
     const result = await callPluginEndpoint<VisualizerImportResult>('visualizer.reaplugin', 'import', { shareCode })
-    if (result.success === false) throw new Error('Visualizer could not import that share code.')
+    if (result.success === false) throw new Error(t('shell.app.visualizerImportFailed'))
 
     const after = await getProfiles()
     const reportedId = visualizerImportedProfileId(result)
     let imported = reportedId ? after.find((record) => record.id === reportedId) : undefined
     imported ??= after.find((record) => record.id && !beforeIds.has(record.id))
-    if (!imported?.profile) throw new Error('The profile was imported, but Decaid did not return it to Bestpresso.')
+    if (!imported?.profile) throw new Error(t('shell.app.visualizerImportMissing'))
 
     const existingTitles = before.map((record) => record.profile?.title).filter((title): title is string => Boolean(title?.trim()))
     const uniqueTitle = deduplicateImportedProfileTitle(imported.profile, existingTitles)

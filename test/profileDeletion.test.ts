@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { assertProfileDeletionAllowed, canDeleteProfile, deleteVerifiedUserProfile, favoritesWithoutProfile } from '../src/features/profiles/profileDeletion.ts'
 import type { DecaidProfileRecord } from '../src/api/decaid/types.ts'
+import { en } from '../src/i18n/en/index.ts'
 
 const user = (): DecaidProfileRecord => ({ id: 'user/imported', isDefault: false, visibility: 'visible', profile: { title: 'Tea concentrate' } })
 function fixture() {
@@ -97,7 +98,8 @@ test('detail deletion is confirmed, does not purge records, and is wired to libr
   assert.doesNotMatch(panel, /profile-detail__delete-row/)
   assert.match(dialog, /element.showModal\(\)/)
   assert.match(dialog, /if \(inFlight.current \|\| active\) return/)
-  assert.match(dialog, /autoFocus disabled=\{pending\} onClick=\{onClose\}>Cancel/)
+  assert.match(dialog, /autoFocus disabled=\{pending\} onClick=\{onClose\}>\{t\('library\.action\.cancel'\)\}/)
+  assert.equal(en['library.action.cancel'], 'Cancel')
   const deletion = hook.slice(hook.indexOf('const deleteSavedProfile'), hook.indexOf('const profileCanBeDeleted'))
   assert.match(deletion, /setAllProfiles\(remaining\)/)
   assert.match(deletion, /setFavoriteProfileSlots/)
@@ -106,8 +108,8 @@ test('detail deletion is confirmed, does not purge records, and is wired to libr
 
 test('Sleep is leftmost in machine controls and retains the same handler and pending guard', () => {
   const shell = readFileSync(new URL('../src/app/AppShell.tsx', import.meta.url), 'utf8')
-  const controls = shell.slice(shell.indexOf('<nav aria-label="Machine controls">'), shell.indexOf('</nav></header>'))
-  assert.ok(controls.indexOf('onClick={onSleep}') < controls.indexOf('aria-label="Cleaning sequences"'))
-  assert.ok(controls.indexOf('aria-label="Cleaning sequences"') < controls.indexOf('aria-label="Settings"'))
+  const controls = shell.slice(shell.indexOf("<nav aria-label={t('shell.appShell.machineControls')}>"), shell.indexOf('</nav></header>'))
+  assert.ok(controls.indexOf('onClick={onSleep}') < controls.indexOf("aria-label={t('shell.appShell.cleaningSequences')}"))
+  assert.ok(controls.indexOf("aria-label={t('shell.appShell.cleaningSequences')}") < controls.indexOf("aria-label={t('shell.appShell.settings')}"))
   assert.match(controls, /disabled=\{sleepPending\} onClick=\{onSleep\}/)
 })

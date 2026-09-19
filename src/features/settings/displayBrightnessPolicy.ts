@@ -1,3 +1,5 @@
+import { t } from '../../i18n/index.ts'
+
 interface DisplayBrightnessDependencies {
   read: () => Promise<{ requestedBrightness?: number; brightness?: number }>
   write: (value: number) => Promise<unknown>
@@ -17,7 +19,7 @@ export function createDisplayBrightnessPolicy(api: DisplayBrightnessDependencies
   }
   return {
     choose: (value: number) => enqueue(async () => {
-      if (!Number.isInteger(value) || value < 0 || value > 100) throw new Error('Brightness must be between 0 and 100.')
+      if (!Number.isInteger(value) || value < 0 || value > 100) throw new Error(t('settings.brightness.outOfRange'))
       const result = await api.write(value)
       if (dimmed) beforeSleep = value
       api.persist(value)

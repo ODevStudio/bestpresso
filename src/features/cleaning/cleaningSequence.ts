@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts'
 import type { DecaidProfile, DecaidWorkflow, DecaidWorkflowPatch } from '../../api/decaid/types'
 
 export const cleaningPreparationStatus = (selectedId: string | null, pending: boolean, preparedId: string | null, failedId: string | null) => {
@@ -28,7 +29,7 @@ export const prepareCleaningProfileForEspressoStart = async (
     selectedProfile?.title !== profile.title
     || selectedProfile?.beverage_type?.trim().toLowerCase() !== 'cleaning'
   ) {
-    throw new Error('Decaid did not retain the selected cleaning profile')
+    throw new Error(t('common.error.cleaningProfile'))
   }
   await operations.uploadProfile(selectedProfile)
   return workflow

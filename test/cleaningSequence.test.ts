@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { cleaningRestorePatch, isCleaningSequenceRun, prepareCleaningProfileForEspressoStart, profileForCleaningShortcut } from '../src/features/cleaning/cleaningSequence.ts'
+import { shellEn } from '../src/i18n/en/shell.ts'
 
 const picker = readFileSync(new URL('../src/features/cleaning/CleaningSequencePicker.tsx', import.meta.url), 'utf8')
 const brewingData = readFileSync(new URL('../src/features/brew/useBrewingData.ts', import.meta.url), 'utf8')
@@ -91,9 +92,13 @@ test('restores only profile selection and never rewrites current utility setting
 })
 
 test('uses the cup icon only as guidance for the physical machine button', () => {
-  assert.match(picker, /: <p>Select a cleaning profile\.<\/p>/)
-  assert.match(picker, /Tap <span className="cleaning-picker__brew-guide">/)
-  assert.match(picker, /on your machine to start/)
+  // The English source copy still reads "Tap ... on your machine to start."; only the
+  // rendering moved from a literal string to the translated shell.cleaning.tapHint key,
+  // split around a %ICON% marker so the icon can sit inline in either language.
+  assert.match(shellEn['shell.cleaning.tapHint'], /^Tap %ICON% on your machine to start\.$/)
+  assert.match(picker, /: <p>\{t\('shell\.cleaning\.selectProfile'\)\}<\/p>/)
+  assert.match(picker, /\{tapBefore\}<span className="cleaning-picker__brew-guide">/)
+  assert.match(picker, /<\/span>\{tapAfter\}<\/p>/)
   assert.doesNotMatch(picker, /onStart/)
   assert.doesNotMatch(picker, /startSelected/)
 })

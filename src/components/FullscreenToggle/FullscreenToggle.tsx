@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import fullscreenEnter from '../../assets/figma/fullscreen-enter-glyph.svg'
 import fullscreenExit from '../../assets/figma/fullscreen-exit-glyph.svg'
+import { t } from '../../i18n/index.ts'
 import { exitFullscreen, isFullscreenElementActive, isFullscreenSupported, isWebViewHost, requestFullscreen } from '../../lib/fullscreen'
 
 export function FullscreenToggle() {
@@ -23,7 +24,7 @@ export function FullscreenToggle() {
 
   if (!supported) return null
 
-  const label = isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'
+  const label = isFullscreen ? t('shell.fullscreen.exit') : t('shell.fullscreen.enter')
   const toggle = async () => {
     setPending(true)
     const changed = isFullscreen ? await exitFullscreen() : await requestFullscreen()

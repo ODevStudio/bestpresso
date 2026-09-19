@@ -4,6 +4,7 @@ import test from 'node:test'
 import { BESTPRESSO_TARGET_YIELD_OVERRIDE_KEY, profileConfiguredTargetYield, profileTargetNeedsWorkflowSync, profileTargetYield, profileUserTargetNeedsWorkflowSync, profileUsesStopAtWeight, workflowPatchForSavedActiveProfile, workflowValuesForProfile } from '../src/api/decaid/profileWorkflow.ts'
 import type { DecaidProfileRecord } from '../src/api/decaid/types.ts'
 import type { BrewProfile } from '../src/domain/brewing.ts'
+import { brewEn } from '../src/i18n/en/brew.ts'
 
 const domainProfile = (targetYield: string): BrewProfile => ({
   id: 'filter-3',
@@ -119,7 +120,8 @@ test('reapplies an overwritten active pour-over profile to the workflow', () => 
 
 test('yield remains visible and editable when its current value is unset', () => {
   assert.doesNotMatch(brewingPanel, /hasTargetYield/)
-  assert.match(brewingPanel, /<Metric metric=\{\{ label: 'Yield', value: activeProfile\.targetYield[^\n]+reserveSubtext/)
+  assert.match(brewingPanel, /<Metric metric=\{\{ label: t\('brew\.metric\.yield'\), value: activeProfile\.targetYield[^\n]+reserveSubtext/)
+  assert.equal(brewEn['brew.metric.yield'], 'Yield')
   assert.match(adapters, /targetYield: numberString\(profileConfiguredTargetYield\(profile, metadata,/)
   assert.doesNotMatch(brewingData, /does not use stop at weight/)
 })

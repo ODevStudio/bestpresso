@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { TemperatureUnit } from '../../domain/temperature'
+import { isLanguage, resolveLanguage, setActiveLanguage, type LanguagePreference } from '../../i18n/index.ts'
 import type { ClockFormat } from '../sleep/deviceTime'
 
 export type ChartLineWeight = 'fine' | 'standard' | 'bold'
@@ -14,6 +15,7 @@ export interface BestpressoPreferences {
   temperatureUnit: TemperatureUnit
   clockFormat: ClockFormat
   screensaverBrightness: number
+  language: LanguagePreference
 }
 
 export const BESTPRESSO_PREFERENCES_KEY = 'bestpresso.preferences.v1'
@@ -29,6 +31,7 @@ export const DEFAULT_BESTPRESSO_PREFERENCES: BestpressoPreferences = {
   temperatureUnit: 'C',
   clockFormat: 'device',
   screensaverBrightness: 7,
+  language: 'auto',
 }
 
 const finiteRange = (value: unknown, fallback: number) => {
@@ -57,6 +60,7 @@ export function normalizeBestpressoPreferences(value: unknown): BestpressoPrefer
     chartLineWeight,
     temperatureUnit,
     clockFormat: candidate.clockFormat === '12h' || candidate.clockFormat === '24h' ? candidate.clockFormat : 'device',
+    language: isLanguage(candidate.language) ? candidate.language : 'auto',
   }
 }
 
@@ -71,6 +75,7 @@ export function readBestpressoPreferences() {
 }
 
 export function applyBestpressoPreferences(preferences = readBestpressoPreferences()) {
+  setActiveLanguage(resolveLanguage(preferences.language))
   if (typeof document !== 'undefined') {
     document.documentElement.dataset.chartLineWeight = preferences.chartLineWeight
     document.documentElement.dataset.theme = preferences.theme

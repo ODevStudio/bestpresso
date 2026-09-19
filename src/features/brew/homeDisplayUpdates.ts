@@ -27,8 +27,8 @@ export function withHomeMachineDisplay(model: BrewingScreenModel, readiness: Mac
   if (temperature !== undefined) {
     const value = String(Math.round(temperature)), highlight = temperature < heatingThreshold
     next = replaceUtility(next, 'steam', utility => {
-      if (utility.metrics.every(metric => metric.label !== 'Current' || (metric.value === value && metric.highlight === highlight))) return utility
-      return { ...utility, metrics: utility.metrics.map(metric => metric.label === 'Current' ? { ...metric, value, highlight } : metric) }
+      if (utility.metrics.every(metric => metric.id !== 'current' || (metric.value === value && metric.highlight === highlight))) return utility
+      return { ...utility, metrics: utility.metrics.map(metric => metric.id === 'current' ? { ...metric, value, highlight } : metric) }
     })
   }
   return replaceUtility(next, 'tank', utility => {

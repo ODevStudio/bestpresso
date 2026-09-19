@@ -17,7 +17,11 @@ test('all chart families and legends use the requested weight presets', () => {
 })
 
 test('settings present simple weight names without pixel values', () => {
-  assert.match(screen, /fine: 'Thin', standard: 'Medium', bold: 'Thick'/)
+  const en = readFileSync(new URL('../src/i18n/en/settings.ts', import.meta.url), 'utf8')
+  assert.match(screen, /chartLineWeightLabel = \(weight: ChartLineWeight\) => \(\{ fine: t\('settings\.chartLineWeight\.thin'\), standard: t\('settings\.chartLineWeight\.medium'\), bold: t\('settings\.chartLineWeight\.thick'\) \}\[weight\]\)/)
+  assert.match(en, /'settings\.chartLineWeight\.thin': 'Thin'/)
+  assert.match(en, /'settings\.chartLineWeight\.medium': 'Medium'/)
+  assert.match(en, /'settings\.chartLineWeight\.thick': 'Thick'/)
   assert.doesNotMatch(screen, /(?:Thin|Medium|Thick) · [\d.]+px/)
   assert.doesNotMatch(screen, /<strong>\{preferences.chartLineWeight\}<\/strong>/)
 })

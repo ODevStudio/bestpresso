@@ -32,6 +32,7 @@ import type { BuilderStepperDirection } from './profileBuilderStepper'
 import { issueSummary, validateProfileDraft } from './profileBuilderValidation'
 import type { ProfileBuilderIssue } from './profileBuilderValidation'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
+import { formatDecimal, plural, t } from '../../i18n/index.ts'
 
 const CHART_WIDTH = 1090
 const CHART_HEIGHT = 290
@@ -39,7 +40,8 @@ const PLOT_TOP = 58
 const PLOT_BOTTOM = 282
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
-const formatValue = (value: number | null | undefined) => value === null || value === undefined || value <= 0 ? '-' : Number.isInteger(value) ? String(value) : value.toFixed(1)
+const formatValue = (value: number | null | undefined) => value === null || value === undefined || value <= 0 ? '-' : Number.isInteger(value) ? String(value) : formatDecimal(value, 1)
+const beverageTypeLabel = (type: ProfileDraft['beverageType']) => t(`builder.beverageType.${type}`)
 
 const pathFor = (points: ProfileTargetPoint[], key: 'pressure' | 'flow' | 'temperature', maximumDurationMs: number, minimum: number, maximum: number) => points.reduce((path, point, index) => {
   const x = point.elapsedMs / maximumDurationMs * CHART_WIDTH
@@ -64,14 +66,14 @@ function BuilderChart({ draft, activeStage }: { draft: ProfileDraft; activeStage
   }, [])
   const stageBoundaries = stageMarkers.slice(0, -1).map((stage) => stage.endMs)
 
-  return <section className={`pb-chart${activeStage === null ? '' : ' is-focused'}`} aria-label="Profile target preview">
+  return <section className={`pb-chart${activeStage === null ? '' : ' is-focused'}`} aria-label={t('builder.chart.preview')}>
     <ChartLegend mode="profile" showWeight={false} className="pb-chart__legend" />
     <div className="pb-chart__axis" aria-hidden="true">
       <span>bar / ml/s</span>
       {[12, 9, 6, 3, 0].map((value) => <i key={value} style={{ top: `${(PLOT_TOP + (12 - value) / 12 * (PLOT_BOTTOM - PLOT_TOP)) / CHART_HEIGHT * 100}%` }}>{value}</i>)}
     </div>
     <ChartStageMarkers stages={stageMarkers} highlightedKey={activeStage === null ? undefined : draft.stages[activeStage]?.id} xForElapsedMs={(elapsedMs) => elapsedMs / maximumDurationMs * CHART_WIDTH} plotLeft={0} plotRight={CHART_WIDTH} />
-    <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none" role="img" aria-label="Flow, pressure, and temperature targets across the profile stages">
+    <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} preserveAspectRatio="none" role="img" aria-label={t('builder.chart.svgLabel')}>
       <defs><clipPath id="pb-active-stage"><rect x={clipX} y="0" width={clipWidth} height={CHART_HEIGHT} /></clipPath></defs>
       {[12, 9, 6, 3, 0].map((value) => {
         const y = PLOT_TOP + (12 - value) / 12 * (PLOT_BOTTOM - PLOT_TOP)
@@ -94,23 +96,23 @@ function BuilderChart({ draft, activeStage }: { draft: ProfileDraft; activeStage
 }
 
 function SegmentControl({ value, onChange }: { value: BuilderStage['pump']; onChange: (value: BuilderStage['pump']) => void }) {
-  return <div className="pb-segmented pb-segmented--pump" role="group" aria-label="Stage control">
-    <button type="button" className={value === 'pressure' ? 'is-selected is-pressure' : ''} onClick={() => onChange('pressure')}>Pressure</button>
-    <button type="button" className={value === 'flow' ? 'is-selected is-flow' : ''} onClick={() => onChange('flow')}>Flow</button>
+  return <div className="pb-segmented pb-segmented--pump" role="group" aria-label={t('builder.segment.stageControl')}>
+    <button type="button" className={value === 'pressure' ? 'is-selected is-pressure' : ''} onClick={() => onChange('pressure')}>{t('builder.axis.pressure')}</button>
+    <button type="button" className={value === 'flow' ? 'is-selected is-flow' : ''} onClick={() => onChange('flow')}>{t('builder.axis.flow')}</button>
   </div>
 }
 
 function TransitionControl({ value, onChange }: { value: BuilderStage['transition']; onChange: (value: BuilderStage['transition']) => void }) {
-  return <div className="pb-segmented pb-segmented--choice" role="group" aria-label="Stage transition">
-    <button type="button" className={value === 'fast' ? 'is-selected' : ''} onClick={() => onChange('fast')}><img src={value === 'fast' ? builderTransitionFastActive : builderTransitionFast} alt="" />Fast</button>
-    <button type="button" className={value === 'smooth' ? 'is-selected' : ''} onClick={() => onChange('smooth')}><img src={value === 'smooth' ? builderTransitionSmoothActive : builderTransitionSmooth} alt="" />Smooth</button>
+  return <div className="pb-segmented pb-segmented--choice" role="group" aria-label={t('builder.transition.groupLabel')}>
+    <button type="button" className={value === 'fast' ? 'is-selected' : ''} onClick={() => onChange('fast')}><img src={value === 'fast' ? builderTransitionFastActive : builderTransitionFast} alt="" />{t('builder.transition.fast')}</button>
+    <button type="button" className={value === 'smooth' ? 'is-selected' : ''} onClick={() => onChange('smooth')}><img src={value === 'smooth' ? builderTransitionSmoothActive : builderTransitionSmooth} alt="" />{t('builder.transition.smooth')}</button>
   </div>
 }
 
 function SensorControl({ value, onChange }: { value: BuilderStage['sensor']; onChange: (value: BuilderStage['sensor']) => void }) {
-  return <div className="pb-segmented pb-segmented--choice" role="group" aria-label="Temperature sensor">
-    <button type="button" className={value === 'coffee' ? 'is-selected' : ''} onClick={() => onChange('coffee')}><img src={value === 'coffee' ? builderCoffeeSource : builderCoffeeSourceMuted} alt="" />Coffee</button>
-    <button type="button" className={value === 'water' ? 'is-selected' : ''} onClick={() => onChange('water')}><img src={value === 'water' ? builderWaterSourceActive : builderWaterSource} alt="" />Water</button>
+  return <div className="pb-segmented pb-segmented--choice" role="group" aria-label={t('builder.sensor.groupLabel')}>
+    <button type="button" className={value === 'coffee' ? 'is-selected' : ''} onClick={() => onChange('coffee')}><img src={value === 'coffee' ? builderCoffeeSource : builderCoffeeSourceMuted} alt="" />{t('builder.sensor.coffee')}</button>
+    <button type="button" className={value === 'water' ? 'is-selected' : ''} onClick={() => onChange('water')}><img src={value === 'water' ? builderWaterSourceActive : builderWaterSource} alt="" />{t('builder.sensor.water')}</button>
   </div>
 }
 
@@ -169,7 +171,7 @@ function Stepper({ label, value, unit, step, min = 0, max = 1000, disabled = fal
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
     if (!held && !cancelled) change(direction, false)
   }
-  return <div className={`pb-stepper${disabled ? ' is-disabled' : ''}`} aria-disabled={disabled} aria-label={`${label}, ${formatValue(value)} ${unit}`}>
+  return <div className={`pb-stepper${disabled ? ' is-disabled' : ''}`} aria-disabled={disabled} aria-label={t('builder.stepper.valueLabel', { label, value: formatValue(value), unit })}>
     <button
       type="button"
       disabled={!enabled}
@@ -179,7 +181,7 @@ function Stepper({ label, value, unit, step, min = 0, max = 1000, disabled = fal
       onPointerCancel={(event) => endPress(event, -1, true)}
       onLostPointerCapture={(event) => endPress(event, -1, true)}
       onContextMenu={(event) => event.preventDefault()}
-      aria-label={`Reduce ${label}; hold for whole units`}
+      aria-label={t('builder.stepper.decreaseLabel', { label })}
     ><span className="pb-stepper__glyph" aria-hidden="true">−</span></button>
     <span
       className={onOpen && !disabled ? 'pb-stepper__value is-adjustable' : 'pb-stepper__value'}
@@ -192,7 +194,7 @@ function Stepper({ label, value, unit, step, min = 0, max = 1000, disabled = fal
         event.stopPropagation()
         onOpen()
       } : undefined}
-      aria-label={onOpen && !disabled ? `Open ${label} fullscreen adjustment` : undefined}
+      aria-label={onOpen && !disabled ? t('builder.stepper.openFullscreenLabel', { label }) : undefined}
     ><span className="pb-stepper__reading">{formatValue(value)}{unit && <small>{unit}</small>}</span></span>
     <button
       type="button"
@@ -203,7 +205,7 @@ function Stepper({ label, value, unit, step, min = 0, max = 1000, disabled = fal
       onPointerCancel={(event) => endPress(event, 1, true)}
       onLostPointerCapture={(event) => endPress(event, 1, true)}
       onContextMenu={(event) => event.preventDefault()}
-      aria-label={`Increase ${label}; hold for whole units`}
+      aria-label={t('builder.stepper.increaseLabel', { label })}
     ><span className="pb-stepper__glyph" aria-hidden="true">+</span></button>
   </div>
 }
@@ -247,8 +249,9 @@ function SettingsMetric({ label, children, className = '' }: { label: string; ch
 function ExitControl({ type, stage, onChange }: { type: BuilderExitType; stage: BuilderStage; onChange: (patch: Partial<BuilderStage>) => void }) {
   const openAdjustment = useValueAdjustment()
   const value = stage.exit?.type === type ? stage.exit.value : undefined
-  const label = `Move on ${type}`
-  const comparisonLabel = type === 'flow' ? 'Flow' : 'Pressure'
+  const label = type === 'flow' ? t('builder.exit.moveOnFlow') : t('builder.exit.moveOnPressure')
+  const conditionLabel = type === 'flow' ? t('builder.exit.moveOnFlowConditionLabel') : t('builder.exit.moveOnPressureConditionLabel')
+  const comparisonLabel = type === 'flow' ? t('builder.axis.flow') : t('builder.axis.pressure')
   const [condition, setCondition] = useState<'over' | 'under'>(() => stage.exit?.type === type ? stage.exit.condition : 'over')
   const selectedCondition = stage.exit?.type === type ? stage.exit.condition : condition
   const changeCondition = (next: 'over' | 'under') => {
@@ -279,7 +282,7 @@ function ExitControl({ type, stage, onChange }: { type: BuilderExitType; stage: 
     },
   })
   return <div className="pb-condition">
-    <div className="pb-condition__comparison" role="group" aria-label={`${label} condition`}>
+    <div className="pb-condition__comparison" role="group" aria-label={conditionLabel}>
       <button type="button" className={selectedCondition === 'over' ? 'is-selected' : ''} onClick={() => changeCondition('over')}>{comparisonLabel} &gt;</button>
       <button type="button" className={selectedCondition === 'under' ? 'is-selected' : ''} onClick={() => changeCondition('under')}>{comparisonLabel} &lt;</button>
     </div>
@@ -295,7 +298,7 @@ function StageDragHandle({ onPointerDown, onPointerMove, onPointerUp }: {
   return <button
     type="button"
     className="pb-stage__drag-handle"
-    aria-label="Drag to reorder stage"
+    aria-label={t('builder.stage.dragHandle')}
     onClick={(event) => event.stopPropagation()}
     onPointerDown={(event) => { event.stopPropagation(); onPointerDown(event) }}
     onPointerMove={(event) => { event.stopPropagation(); onPointerMove(event) }}
@@ -347,7 +350,7 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
     if (value !== undefined) pumpMemory.current[limiterType] = value
     onChange({ limiter: value === undefined ? undefined : { type: limiterType, value, range: stage.limiter?.range ?? limiterTolerances[limiterType] } })
   }
-  const limiterLabel = stage.pump === 'pressure' ? 'Max flow' : 'Max pressure'
+  const limiterLabel = stage.pump === 'pressure' ? t('builder.stage.maxFlowLabel') : t('builder.stage.maxPressureLabel')
   const limiterUnit = stage.pump === 'pressure' ? 'ml/s' : 'bar'
   const limiterValue = stage.limiter?.value
   const targetUnit = stage.pump === 'pressure' ? 'bar' : 'ml/s'
@@ -358,7 +361,7 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
       const definition = pump === 'pressure' ? pressure : flow
       return {
         id: pump,
-        label: pump === 'pressure' ? 'Pressure' : 'Flow',
+        label: pump === 'pressure' ? t('builder.axis.pressure') : t('builder.axis.flow'),
         value: pumpMemory.current[pump] ?? (pump === 'pressure' ? 9 : 2),
         unit: pump === 'pressure' ? 'bar' : 'ml/s',
         ...definition,
@@ -367,7 +370,7 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
     })
     const definition = stage.pump === 'pressure' ? pressure : flow
     openAdjustment({
-      label: 'Stage control',
+      label: t('builder.segment.stageControl'),
       value: stage.target,
       unit: targetUnit,
       ...definition,
@@ -388,7 +391,7 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
     })
   }
   const openTemperatureAdjustment = () => openAdjustment({
-    label: 'Temperature',
+    label: t('common.metric.temperature'),
     value: temperatureBoundToDisplay(stage.temperature, temperatureUnit),
     unit: temperatureUnitLabel(temperatureUnit),
     ...VALUE_ADJUSTMENTS.builderTemperature,
@@ -411,7 +414,7 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
     })
   }
   const openDurationAdjustment = () => openAdjustment({
-    label: 'Max time',
+    label: t('builder.stage.maxTimeLabel'),
     value: stage.seconds,
     unit: 's',
     ...VALUE_ADJUSTMENTS.builderDuration,
@@ -419,7 +422,7 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
     onSave: (seconds) => onChange({ seconds }),
   })
   const openVolumeAdjustment = () => openAdjustment({
-    label: 'Move on volume',
+    label: t('builder.stage.moveOnVolumeLabel'),
     value: stage.volume,
     unit: 'ml',
     ...VALUE_ADJUSTMENTS.builderVolume,
@@ -427,7 +430,7 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
     onSave: (volume) => onChange({ volume }),
   })
   const openYieldAdjustment = () => openAdjustment({
-    label: 'Move on yield',
+    label: t('builder.stage.moveOnYieldLabel'),
     value: stage.weight ?? 0,
     unit: 'g',
     ...VALUE_ADJUSTMENTS.builderYield,
@@ -436,19 +439,19 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
   })
   const stageNumber = index + 1
   const exitSummary = [
-    `${formatValue(stage.seconds)}s max`,
+    t('builder.stage.secondsMax', { value: formatValue(stage.seconds) }),
     stage.exit?.value
-      ? `${stage.exit.type === 'pressure' ? 'Pressure' : 'Flow'} ${stage.exit.condition === 'under' ? '<' : '>'} ${formatValue(stage.exit.value)} ${stage.exit.type === 'pressure' ? 'bar' : 'ml/s'}`
+      ? `${stage.exit.type === 'pressure' ? t('builder.axis.pressure') : t('builder.axis.flow')} ${stage.exit.condition === 'under' ? '<' : '>'} ${formatValue(stage.exit.value)} ${stage.exit.type === 'pressure' ? 'bar' : 'ml/s'}`
       : null,
-    !isLastStage && stage.weight ? `Weight ≥ ${formatValue(stage.weight)} g` : null,
-    stage.volume ? `Volume ≥ ${formatValue(stage.volume)} ml` : null,
+    !isLastStage && stage.weight ? t('builder.stage.weightAtLeast', { value: formatValue(stage.weight) }) : null,
+    stage.volume ? t('builder.stage.volumeAtLeast', { value: formatValue(stage.volume) }) : null,
   ].filter((condition): condition is string => Boolean(condition)).join(' / ')
 
   if (!active) return <article ref={cardRef} data-stage-id={stage.id} data-validation-severity={issueSeverity} className={`pb-stage is-collapsed${dragging ? ' is-dragging' : ''}`} role="button" tabIndex={0} onClick={onActivate} onKeyDown={(event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
     onActivate()
-  }} aria-expanded="false" aria-label={`Open stage ${index + 1}: ${stage.name}`}>
+  }} aria-expanded="false" aria-label={t('builder.stage.openLabel', { n: index + 1, name: stage.name })}>
     <header className="pb-stage__summary-header">
       <StageDragHandle onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd} />
       <b style={{ backgroundImage: `url(${builderStageNumber})` }}>{stageNumber}</b>
@@ -456,41 +459,41 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
       <em>{formatValue(stage.seconds)}<small>s</small></em>
     </header>
     <span className="pb-stage__summary-metrics">
-      <span><small>{stage.pump === 'pressure' ? 'Pressure' : 'Flow'} Target</small><strong>{formatValue(stage.target)} <em>{targetUnit}</em></strong>{typeof limiterValue === 'number' && limiterValue > 0 && <i>Max {formatValue(limiterValue)} {limiterUnit}</i>}</span>
-      <span><small>{stage.sensor === 'water' ? 'Water' : 'Coffee'} temperature</small><strong>{formatTemperatureValue(stage.temperature, temperatureUnit)}<em className="temperature-unit">{temperatureUnitLabel(temperatureUnit)}</em></strong></span>
+      <span><small>{stage.pump === 'pressure' ? t('builder.stage.pressureTargetLabel') : t('builder.stage.flowTargetLabel')}</small><strong>{formatValue(stage.target)} <em>{targetUnit}</em></strong>{typeof limiterValue === 'number' && limiterValue > 0 && <i>{t('builder.common.max')} {formatValue(limiterValue)} {limiterUnit}</i>}</span>
+      <span><small>{stage.sensor === 'water' ? t('builder.stage.waterTemperatureLabel') : t('builder.stage.coffeeTemperatureLabel')}</small><strong>{formatTemperatureValue(stage.temperature, temperatureUnit)}<em className="temperature-unit">{temperatureUnitLabel(temperatureUnit)}</em></strong></span>
     </span>
-    <span className="pb-stage__summary-exit"><small>Moves on when any is reached</small><strong>{exitSummary}</strong></span>
+    <span className="pb-stage__summary-exit"><small>{t('builder.stage.movesOnSummary')}</small><strong>{exitSummary}</strong></span>
   </article>
 
-  return <article ref={cardRef} data-stage-id={stage.id} data-validation-severity={issueSeverity} className={`pb-stage is-active is-${activePanel}${dragging ? ' is-dragging' : ''}`} aria-expanded="true" aria-label={`Stage ${index + 1}: ${stage.name}`}>
+  return <article ref={cardRef} data-stage-id={stage.id} data-validation-severity={issueSeverity} className={`pb-stage is-active is-${activePanel}${dragging ? ' is-dragging' : ''}`} aria-expanded="true" aria-label={t('builder.stage.activeLabel', { n: index + 1, name: stage.name })}>
     <header className="pb-stage__active-header">
       <StageDragHandle onPointerDown={onDragStart} onPointerMove={onDragMove} onPointerUp={onDragEnd} />
       <b style={{ backgroundImage: `url(${builderStageNumber})` }}>{stageNumber}</b>
-      <div data-builder-field="name" data-validation-severity={fieldSeverity('name')}><input aria-label={`Stage ${index + 1} name`} value={stage.name} onChange={(event) => onChange({ name: event.target.value })} /></div>
-      <div className="pb-stage__tabs" role="tablist" aria-label="Stage settings">
-        <button type="button" role="tab" aria-selected={activePanel === 'target'} className={activePanel === 'target' ? 'is-selected' : ''} onClick={() => setActivePanel('target')}>Target</button>
-        <button type="button" role="tab" aria-selected={activePanel === 'conditions'} className={activePanel === 'conditions' ? 'is-selected' : ''} onClick={() => setActivePanel('conditions')}>Move on</button>
+      <div data-builder-field="name" data-validation-severity={fieldSeverity('name')}><input aria-label={t('builder.stage.nameFieldLabel', { n: index + 1 })} value={stage.name} onChange={(event) => onChange({ name: event.target.value })} /></div>
+      <div className="pb-stage__tabs" role="tablist" aria-label={t('builder.stage.tabsLabel')}>
+        <button type="button" role="tab" aria-selected={activePanel === 'target'} className={activePanel === 'target' ? 'is-selected' : ''} onClick={() => setActivePanel('target')}>{t('common.metric.target')}</button>
+        <button type="button" role="tab" aria-selected={activePanel === 'conditions'} className={activePanel === 'conditions' ? 'is-selected' : ''} onClick={() => setActivePanel('conditions')}>{t('builder.stage.moveOnTab')}</button>
       </div>
       <div className="pb-stage__actions">
-        <button type="button" onClick={onDuplicate} aria-label={`Duplicate stage ${index + 1}`}><img src={builderStageDuplicate} alt="" /></button>
-        <button type="button" disabled={!canDelete} onClick={onDelete} aria-label={`Delete stage ${index + 1}`}><img src={builderStageDelete} alt="" /></button>
+        <button type="button" onClick={onDuplicate} aria-label={t('builder.stage.duplicateLabel', { n: index + 1 })}><img src={builderStageDuplicate} alt="" /></button>
+        <button type="button" disabled={!canDelete} onClick={onDelete} aria-label={t('builder.stage.deleteLabel', { n: index + 1 })}><img src={builderStageDelete} alt="" /></button>
       </div>
     </header>
-    {activePanel === 'target' ? <section className="pb-stage__target-panel" role="tabpanel" aria-label="Target controls">
+    {activePanel === 'target' ? <section className="pb-stage__target-panel" role="tabpanel" aria-label={t('builder.stage.targetPanelLabel')}>
       <div className="pb-stage__target-main">
         <div className="pb-stage__target-control" data-builder-field="target" data-validation-severity={fieldSeverity('target') ?? fieldSeverity('pump')}>
           <SegmentControl value={stage.pump} onChange={setPump} />
-          <Stepper label={`${stage.pump} target`} value={stage.target} unit={targetUnit} step={0.1} max={15.9} onOpen={openTargetAdjustment} onChange={setTarget} />
+          <Stepper label={stage.pump === 'pressure' ? t('builder.stage.pressureTargetAriaLabel') : t('builder.stage.flowTargetAriaLabel')} value={stage.target} unit={targetUnit} step={0.1} max={15.9} onOpen={openTargetAdjustment} onChange={setTarget} />
         </div>
-        <div className="pb-stage__temperature-control" data-builder-field="temperature" data-validation-severity={fieldSeverity('temperature')}><small>Temperature</small><Stepper label="Temperature" value={temperatureBoundToDisplay(stage.temperature, temperatureUnit)} unit={temperatureUnitLabel(temperatureUnit)} step={temperatureStepToDisplay(0.5, temperatureUnit)} min={temperatureBoundToDisplay(0, temperatureUnit)} max={temperatureBoundToDisplay(127.5, temperatureUnit)} onOpen={openTemperatureAdjustment} onChange={(temperature) => onChange({ temperature: temperature === undefined ? 0 : temperatureFromDisplay(temperature, temperatureUnit) })} /></div>
-        <div className="pb-stage__choice-control" data-builder-field="transition" data-validation-severity={fieldSeverity('transition')}><small>Transition</small><TransitionControl value={stage.transition} onChange={(transition) => onChange({ transition })} /></div>
-        <div className="pb-stage__choice-control" data-builder-field="sensor" data-validation-severity={fieldSeverity('sensor')}><small>Measure from</small><SensorControl value={stage.sensor} onChange={(sensor) => onChange({ sensor })} /></div>
+        <div className="pb-stage__temperature-control" data-builder-field="temperature" data-validation-severity={fieldSeverity('temperature')}><small>{t('common.metric.temperature')}</small><Stepper label={t('common.metric.temperature')} value={temperatureBoundToDisplay(stage.temperature, temperatureUnit)} unit={temperatureUnitLabel(temperatureUnit)} step={temperatureStepToDisplay(0.5, temperatureUnit)} min={temperatureBoundToDisplay(0, temperatureUnit)} max={temperatureBoundToDisplay(127.5, temperatureUnit)} onOpen={openTemperatureAdjustment} onChange={(temperature) => onChange({ temperature: temperature === undefined ? 0 : temperatureFromDisplay(temperature, temperatureUnit) })} /></div>
+        <div className="pb-stage__choice-control" data-builder-field="transition" data-validation-severity={fieldSeverity('transition')}><small>{t('builder.stage.transitionLabel')}</small><TransitionControl value={stage.transition} onChange={(transition) => onChange({ transition })} /></div>
+        <div className="pb-stage__choice-control" data-builder-field="sensor" data-validation-severity={fieldSeverity('sensor')}><small>{t('builder.stage.measureFromLabel')}</small><SensorControl value={stage.sensor} onChange={(sensor) => onChange({ sensor })} /></div>
       </div>
       <aside className="pb-stage__limits">
         <div data-builder-field="limiter" data-validation-severity={fieldSeverity('limiter')}><small>{limiterLabel}</small><Stepper label={limiterLabel} value={limiterValue} unit={limiterUnit} step={0.1} max={15.9} onOpen={openLimiterAdjustment} onChange={setLimiter} /></div>
-        <div data-builder-field="seconds" data-validation-severity={fieldSeverity('seconds')}><small>Max time</small><Stepper label="Duration" value={stage.seconds} unit="s" step={1} min={0} max={127} onOpen={openDurationAdjustment} onChange={(seconds) => onChange({ seconds: seconds ?? 0 })} /></div>
+        <div data-builder-field="seconds" data-validation-severity={fieldSeverity('seconds')}><small>{t('builder.stage.maxTimeLabel')}</small><Stepper label={t('common.metric.duration')} value={stage.seconds} unit="s" step={1} min={0} max={127} onOpen={openDurationAdjustment} onChange={(seconds) => onChange({ seconds: seconds ?? 0 })} /></div>
       </aside>
-    </section> : <section className="pb-stage__conditions-panel" role="tabpanel" aria-label="Move on conditions">
+    </section> : <section className="pb-stage__conditions-panel" role="tabpanel" aria-label={t('builder.stage.conditionsPanelLabel')}>
       <div className="pb-stage__conditions-controls">
         <div className="pb-condition-column" data-builder-field="exit" data-validation-severity={fieldSeverity('exit')}>
           <ExitControl type="flow" stage={stage} onChange={onChange} />
@@ -498,16 +501,16 @@ function StageEditorCard({ stage, index, active, isLastStage, limiterTolerances,
         </div>
         <div className="pb-condition-column">
           <div className="pb-condition pb-condition--simple" data-builder-field="volume" data-validation-severity={fieldSeverity('volume')}>
-            <small>Move on volume</small>
-            <Stepper label="Move on volume" value={stage.volume > 0 ? stage.volume : undefined} unit="ml" step={1} max={1023} onOpen={openVolumeAdjustment} onChange={(volume) => onChange({ volume: volume ?? 0 })} />
+            <small>{t('builder.stage.moveOnVolumeLabel')}</small>
+            <Stepper label={t('builder.stage.moveOnVolumeLabel')} value={stage.volume > 0 ? stage.volume : undefined} unit="ml" step={1} max={1023} onOpen={openVolumeAdjustment} onChange={(volume) => onChange({ volume: volume ?? 0 })} />
           </div>
           <div className={`pb-condition pb-condition--simple${isLastStage ? ' is-disabled' : ''}`} data-builder-field="weight" data-validation-severity={fieldSeverity('weight')}>
-            <small>Move on yield</small>
-            <Stepper label="Move on yield" value={stage.weight} unit="g" step={0.1} disabled={isLastStage} onOpen={openYieldAdjustment} onChange={(weight) => onChange({ weight })} />
+            <small>{t('builder.stage.moveOnYieldLabel')}</small>
+            <Stepper label={t('builder.stage.moveOnYieldLabel')} value={stage.weight} unit="g" step={0.1} disabled={isLastStage} onOpen={openYieldAdjustment} onChange={(weight) => onChange({ weight })} />
           </div>
         </div>
       </div>
-      <p className="pb-stage__conditions-rule"><img src={skipNext} alt="" /><span>The next stage starts as soon as any condition on the left is met.</span></p>
+      <p className="pb-stage__conditions-rule"><img src={skipNext} alt="" /><span>{t('builder.stage.conditionsHint')}</span></p>
     </section>}
   </article>
 }
@@ -872,7 +875,7 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
     updateDraft('beverageType', types[(index + 1) % types.length])
   }
   const editTargetYield = () => openAdjustment({
-    label: 'End shot yield',
+    label: t('builder.profile.endShotYield'),
     value: draft.targetWeight ?? 0,
     unit: 'g',
     ...VALUE_ADJUSTMENTS.targetYield,
@@ -912,9 +915,9 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
         if (onSaved) onSaved(saved)
         else onClose()
       }
-      else setSaveError('This profile could not be saved.')
+      else setSaveError(t('builder.profile.saveFailed'))
     } catch (error) {
-      setSaveError(error instanceof Error && error.message ? error.message : 'This profile could not be saved.')
+      setSaveError(error instanceof Error && error.message ? error.message : t('builder.profile.saveFailed'))
     } finally {
       setSaving(false)
     }
@@ -975,14 +978,14 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
   }
 
   return <main className={`profile-builder-screen pb-screen${activeStage === null ? '' : ' has-active-stage'}${saving ? ' is-saving' : ''}`} aria-busy={saving} onPointerDownCapture={dismissActiveStageFromOutside}>
-    {profileDetailsOpen && <button type="button" className="pb-profile-details-backdrop" aria-label="Close more settings" onClick={() => setProfileDetailsOpen(false)} />}
+    {profileDetailsOpen && <button type="button" className="pb-profile-details-backdrop" aria-label={t('builder.profile.closeMoreSettings')} onClick={() => setProfileDetailsOpen(false)} />}
     <header className={`pb-topbar${profileDetailsOpen ? ' is-expanded' : ''}`}>
       <div className="pb-topbar__identity">
-        <input aria-label="Profile name" data-builder-field="title" data-validation-severity={profileFieldSeverity('title')} value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} />
+        <input aria-label={t('builder.profile.nameLabel')} data-builder-field="title" data-validation-severity={profileFieldSeverity('title')} value={draft.title} onChange={(event) => updateDraft('title', event.target.value)} />
         <div className="pb-topbar__identity-actions">
           {profileDetailsOpen
-            ? <EditableChoice id="category" label="Category" value={draft.category} options={categoryOptions} placeholder="Choose category (optional)" inline onChange={(category) => updateDraft('category', category)} />
-            : <span className="pb-category-summary">{draft.category ?? 'Uncategorized'}</span>}
+            ? <EditableChoice id="category" label={t('builder.profile.categoryLabel')} value={draft.category} options={categoryOptions} placeholder={t('builder.profile.categoryPlaceholder')} inline onChange={(category) => updateDraft('category', category)} />
+            : <span className="pb-category-summary">{draft.category ?? t('builder.profile.uncategorized')}</span>}
           <button
             type="button"
             className={`pb-more-settings${profileDetailsOpen ? ' is-open' : ''}`}
@@ -993,20 +996,20 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
               setValidationOpen(false)
               setProfileDetailsOpen((current) => !current)
             }}
-          ><span>{profileDetailsOpen ? 'Less settings' : 'More settings'}</span><img src={builderCategoryChevron} alt="" /></button>
+          ><span>{profileDetailsOpen ? t('builder.profile.lessSettings') : t('builder.profile.moreSettings')}</span><img src={builderCategoryChevron} alt="" /></button>
         </div>
       </div>
       <div className="pb-topbar__metadata">
-        <button type="button" className="pb-meta" onClick={cycleType}><span>Type <img src={builderValueChevron} alt="" /></span><strong>{draft.beverageType === 'pourover' ? 'Pour over' : `${draft.beverageType[0].toUpperCase()}${draft.beverageType.slice(1)}`}</strong></button>
-        <button type="button" className="pb-meta" onClick={editTargetYield}><span>End shot yield <img src={builderValueChevron} alt="" /></span><strong>{formatValue(draft.targetWeight)} <small>g</small></strong></button>
+        <button type="button" className="pb-meta" onClick={cycleType}><span>{t('builder.profile.typeLabel')} <img src={builderValueChevron} alt="" /></span><strong>{beverageTypeLabel(draft.beverageType)}</strong></button>
+        <button type="button" className="pb-meta" onClick={editTargetYield}><span>{t('builder.profile.endShotYield')} <img src={builderValueChevron} alt="" /></span><strong>{formatValue(draft.targetWeight)} <small>g</small></strong></button>
       </div>
       <div className="pb-topbar__actions">
-        <button className="pb-cancel" type="button" onClick={requestClose}>Cancel</button>
-        <button className="pb-save" type="button" disabled={saveDisabled} onClick={() => void saveProfile()}>{saving ? 'Saving…' : 'Save'}</button>
+        <button className="pb-cancel" type="button" onClick={requestClose}>{t('builder.actions.cancel')}</button>
+        <button className="pb-save" type="button" disabled={saveDisabled} onClick={() => void saveProfile()}>{saving ? t('builder.actions.saving') : t('builder.actions.save')}</button>
         {validation.issues.length > 0 && <button
           className={`pb-validation-indicator${validation.errors.length ? ' has-errors' : ' has-warnings'}`}
           type="button"
-          aria-label={`${validation.issues.length} profile ${validation.issues.length === 1 ? 'issue' : 'issues'}`}
+          aria-label={plural('builder.validation.issueCount', validation.issues.length)}
           aria-expanded={validationOpen}
           aria-controls="profile-builder-validation"
           onClick={() => {
@@ -1016,55 +1019,55 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
         ><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3.2 22 20.6H2L12 3.2Z"/><path d="M12 8.3v6.2M12 17.9v.2"/></svg><span>{validation.issues.length}</span></button>}
       </div>
       {saveError && <p className="pb-save-error" role="alert">{saveError}</p>}
-      {validationOpen && validation.issues.length > 0 && <section id="profile-builder-validation" className="pb-validation-panel" aria-label="Profile validation">
+      {validationOpen && validation.issues.length > 0 && <section id="profile-builder-validation" className="pb-validation-panel" aria-label={t('builder.validation.panelLabel')}>
         <header>
-          <div><h2>{validation.errors.length ? 'Profile needs attention' : 'Review before saving'}</h2><p>{issueSummary(validation)}</p></div>
-          <button type="button" onClick={() => setValidationOpen(false)} aria-label="Close validation"><img src={builderCardClose} alt="" /></button>
+          <div><h2>{validation.errors.length ? t('builder.validation.needsAttention') : t('builder.validation.reviewBeforeSaving')}</h2><p>{issueSummary(validation)}</p></div>
+          <button type="button" onClick={() => setValidationOpen(false)} aria-label={t('builder.validation.closeLabel')}><img src={builderCardClose} alt="" /></button>
         </header>
         {validation.issues.length ? <div className="pb-validation-panel__issues">{validation.issues.map((issue) => <button type="button" key={issue.id} className={`is-${issue.severity}`} onClick={() => reviewIssue(issue)}>
           <i aria-hidden="true">{issue.severity === 'error' ? '!' : 'i'}</i>
-          <span><strong>{issue.stageIndex === undefined || issue.stageIndex < 0 ? 'Profile' : `Stage ${issue.stageIndex + 1}`}</strong><small>{issue.message}</small></span>
+          <span><strong>{issue.stageIndex === undefined || issue.stageIndex < 0 ? t('builder.validation.profileLabel') : t('builder.stage.numberLabel', { n: issue.stageIndex + 1 })}</strong><small>{issue.message}</small></span>
           <em aria-hidden="true">›</em>
-        </button>)}</div> : <p className="pb-validation-panel__ready">All required profile data is valid.</p>}
-        {!validation.errors.length && validation.warnings.length > 0 && <footer><button type="button" disabled={saveDisabled} onClick={() => void saveProfile(true)}>Save anyway</button></footer>}
+        </button>)}</div> : <p className="pb-validation-panel__ready">{t('builder.validation.allValid')}</p>}
+        {!validation.errors.length && validation.warnings.length > 0 && <footer><button type="button" disabled={saveDisabled} onClick={() => void saveProfile(true)}>{t('builder.actions.saveAnyway')}</button></footer>}
       </section>}
-      {profileDetailsOpen && <section id="profile-builder-details" className="pb-profile-details" aria-label="Profile details and advanced settings">
+      {profileDetailsOpen && <section id="profile-builder-details" className="pb-profile-details" aria-label={t('builder.details.panelLabel')}>
         <div className="pb-profile-details__body">
           <div className="pb-profile-details__controls">
-            <EditableChoice id="version" label="Profile version" value={draft.version} options={versionOptions} placeholder="Choose or enter a version" onChange={(version) => updateDraft('version', version)} />
-            <SettingsMetric label="End shot volume (without scale)" className="pb-settings-metric--volume">
-              <Stepper label="End shot volume fallback" value={draft.targetVolume} unit="ml" step={1} max={1023} onOpen={() => openProfileMetric({ label: 'End shot volume fallback', value: draft.targetVolume ?? 0, unit: 'ml', definition: VALUE_ADJUSTMENTS.builderVolume, suggestionKey: 'builderVolume', onSave: (targetVolume) => updateDraft('targetVolume', targetVolume > 0 ? targetVolume : undefined) })} onChange={(targetVolume) => updateDraft('targetVolume', targetVolume)} />
+            <EditableChoice id="version" label={t('builder.details.versionLabel')} value={draft.version} options={versionOptions} placeholder={t('builder.details.versionPlaceholder')} onChange={(version) => updateDraft('version', version)} />
+            <SettingsMetric label={t('builder.details.endShotVolumeLabel')} className="pb-settings-metric--volume">
+              <Stepper label={t('builder.details.endShotVolumeFallbackLabel')} value={draft.targetVolume} unit="ml" step={1} max={1023} onOpen={() => openProfileMetric({ label: t('builder.details.endShotVolumeFallbackLabel'), value: draft.targetVolume ?? 0, unit: 'ml', definition: VALUE_ADJUSTMENTS.builderVolume, suggestionKey: 'builderVolume', onSave: (targetVolume) => updateDraft('targetVolume', targetVolume > 0 ? targetVolume : undefined) })} onChange={(targetVolume) => updateDraft('targetVolume', targetVolume)} />
             </SettingsMetric>
-            <SettingsMetric label="Flow tolerance" className="pb-settings-metric--flow">
-              <Stepper label="Flow tolerance" value={limiterTolerance('flow')} unit="ml/s" step={0.1} max={VALUE_ADJUSTMENTS.builderFlow.max} onOpen={() => openProfileMetric({ label: 'Flow tolerance', value: limiterTolerance('flow'), unit: 'ml/s', definition: VALUE_ADJUSTMENTS.builderFlow, suggestionKey: 'builderFlow', onSave: (range) => updateLimiterTolerance('flow', range) })} onChange={(range) => updateLimiterTolerance('flow', range)} />
+            <SettingsMetric label={t('builder.details.flowToleranceLabel')} className="pb-settings-metric--flow">
+              <Stepper label={t('builder.details.flowToleranceLabel')} value={limiterTolerance('flow')} unit="ml/s" step={0.1} max={VALUE_ADJUSTMENTS.builderFlow.max} onOpen={() => openProfileMetric({ label: t('builder.details.flowToleranceLabel'), value: limiterTolerance('flow'), unit: 'ml/s', definition: VALUE_ADJUSTMENTS.builderFlow, suggestionKey: 'builderFlow', onSave: (range) => updateLimiterTolerance('flow', range) })} onChange={(range) => updateLimiterTolerance('flow', range)} />
             </SettingsMetric>
-            <SettingsMetric label="Pressure tolerance" className="pb-settings-metric--pressure">
-              <Stepper label="Pressure tolerance" value={limiterTolerance('pressure')} unit="bar" step={0.1} max={VALUE_ADJUSTMENTS.builderPressure.max} onOpen={() => openProfileMetric({ label: 'Pressure tolerance', value: limiterTolerance('pressure'), unit: 'bar', definition: VALUE_ADJUSTMENTS.builderPressure, suggestionKey: 'builderPressure', onSave: (range) => updateLimiterTolerance('pressure', range) })} onChange={(range) => updateLimiterTolerance('pressure', range)} />
+            <SettingsMetric label={t('builder.details.pressureToleranceLabel')} className="pb-settings-metric--pressure">
+              <Stepper label={t('builder.details.pressureToleranceLabel')} value={limiterTolerance('pressure')} unit="bar" step={0.1} max={VALUE_ADJUSTMENTS.builderPressure.max} onOpen={() => openProfileMetric({ label: t('builder.details.pressureToleranceLabel'), value: limiterTolerance('pressure'), unit: 'bar', definition: VALUE_ADJUSTMENTS.builderPressure, suggestionKey: 'builderPressure', onSave: (range) => updateLimiterTolerance('pressure', range) })} onChange={(range) => updateLimiterTolerance('pressure', range)} />
             </SettingsMetric>
             {volumeFallbackActive && <label className="pb-profile-details__measure-from" data-builder-field="targetVolumeCountStart" data-validation-severity={profileFieldSeverity('targetVolumeCountStart')}>
-              <span>Start measuring volume from</span>
+              <span>{t('builder.details.volumeStartLabel')}</span>
               <select value={draft.targetVolumeCountStart >= 0 && draft.targetVolumeCountStart < draft.stages.length ? draft.targetVolumeCountStart : ''} onChange={(event) => updateDraft('targetVolumeCountStart', Number(event.target.value))}>
-                <option value="" disabled>Choose a stage</option>
-                {draft.stages.map((stage, index) => <option key={stage.id} value={index}>{index + 1}. {stage.name.trim() || `Stage ${index + 1}`}</option>)}
+                <option value="" disabled>{t('builder.details.chooseStage')}</option>
+                {draft.stages.map((stage, index) => <option key={stage.id} value={index}>{index + 1}. {stage.name.trim() || t('builder.stage.numberLabel', { n: index + 1 })}</option>)}
               </select>
             </label>}
           </div>
           <div className="pb-profile-details__copy">
             <label className="pb-profile-details__author" data-builder-field="author" data-validation-severity={profileFieldSeverity('author')}>
-              <span>Author</span>
-              <input value={draft.author} placeholder="Your Decent username, or user" readOnly aria-describedby="profile-builder-author-help" />
-              <small id="profile-builder-author-help">Set from the signed-in account when saved.</small>
+              <span>{t('builder.details.authorLabel')}</span>
+              <input value={draft.author} placeholder={t('builder.details.authorPlaceholder')} readOnly aria-describedby="profile-builder-author-help" />
+              <small id="profile-builder-author-help">{t('builder.details.authorHint')}</small>
             </label>
             <label className="pb-profile-details__notes" data-builder-field="notes" data-validation-severity={profileFieldSeverity('notes')}>
-              <span>Description</span>
-              <textarea value={draft.notes} placeholder="Describe how this profile brews" onChange={(event) => updateDraft('notes', event.target.value)} />
+              <span>{t('builder.details.descriptionLabel')}</span>
+              <textarea value={draft.notes} placeholder={t('builder.details.descriptionPlaceholder')} onChange={(event) => updateDraft('notes', event.target.value)} />
             </label>
           </div>
         </div>
       </section>}
     </header>
     <BuilderChart draft={draft} activeStage={activeStage} />
-    <section ref={stageStripRef} className="pb-stage-strip" aria-label="Editable brew stages">
+    <section ref={stageStripRef} className="pb-stage-strip" aria-label={t('builder.stage.stripLabel')}>
       {draft.stages.map((stage, index) => <StageEditorCard
         key={`${stage.id}-${stagePanelRequest?.stageId === stage.id ? stagePanelRequest.token : 0}`}
         cardRef={(element) => { if (element) stageCards.current.set(index, element); else stageCards.current.delete(index) }}
@@ -1086,18 +1089,18 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
         onDragMove={moveStageDrag}
         onDragEnd={endStageDrag}
       />)}
-      <button className="pb-add-stage" type="button" aria-label="Add stage" onClick={addStage}>
+      <button className="pb-add-stage" type="button" aria-label={t('builder.stage.addStage')} onClick={addStage}>
         <span><img src={builderStepPlus} alt="" /></span>
-        <strong>Add stage</strong>
+        <strong>{t('builder.stage.addStage')}</strong>
       </button>
     </section>
     {discardConfirmOpen && <div className="pb-discard-overlay" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setDiscardConfirmOpen(false) }}>
       <section className="pb-discard-dialog" role="alertdialog" aria-modal="true" aria-labelledby="pb-discard-title" aria-describedby="pb-discard-copy">
-        <h2 id="pb-discard-title">Discard profile changes?</h2>
-        <p id="pb-discard-copy">Your unsaved changes will be lost.</p>
+        <h2 id="pb-discard-title">{t('builder.discard.title')}</h2>
+        <p id="pb-discard-copy">{t('builder.discard.body')}</p>
         <div>
-          <button type="button" onClick={() => setDiscardConfirmOpen(false)}>Keep editing</button>
-          <button className="pb-discard-dialog__discard" type="button" onClick={onClose}>Discard</button>
+          <button type="button" onClick={() => setDiscardConfirmOpen(false)}>{t('builder.discard.keepEditing')}</button>
+          <button className="pb-discard-dialog__discard" type="button" onClick={onClose}>{t('builder.discard.discard')}</button>
         </div>
       </section>
     </div>}

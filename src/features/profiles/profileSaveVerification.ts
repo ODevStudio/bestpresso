@@ -1,4 +1,5 @@
 import type { DecaidProfile, DecaidProfileRecord, DecaidProfileStep } from '../../api/decaid/types'
+import { t } from '../../i18n/index.ts'
 
 type CanonicalStep = {
   name: string
@@ -97,22 +98,22 @@ export function assertVerifiedProfileRecord(
   expectedParentId: string | null,
   record: DecaidProfileRecord,
 ) {
-  if (!record.id) throw new ProfileSaveVerificationError('Decaid saved the profile without returning an identifier.')
-  if (record.visibility !== 'visible') throw new ProfileSaveVerificationError('The saved profile is not visible in the Decaid profile library.')
-  if (!record.profile) throw new ProfileSaveVerificationError('Decaid returned the saved profile without its execution data.')
+  if (!record.id) throw new ProfileSaveVerificationError(t('library.verification.missingId'))
+  if (record.visibility !== 'visible') throw new ProfileSaveVerificationError(t('library.verification.notVisible'))
+  if (!record.profile) throw new ProfileSaveVerificationError(t('library.verification.missingExecutionData'))
   if (normalizedJson(canonicalProfileForVerification(record.profile)) !== normalizedJson(canonicalProfileForVerification(expectedProfile))) {
-    throw new ProfileSaveVerificationError('Decaid changed some profile execution data while saving. The editor has kept your draft open for review.')
+    throw new ProfileSaveVerificationError(t('library.verification.executionDataChanged'))
   }
   if (normalizedJson(record.metadata ?? null) !== normalizedJson(expectedMetadata ?? null)) {
-    throw new ProfileSaveVerificationError('Decaid changed the profile metadata while saving. The editor has kept your draft open for review.')
+    throw new ProfileSaveVerificationError(t('library.verification.metadataChanged'))
   }
   if ((record.parentId ?? null) !== expectedParentId) {
-    throw new ProfileSaveVerificationError('Decaid returned an unexpected profile lineage. The editor has kept your draft open for review.')
+    throw new ProfileSaveVerificationError(t('library.verification.unexpectedLineage'))
   }
 }
 
 export function assertMatchingProfileReadback(saved: DecaidProfileRecord, readback: DecaidProfileRecord) {
   if (!saved.id || saved.id !== readback.id) {
-    throw new ProfileSaveVerificationError('The profile returned by Decaid could not be verified after saving.')
+    throw new ProfileSaveVerificationError(t('library.verification.readbackMismatch'))
   }
 }

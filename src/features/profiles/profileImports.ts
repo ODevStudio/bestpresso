@@ -1,5 +1,6 @@
 import type { DecaidProfile, DecaidProfileRecord } from '../../api/decaid/types'
 import { composeBuilderProfileTitle, copiedProfileName, splitBuilderProfileTitle } from './profileBuilderModel.ts'
+import { t } from '../../i18n/index.ts'
 
 export interface ParsedProfileImport {
   profile: DecaidProfile
@@ -23,15 +24,15 @@ export function parseProfileImport(text: string): ParsedProfileImport {
   try {
     decoded = JSON.parse(text)
   } catch {
-    throw new Error('That file is not valid JSON.')
+    throw new Error(t('library.import.invalidJson'))
   }
 
-  if (!isObject(decoded)) throw new Error('That file does not contain a profile.')
+  if (!isObject(decoded)) throw new Error(t('library.import.noProfile'))
   const candidate = isObject(decoded.profile) ? decoded.profile : decoded
   const steps = candidate.steps
-  if (typeof candidate.title !== 'string' || !candidate.title.trim()) throw new Error('The imported profile needs a name.')
-  if (!Array.isArray(steps) || steps.length === 0) throw new Error('The imported profile does not contain any brewing stages.')
-  if (!steps.every(isObject)) throw new Error('One or more brewing stages in this file are invalid.')
+  if (typeof candidate.title !== 'string' || !candidate.title.trim()) throw new Error(t('library.import.needsName'))
+  if (!Array.isArray(steps) || steps.length === 0) throw new Error(t('library.import.noStages'))
+  if (!steps.every(isObject)) throw new Error(t('library.import.invalidStages'))
 
   return {
     profile: candidate as DecaidProfile,

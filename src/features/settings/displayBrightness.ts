@@ -1,4 +1,5 @@
 import { getDisplayState, setDisplayBrightness } from '../../api/decaid/client'
+import { t } from '../../i18n/index.ts'
 import { createDisplayBrightnessPolicy } from './displayBrightnessPolicy'
 
 const KEY = 'bestpresso:display-brightness'
@@ -15,6 +16,6 @@ export const displayBrightness = createDisplayBrightnessPolicy({
   },
   persist: (value) => {
     try { window.localStorage.setItem(KEY, String(value)) }
-    catch { throw new Error('Brightness applied to Decaid, but this browser could not remember it for the next launch.') }
+    catch { throw new Error(t('settings.brightness.persistFailed')) }
   },
 })

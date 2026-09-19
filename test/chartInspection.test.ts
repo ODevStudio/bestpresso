@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { inspectShotTelemetry } from '../src/features/brew/chartInspection.ts'
+import { brewEn } from '../src/i18n/en/brew.ts'
+import { commonEn } from '../src/i18n/en/common.ts'
 
 const chartSource = readFileSync(new URL('../src/features/brew/LiveShotChart.tsx', import.meta.url), 'utf8')
 const styles = readFileSync(new URL('../src/styles/index.css', import.meta.url), 'utf8')
@@ -36,10 +38,14 @@ test('keeps vertical graph guides hidden until a hold inspection', () => {
   assert.doesNotMatch(chartSource, /className="chart-grid chart-grid--vertical"/)
   assert.match(chartSource, /INSPECTION_HOLD_MS = 180/)
   assert.match(chartSource, /className="chart-inspection-cursor"/)
-  assert.match(chartSource, />Pressure<\/dt>/)
-  assert.match(chartSource, />Flow<\/dt>/)
-  assert.match(chartSource, />Temperature<\/dt>/)
-  assert.match(chartSource, />Yield<\/dt>/)
+  assert.match(chartSource, /<dt>\{t\('brew\.metric\.pressure'\)\}<\/dt>/)
+  assert.match(chartSource, /<dt>\{t\('common\.metric\.flow'\)\}<\/dt>/)
+  assert.match(chartSource, /<dt>\{t\('common\.metric\.temperature'\)\}<\/dt>/)
+  assert.match(chartSource, /<dt>\{t\('brew\.metric\.yield'\)\}<\/dt>/)
+  assert.equal(brewEn['brew.metric.pressure'], 'Pressure')
+  assert.equal(commonEn['common.metric.flow'], 'Flow')
+  assert.equal(commonEn['common.metric.temperature'], 'Temperature')
+  assert.equal(brewEn['brew.metric.yield'], 'Yield')
 })
 
 test('uses thinner detailed lines and subtle telemetry gradients', () => {
