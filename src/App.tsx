@@ -21,6 +21,7 @@ import './styles/lightMode.css'
 import './styles/settingsLayout.css'
 import './features/machine/drinkUtilityCards.css'
 import './features/insights/insights.css'
+import './styles/homeAnimations.css'
 
 type AppPage = 'home' | 'profiles' | 'previous-pull' | 'profile-builder' | 'settings' | 'insights'
 

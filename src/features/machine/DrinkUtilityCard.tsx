@@ -8,6 +8,7 @@ import type { DisplayMetric, MachineUtility } from '../../domain/brewing'
 import { formatTemperatureValue, temperatureBoundToDisplay, type TemperatureUnit } from '../../domain/temperature'
 import { VALUE_ADJUSTMENTS } from '../../domain/valueAdjustments'
 import { TemperatureReading } from './TemperatureReading'
+import { useHomeAnimations } from '../settings/useHomeAnimations'
 import { GAUGE_MIN_C, GAUGE_CENTER, GAUGE_RADIUS, gaugeArcPath, gaugeFraction, gaugeGeometry, gaugeLayout, steamBelowReadyRange } from './steamGauge'
 
 interface Props {
@@ -24,6 +25,7 @@ interface Props {
 export function DrinkUtilityCard({ utility, metrics, compact, temperatureUnit, disabled, onExpand, onToggleSteam, getEdit }: Props) {
   const openAdjustment = useValueAdjustment()
   const steam = utility.id === 'steam'
+  const animationsEnabled = useHomeAnimations()
   const temperatureSpace = useRef<HTMLDivElement>(null)
   const [tallGauge, setTallGauge] = useState(false)
   useEffect(() => {
@@ -81,9 +83,9 @@ export function DrinkUtilityCard({ utility, metrics, compact, temperatureUnit, d
               openAdjustment({ ...targetEdit, label: targetEdit.title ?? 'Steam target temperature', value: Number(target.value), unit: '°' })
             }}>
               <span className="drink-card__temperature-pair">
-                <span className="drink-card__current metric__reading" aria-hidden="true"><span className="drink-card__current-live"><TemperatureReading value={currentText} /></span><span className="drink-card__current-off">Off</span></span>
+                <span className="drink-card__current metric__reading" aria-hidden="true"><span className="drink-card__current-live"><TemperatureReading value={currentText} animate={animationsEnabled && !compact && enabled} /></span><span className="drink-card__current-off">Off</span></span>
                 <svg className="drink-card__slash" viewBox="0 0 27 27" aria-hidden="true"><path d="M26.35 .35 .35 26.35" /></svg>
-                <span className="drink-card__target metric__reading"><TemperatureReading value={targetText} /></span>
+                <span className="drink-card__target metric__reading"><TemperatureReading value={targetText} animate={animationsEnabled && !compact} /></span>
               </span>
               <span className="metric__label">Temperature{!targetDisabled && <span className="metric__edit-indicator" aria-hidden="true">›</span>}</span>
             </button>

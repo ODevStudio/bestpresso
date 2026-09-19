@@ -7,6 +7,7 @@ export type ChartLineWeight = 'fine' | 'standard' | 'bold'
 export interface BestpressoPreferences {
   theme: 'dark' | 'light'
   completionSoundEnabled: boolean
+  animationsEnabled: boolean
   waterWarningLevelMl: number
   waterCriticalLevelMl: number
   chartLineWeight: ChartLineWeight
@@ -21,6 +22,7 @@ const preferenceEvent = 'bestpresso:preferences-changed'
 export const DEFAULT_BESTPRESSO_PREFERENCES: BestpressoPreferences = {
   theme: 'dark',
   completionSoundEnabled: true,
+  animationsEnabled: true,
   waterWarningLevelMl: 426,
   waterCriticalLevelMl: 300,
   chartLineWeight: 'fine',
@@ -46,6 +48,7 @@ export function normalizeBestpressoPreferences(value: unknown): BestpressoPrefer
     // Light is opt-in: neither device appearance nor old/missing settings enable it.
     theme: candidate.theme === 'light' ? 'light' : 'dark',
     completionSoundEnabled: candidate.completionSoundEnabled !== false,
+    animationsEnabled: candidate.animationsEnabled !== false,
     screensaverBrightness: typeof candidate.screensaverBrightness === 'number' && Number.isFinite(candidate.screensaverBrightness)
       ? Math.round(Math.max(0, Math.min(100, candidate.screensaverBrightness)))
       : DEFAULT_BESTPRESSO_PREFERENCES.screensaverBrightness,
@@ -71,6 +74,7 @@ export function applyBestpressoPreferences(preferences = readBestpressoPreferenc
   if (typeof document !== 'undefined') {
     document.documentElement.dataset.chartLineWeight = preferences.chartLineWeight
     document.documentElement.dataset.theme = preferences.theme
+    document.documentElement.dataset.animations = preferences.animationsEnabled ? 'on' : 'off'
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', preferences.theme === 'light' ? '#f4f5ef' : '#171717')
   }
   return preferences
