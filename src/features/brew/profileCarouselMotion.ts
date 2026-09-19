@@ -1,3 +1,23 @@
+// Coalesce visual drag updates only; selection and velocity tracking stay synchronous.
+export function createFramePublisher(publish: (value: number) => void, requestFrame: (callback: () => void) => number, cancelFrame: (id: number) => void) {
+  let frame: number | null = null
+  let latest = 0
+  return {
+    schedule(value: number) {
+      latest = value
+      if (frame !== null) return
+      frame = requestFrame(() => {
+        frame = null
+        publish(latest)
+      })
+    },
+    cancel() {
+      if (frame !== null) cancelFrame(frame)
+      frame = null
+    },
+  }
+}
+
 export function wrappedProfileOffset(index: number, centerIndex: number, length: number) {
   if (length <= 0) return 0
   let offset = index - centerIndex

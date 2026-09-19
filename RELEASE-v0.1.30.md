@@ -32,3 +32,14 @@ Install `bestpresso-v0.1.30-patch002.zip` in Decaid.
 - Stop confirmation now requires fresh machine feedback. Unconfirmed stops remain clearly indicated and can be retried.
 
 Install `bestpresso-v0.1.30-patch003.zip` in Decaid.
+
+## Patch 004 — A lighter home screen
+
+- Reduced unnecessary home-screen updates when readings stay the same. Changed readings update the relevant cards without redrawing unrelated panels.
+- Reused the seven-day insight summary until its history or reporting day changes.
+- Made favorite-profile swiping more efficient while keeping the existing layout and selection behavior.
+- Live telemetry, shot recording and machine controls retain their existing behavior. These improvements work with animations on or off.
+
+Thanks to Tobias Gregorius for the carousel optimization and scale-display optimization proposal in PR85.
+
+Install `bestpresso-v0.1.30-patch004.zip` in Decaid.

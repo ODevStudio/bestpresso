@@ -1,10 +1,11 @@
+import { memo } from 'react'
 import heatingIcon from '../../assets/figma/heating.svg'
 import notHeatingIcon from '../../assets/figma/not-heating.svg'
 import readyIcon from '../../assets/figma/ready.svg'
 import thirstyIcon from '../../assets/figma/thirsty.svg'
 import type { DataConnection, MachineReadiness } from '../../domain/brewing'
 
-export function StatusPill({ status, connection, machineConnection, heatingSeconds }: { status: MachineReadiness; connection: DataConnection; machineConnection: DataConnection; heatingSeconds?: number | null }) {
+function StatusPillComponent({ status, connection, machineConnection, heatingSeconds }: { status: MachineReadiness; connection: DataConnection; machineConnection: DataConnection; heatingSeconds?: number | null }) {
   const confirmedConnection = connection === 'connected' ? machineConnection : connection
 
   if (confirmedConnection !== 'connected') {
@@ -25,3 +26,5 @@ export function StatusPill({ status, connection, machineConnection, heatingSecon
   }
   return <div className={`status-pill status-pill--${status}`} title={`Machine: ${status}`} role="status"><img src={readyIcon} alt="" /><strong>{status}</strong></div>
 }
+
+export const StatusPill = memo(StatusPillComponent)
