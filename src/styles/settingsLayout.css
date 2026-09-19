@@ -30,6 +30,12 @@
 @media(max-width:700px) {
   .settings-stack {gap:14px}
   .settings-device>div {gap:8px}
+  /* A column's flex-basis is height, not width. Keep translated rows hugging
+     their content, including on WebViews without container-query support. */
+  .settings-control-row>span,.settings-number-row>span {flex:none}
+  .settings-control-row select,.settings-text-input {flex:none;width:100%}
+  .settings-control-row--switch {flex-direction:row;align-items:center;flex-wrap:nowrap}
+  .settings-control-row--switch>span {flex:1 1 auto}
 }
 
 /* Phone text needs the available width; preserve all navigation in a scrollable row. */

@@ -1045,10 +1045,6 @@
     "source": "The machine is disconnected, so the pull could not be stopped.",
     "translation": "Die Maschine ist getrennt, der Bezug konnte daher nicht gestoppt werden."
   },
-  "brew.data.error.stopRejected": {
-    "source": "The machine did not accept the stop command.",
-    "translation": "Die Maschine hat den Stopp-Befehl nicht angenommen."
-  },
   "brew.data.error.skipDisconnected": {
     "source": "The machine is disconnected, so the phase could not be skipped.",
     "translation": "Die Maschine ist getrennt, die Phase konnte daher nicht übersprungen werden."
@@ -2890,8 +2886,8 @@
     "translation": "helligkeit schlafmodus aufwecken zeitplan laden akku anwesenheit brightness sleep wake schedule charging battery presence"
   },
   "settings.section.experience.keywords": {
-    "source": "sound chart thickness theme appearance",
-    "translation": "ton diagramm linienstärke erscheinungsbild sound chart thickness theme appearance"
+    "source": "sound chart thickness theme appearance language animations motion performance",
+    "translation": "ton diagramm linienstärke erscheinungsbild sprache animationen bewegung leistung sound chart thickness theme appearance language animations motion performance"
   },
   "settings.section.data.keywords": {
     "source": "backup restore import export logs history",
@@ -4046,5 +4042,25 @@
   "settings.brightness.persistFailed": {
     "source": "Brightness applied to Decaid, but this browser could not remember it for the next launch.",
     "translation": "Helligkeit an Decaid übermittelt, aber der Browser konnte sie nicht für den nächsten Start speichern."
+  },
+  "settings.experience.animations": {
+    "source": "Animations",
+    "translation": "Animationen"
+  },
+  "settings.experience.animationsHint": {
+    "source": "Status orbit, favorite card effects and smooth steam gauge. Turn off to reduce device workload.",
+    "translation": "Statusanimation, Favoriten-Effekte und fließende Dampfanzeige. Ausschalten, um die Gerätebelastung zu reduzieren."
+  },
+  "brew.data.error.stopTrackingLost": {
+    "source": "Stop unconfirmed—connection or shot tracking lost. Check the machine.",
+    "translation": "Stopp unbestätigt – Verbindung oder Bezugsverfolgung verloren. Bitte die Maschine prüfen."
+  },
+  "brew.data.error.stopFailed": {
+    "source": "The stop request failed. Check the machine before retrying.",
+    "translation": "Die Stopp-Anfrage ist fehlgeschlagen. Bitte die Maschine vor einem erneuten Versuch prüfen."
+  },
+  "brew.data.error.stopUnconfirmed": {
+    "source": "The machine has not confirmed the stop. Check the machine or tap Stop again.",
+    "translation": "Die Maschine hat den Stopp nicht bestätigt. Bitte die Maschine prüfen oder erneut auf Stopp tippen."
   }
 }

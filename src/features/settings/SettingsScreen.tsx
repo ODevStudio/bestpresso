@@ -177,7 +177,7 @@ function TextSetting({ label, hint, value, placeholder, disabled = false, onChan
 }
 
 function SwitchSetting({ label, hint, checked, disabled = false, onChange }: { label: string; hint?: string; checked?: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
-  return <div className="settings-control-row"><span><strong>{label}</strong>{hint && <small>{hint}</small>}</span><Toggle label={label} checked={checked === true} disabled={disabled || checked === undefined} onChange={onChange} /></div>
+  return <div className="settings-control-row settings-control-row--switch"><span><strong>{label}</strong>{hint && <small>{hint}</small>}</span><Toggle label={label} checked={checked === true} disabled={disabled || checked === undefined} onChange={onChange} /></div>
 }
 function SectionList({ children }: { children: ReactNode }) { return <div className="settings-form-list">{children}</div> }
 

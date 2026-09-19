@@ -217,7 +217,7 @@ test('hook wires confirmation before session completion, disconnects and scan cl
   assert.match(brewingSource, /pendingStopRequest.current !== request/)
   assert.match(brewingSource, /backgroundScaleSearch.dispose\(\)/)
   assert.match(brewingSource, /document.removeEventListener\('visibilitychange', resumeScaleSearch\)/)
-  assert.match(brewingSource, /Stop unconfirmed/)
+  assert.match(brewingSource, /t\('brew\.data\.error\.stopTrackingLost'\)/)
   const manual = brewingSource.slice(brewingSource.indexOf('const searchForScale ='), brewingSource.indexOf('const connectToScale ='))
   assert.match(manual, /await runScaleScan\(\)/)
   assert.doesNotMatch(manual, /backgroundScaleSearch/)
