@@ -2,6 +2,7 @@ import type { DecaidProfile, DecaidProfileStep } from '../../api/decaid/types'
 import { cloneJsonData } from '../../utils/browserCompatibility.ts'
 import { profileStepsToTargetPoints } from '../../api/decaid/profileTargetPoints.ts'
 import type { ProfileTargetPoint } from '../../domain/brewing'
+import { t } from '../../i18n/index.ts'
 
 export type BuilderPump = 'pressure' | 'flow'
 export type BuilderTransition = 'fast' | 'smooth'
@@ -221,21 +222,27 @@ function stageFromDecaid(step: DecaidProfileStep, index: number, importIssues: B
   const limiterValue = optionalNumeric(step.limiter?.value)
   const limiterRange = optionalNumeric(step.limiter?.range)
 
-  if (declaredPump !== 'pressure' && declaredPump !== 'flow') addIssue('error', 'pump', 'Choose pressure or flow control.')
-  if (transitionValue !== 'fast' && transitionValue !== 'smooth') addIssue('error', 'transition', 'Choose a fast or smooth transition.')
-  if (step.sensor !== 'coffee' && step.sensor !== 'water') addIssue('error', 'sensor', 'Choose the coffee or water temperature sensor.')
+  if (declaredPump !== 'pressure' && declaredPump !== 'flow') addIssue('error', 'pump', t('builder.validation.stage.pumpRequired'))
+  if (transitionValue !== 'fast' && transitionValue !== 'smooth') addIssue('error', 'transition', t('builder.validation.stage.transitionRequired'))
+  if (step.sensor !== 'coffee' && step.sensor !== 'water') addIssue('error', 'sensor', t('builder.validation.stage.sensorRequired'))
   const targetValue = pump === 'pressure' ? step.pressure ?? pumpObject?.pressure : step.flow ?? pumpObject?.flow
+  const numberFieldMessage = {
+    target: 'builder.import.stageTargetNumber',
+    temperature: 'builder.import.temperatureNumber',
+    seconds: 'builder.import.secondsNumber',
+    volume: 'builder.import.volumeNumber',
+  } as const
   for (const [field, value] of [['target', targetValue], ['temperature', step.temperature], ['seconds', step.seconds ?? step.duration], ['volume', step.volume]] as const) {
-    if (!isNumericLike(value)) addIssue('error', field, `${field === 'target' ? 'The stage target' : field[0].toUpperCase() + field.slice(1)} must be a number.`)
+    if (!isNumericLike(value)) addIssue('error', field, t(numberFieldMessage[field]))
   }
   if (step.exit !== undefined && step.exit !== null) {
-    if (step.exit.type !== 'pressure' && step.exit.type !== 'flow') addIssue('error', 'exit', 'Choose a supported pressure or flow move-on condition.')
-    if (step.exit.condition !== 'over' && step.exit.condition !== 'under') addIssue('error', 'exit', 'Choose whether the move-on value is over or under the threshold.')
-    if (!isNumericLike(step.exit.value)) addIssue('error', 'exit', 'The move-on threshold must be a number.')
+    if (step.exit.type !== 'pressure' && step.exit.type !== 'flow') addIssue('error', 'exit', t('builder.import.exitTypeUnsupported'))
+    if (step.exit.condition !== 'over' && step.exit.condition !== 'under') addIssue('error', 'exit', t('builder.import.exitConditionUnsupported'))
+    if (!isNumericLike(step.exit.value)) addIssue('error', 'exit', t('builder.import.exitThresholdNumber'))
   }
   if (step.limiter !== undefined && step.limiter !== null) {
-    if (!isNumericLike(step.limiter.value)) addIssue('error', 'limiter', 'The limiter value must be a number.')
-    if (!isNumericLike(step.limiter.range)) addIssue('error', 'limiter', 'The limiter response range is required and must be a number.')
+    if (!isNumericLike(step.limiter.value)) addIssue('error', 'limiter', t('builder.import.limiterValueNumber'))
+    if (!isNumericLike(step.limiter.range)) addIssue('error', 'limiter', t('builder.import.limiterRangeRequired'))
   }
 
   return {
@@ -271,13 +278,17 @@ export function profileDraftFromDecaidProfile(profile: DecaidProfile, options: {
   const parsedTitle = splitBuilderProfileTitle(profile.title, profile.category)
   const beverageType = profile.beverage_type
   const validBeverageType = beverageType === 'calibrate' || beverageType === 'cleaning' || beverageType === 'manual' || beverageType === 'pourover' ? beverageType : 'espresso'
-  if (typeof profile.title !== 'string' || !profile.title.trim()) addProfileIssue('error', 'title', 'Enter a profile name.')
-  if (beverageType !== undefined && !['espresso', 'calibrate', 'cleaning', 'manual', 'pourover'].includes(String(beverageType))) addProfileIssue('error', 'beverageType', 'Choose a supported beverage type.')
-  for (const [field, value, label] of [
-    ['targetVolumeCountStart', profile.target_volume_count_start, 'Volume count start'],
-    ['tankTemperature', profile.tank_temperature, 'Tank temperature'],
+  if (typeof profile.title !== 'string' || !profile.title.trim()) addProfileIssue('error', 'title', t('builder.validation.profile.titleRequired'))
+  if (beverageType !== undefined && !['espresso', 'calibrate', 'cleaning', 'manual', 'pourover'].includes(String(beverageType))) addProfileIssue('error', 'beverageType', t('builder.validation.profile.beverageType'))
+  const requiredNumberMessage = {
+    targetVolumeCountStart: 'builder.import.volumeCountStartRequired',
+    tankTemperature: 'builder.import.tankTemperatureRequired',
+  } as const
+  for (const [field, value] of [
+    ['targetVolumeCountStart', profile.target_volume_count_start],
+    ['tankTemperature', profile.tank_temperature],
   ] as const) {
-    if (!isNumericLike(value)) addProfileIssue('error', field, `${label} is required and must be a number.`)
+    if (!isNumericLike(value)) addProfileIssue('error', field, t(requiredNumberMessage[field]))
   }
   const stages = profile.steps?.map((step, index) => stageFromDecaid(step, index, importIssues)) ?? []
   return {

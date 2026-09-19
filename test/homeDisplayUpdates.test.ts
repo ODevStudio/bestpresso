@@ -48,3 +48,15 @@ test('connection sharing keeps device identity and status changes', () => {
   assert.notEqual(withScaleConnection(current, { ...current, name: 'Renamed' }), current)
   assert.deepEqual(withScaleConnection(current, { status: 'disconnected' }), { status: 'disconnected' })
 })
+
+test('steam temperature updates use the stable metric ID, not its translated label', () => {
+  const model = {
+    ...brewingFixture,
+    utilities: brewingFixture.utilities.map(utility => utility.id !== 'steam' ? utility : {
+      ...utility, metrics: utility.metrics.map(metric => ({ ...metric, label: 'Aktuell' })),
+    }),
+  }
+  const next = withHomeMachineDisplay(model, 'ready', 153.2, 130, 'normal')
+  assert.equal(next.utilities.find(u => u.id === 'steam')?.metrics.find(m => m.id === 'current')?.value, '153')
+  assert.equal(withHomeMachineDisplay(next, 'ready', 153.3, 130, 'normal'), next)
+})

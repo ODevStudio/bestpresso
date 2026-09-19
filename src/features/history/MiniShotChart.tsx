@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react'
 import type { LiveShotPoint, PreviousShot } from '../../domain/brewing'
 import { smoothShotTelemetry } from '../brew/chartSmoothing'
+import { t, useLanguage } from '../../i18n/index.ts'
 
 const WIDTH = 600
 const HEIGHT = 108
@@ -23,6 +24,8 @@ const snapshotPath = (points: LiveShotPoint[], key: keyof LiveShotPoint, maximum
 }
 
 function MiniShotChartComponent({ shot }: { shot: PreviousShot }) {
+  // The component is memoised on `shot` alone, so a language change would not otherwise re-render it.
+  useLanguage()
   const points = useMemo(() => shot.points ?? [], [shot.points])
   const displayPoints = useMemo(() => smoothShotTelemetry(points), [points])
   const durationMs = Math.max(1, points.at(-1)?.elapsedMs ?? Number(shot.totalTime) * 1000)
@@ -34,7 +37,7 @@ function MiniShotChartComponent({ shot }: { shot: PreviousShot }) {
   const weightPath = useMemo(() => snapshotPath(points, 'weight', weightMax, durationMs), [points, weightMax, durationMs])
 
   return <div className="mini-chart">
-    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={showWeight ? 'Previous shot pressure, flow, and yield weight graph' : 'Previous cleaning pressure and flow graph'} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={showWeight ? t('insights.miniChart.ariaLabelWeight') : t('insights.miniChart.ariaLabelCleaning')} preserveAspectRatio="none">
       <path className="chart-line chart-line--pressure" d={pressurePath} />
       <path className="chart-line chart-line--flow" d={flowPath} />
       {showWeight && <path className="chart-line chart-line--weight mini-chart__weight" d={weightPath} />}

@@ -1,9 +1,11 @@
+import { formatNumber, t } from '../../i18n/index.ts'
 import type { PaginatedShots, ShotRecord } from '../../api/decaid/types.ts'
 import type { PreviousShot } from '../../domain/brewing.ts'
 import { attachDetail, HISTORY_LIMIT, normalizeShot, retainHistoryDetails, regroupHistory, reconcileCachedDurations, savedDuration, validHistoryCache, type HistoryCache } from './historyData.ts'
 import type { HistoryStorage } from './historyStorage.ts'
 import { syncHistory } from './historySync.ts'
 import { reconcileStageReasons, STAGE_REASON_VERSION } from '../brew/stageMoveOn.ts'
+import { reconcileCachedLabels, reconcileGeneratedLabels } from '../../i18n/dataLabels.ts'
 import { assertHistoryActive, HistoryPaused, type BackfillCooldown, type HistoryPacer } from './historyPacing.ts'
 
 export interface HistoryState { cache: HistoryCache | null; status: 'loading' | 'ready' | 'offline'; refreshing: boolean; storageWarning: boolean; error: string | null }
@@ -33,7 +35,7 @@ export class HistoryRepository {
   private update(patch: Partial<HistoryState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()) }
   load() {
     this.boot ??= this.deps.storage.read(this.source).then(async cache => {
-      const valid = validHistoryCache(cache, this.source) ? reconcileCachedDurations(regroupHistory(cache)) : null
+      const valid = validHistoryCache(cache, this.source) ? reconcileCachedDurations(regroupHistory(reconcileCachedLabels(cache))) : null
       this.update({ cache: valid, status: valid ? 'offline' : 'loading' })
       if (valid && valid !== cache) await this.persist(valid)
     }).catch(() => this.update({ storageWarning: true }))
@@ -44,7 +46,7 @@ export class HistoryRepository {
     return this.writes
   }
   private reconcileDetail(detail: PreviousShot, signature?: string) {
-    return reconcileStageReasons(this.deps.decorateDetail?.(detail) ?? detail, signature)
+    return reconcileStageReasons(reconcileGeneratedLabels(this.deps.decorateDetail?.(detail) ?? detail, signature), signature)
   }
   // Offline-only migration: small resumable batches, no graph downloads. Missing
   // detail records remain eligible when their measurements are fetched later.
@@ -54,7 +56,7 @@ export class HistoryRepository {
       await this.load()
       const current = this.state.cache
       if (!current) return true
-      const needsReconciliation = (detail: PreviousShot | undefined) => detail?.points?.length && (this.deps.decorateDetail?.(detail) ?? detail).stageReasons?.version !== STAGE_REASON_VERSION
+      const needsReconciliation = (detail: PreviousShot | undefined) => detail?.points?.length && ((this.deps.decorateDetail?.(detail) ?? detail).stageReasons?.version !== STAGE_REASON_VERSION || Object.values(detail.stageReasons?.reasons ?? {}).some(reason => !reason.conditions))
       const pending = current.records.filter(r => needsReconciliation(current.details[r.id])).slice(0, 5)
       const details = { ...current.details }
       let changed = false
@@ -94,7 +96,7 @@ export class HistoryRepository {
         return true
       } catch (error) {
         if (error instanceof HistoryPaused || !canContinue()) return 'paused' as const
-        this.update({ status: 'offline', error: error instanceof Error ? error.message : 'Decaid history is unavailable.' })
+        this.update({ status: 'offline', error: error instanceof Error ? error.message : t('common.error.historyUnavailable') })
         return false
       } finally { this.update({ refreshing: false }); this.refreshing = null }
     })()
@@ -104,7 +106,7 @@ export class HistoryRepository {
     const pending = this.rawDetails.get(id)
     if (pending) return pending
     const request = Promise.resolve().then(() => this.deps.detail(id)).then(raw => {
-      if (raw.id !== id || !Array.isArray(raw.measurements)) throw new Error('Decaid did not return the measurements for this shot.')
+      if (raw.id !== id || !Array.isArray(raw.measurements)) throw new Error(t('common.error.shotMeasurements'))
       return raw
     }).finally(() => this.rawDetails.delete(id))
     this.rawDetails.set(id, request)
@@ -139,7 +141,7 @@ export class HistoryRepository {
                 // never wait behind a queued background request for the same ID.
                 const raw = await this.readDetail(record.id)
                 const normalized = normalizeShot(raw, initial.timezone)
-                if (normalized?.signature !== record.signature) throw new Error('Saved shot changed during duration reconciliation.')
+                if (normalized?.signature !== record.signature) throw new Error(t('common.error.shotChanged'))
                 return savedDuration(this.deps.toDetail(raw))
               }, canContinue)
             } catch (error) {
@@ -174,7 +176,7 @@ export class HistoryRepository {
       await this.load()
       const initial = this.state.cache
       const record = initial?.records.find(r => r.id === id)
-      if (!initial || !record) throw new Error(`This shot is not in the latest ${HISTORY_LIMIT.toLocaleString()} saved records. Refresh history to check again.`)
+      if (!initial || !record) throw new Error(t('common.error.shotOutsideCache', { count: formatNumber(HISTORY_LIMIT) }))
       // Summaries are reconciled on entry/refresh. A cached detail shares that revision.
       if (Object.prototype.hasOwnProperty.call(initial.details, id)) {
         const detail = this.reconcileDetail(initial.details[id], record.signature)
@@ -187,7 +189,7 @@ export class HistoryRepository {
       }
       const raw = await this.readDetail(id)
       const normalized = normalizeShot(raw, initial.timezone)
-      if (!normalized) throw new Error('This saved shot is missing its date or identity.')
+      if (!normalized) throw new Error(t('common.error.shotIdentity'))
       const detail = this.reconcileDetail(this.deps.toDetail(raw), normalized.signature)
       const current = this.state.cache
       if (current?.records.some(r => r.id === id && r.signature === record.signature)) {

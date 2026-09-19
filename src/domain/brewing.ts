@@ -41,10 +41,19 @@ export interface DisplayMetric {
   highlight?: boolean
 }
 
+/** Stable metric identities; the visible label comes from the catalog (`common.metric.<id>`). */
+export type UtilityMetricId = 'volume' | 'temperature' | 'maxDuration' | 'current' | 'target' | 'duration' | 'flow' | 'weight'
+
+export interface UtilityMetric {
+  id: UtilityMetricId
+  value: string
+  unit?: string
+  highlight?: boolean
+}
+
 export interface MachineUtility {
   id: UtilityId
-  label: string
-  metrics: DisplayMetric[]
+  metrics: UtilityMetric[]
   enabled?: boolean
   alert?: boolean
   warning?: boolean
@@ -78,6 +87,7 @@ export interface BrewProfile {
 }
 
 export interface PreviousShot {
+  profileNameFallback?: 'previousPull' | 'espresso' | 'cleaning'
   profileSteps?: DecaidProfileStep[]
   telemetryStartedAt?: number
   stageEvidence?: StageAdvanceEvidence[]
@@ -107,6 +117,7 @@ export interface SettingFeedback {
 }
 
 export interface LiveShotPoint {
+  stageNameFallback?: 'stageNumber' | 'preinfusion' | 'cooling' | 'extraction'
   elapsedMs: number
   pressure?: number
   flow?: number
@@ -120,6 +131,7 @@ export interface LiveShotPoint {
 }
 
 export interface LiveBrewState {
+  profileNameFallback?: PreviousShot['profileNameFallback']
   profileSteps?: DecaidProfileStep[]
   telemetryStartedAt?: number
   stageEvidence?: StageAdvanceEvidence[]

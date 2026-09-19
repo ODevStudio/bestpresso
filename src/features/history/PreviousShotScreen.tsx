@@ -1,7 +1,9 @@
+import { displayedShotName } from '../../i18n/dataLabels.ts'
 import { useState } from 'react'
 import { reconcileStageReasons } from '../brew/stageMoveOn'
 import { clockOptions, type ClockFormat } from '../sleep/deviceTime'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
+import { dateFormatter, localizeDecimalText, t } from '../../i18n/index.ts'
 import type { LiveShotPoint, PreviousShot, PreviousShotStatus } from '../../domain/brewing'
 import { LiveBrewStages } from '../brew/LiveBrewStages'
 import type { BrewStageSelection } from '../brew/LiveBrewStages'
@@ -35,10 +37,10 @@ function AnimatedHistoryShotChart({ view, targetYield }: { view: HistoryChartVie
 }
 
 const pullTime = (timestamp: string | undefined, clockFormat: ClockFormat) => {
-  if (!timestamp) return 'Date unavailable'
+  if (!timestamp) return t('insights.previousShot.dateUnavailable')
   const date = new Date(timestamp)
-  if (Number.isNaN(date.getTime())) return 'Date unavailable'
-  return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', ...clockOptions(clockFormat) }).format(date)
+  if (Number.isNaN(date.getTime())) return t('insights.previousShot.dateUnavailable')
+  return dateFormatter({ day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', ...clockOptions(clockFormat) }).format(date)
 }
 
 const timerLabel = (shot: PreviousShot) => {
@@ -103,36 +105,36 @@ export function PreviousShotScreen({ shots, initialShot, status, onSelectShot, o
 
   return <main className={`history-browser-screen${layout === 'detail' ? ' history-browser-screen--detail' : ''}`}>
     {layout === 'browser' && <aside className="history-browser-rail">
-      <header><h1>Shot history</h1><span>{shots.length}</span></header>
-      <div className="history-browser-list" role="listbox" aria-label="Shot history">
+      <header><h1>{t('insights.previousShot.title')}</h1><span>{shots.length}</span></header>
+      <div className="history-browser-list" role="listbox" aria-label={t('insights.previousShot.title')}>
         {shots.map((shot, index) => <button className={`history-browser-item${shot.id === activeId ? ' history-browser-item--selected' : ''}`} type="button" role="option" aria-selected={shot.id === activeId} aria-busy={loadingId === shot.id} key={shot.id ?? `${shot.timestamp}:${index}`} onClick={() => void selectShot(shot)}>
-          <strong>{shot.profileName}</strong>
+          <strong>{displayedShotName(shot)}</strong>
           <time dateTime={shot.timestamp}>{pullTime(shot.timestamp, preferences.clockFormat)}</time>
         </button>)}
-        {!shots.length && <p className="history-browser-empty">{status === 'loading' ? 'Finding your pulls…' : "You haven't filled any cups yet."}</p>}
+        {!shots.length && <p className="history-browser-empty">{status === 'loading' ? t('insights.previousShot.findingPulls') : t('insights.previousShot.noCupsYet')}</p>}
       </div>
     </aside>}
 
     <section className="history-browser-detail" aria-live="polite">
       <header className="live-pull-header">
         <div className="history-pull-title">
-          <h1>{activeShot?.profileName ?? 'Pull history'}</h1>
+          <h1>{activeShot ? displayedShotName(activeShot) : t('insights.previousShot.fallbackTitle')}</h1>
           {activeShot && <time dateTime={activeShot.timestamp}>{pullTime(activeShot.timestamp, preferences.clockFormat)}</time>}
         </div>
         <div className="live-pull-header__controls">
           <div className={`live-pull-header__metrics metric-scale--medium${isCleaning ? ' live-pull-header__metrics--single' : ' live-pull-header__metrics--history'}`}>
-            <div><span>Duration</span><strong>{activeShot ? timerLabel(activeShot) : '—'}</strong></div>
-            {!isCleaning && <><i aria-hidden="true" /><div><span>Yield</span><strong>{activeShot?.totalYield ?? '—'}{activeShot?.totalYield !== '—' && <small>g</small>}</strong></div></>}
+            <div><span>{t('insights.common.duration')}</span><strong>{activeShot ? timerLabel(activeShot) : '—'}</strong></div>
+            {!isCleaning && <><i aria-hidden="true" /><div><span>{t('insights.common.yield')}</span><strong>{localizeDecimalText(activeShot?.totalYield ?? '—')}{activeShot?.totalYield !== '—' && <small>g</small>}</strong></div></>}
           </div>
           <div className="live-pull-header__actions">
-            <button className="live-pull-action live-pull-action--close" type="button" onClick={onDismiss}>Close</button>
+            <button className="live-pull-action live-pull-action--close" type="button" onClick={onDismiss}>{t('insights.common.close')}</button>
           </div>
         </div>
       </header>
 
-      <section className={`live-pull-chart-panel history-pull-chart${loadingId ? ' history-pull-chart--loading' : ''}`} aria-label={activeShot ? `Shot history: ${activeShot.profileName}` : 'Shot history chart'}>
+      <section className={`live-pull-chart-panel history-pull-chart${loadingId ? ' history-pull-chart--loading' : ''}`} aria-label={activeShot ? t('insights.previousShot.chartAriaLabelWeight', { profile: displayedShotName(activeShot) }) : t('insights.previousShot.chartAriaLabelGeneric')}>
         {activeShot && <AnimatedHistoryShotChart view={chartView} targetYield={targetYield} />}
-        {loadError && <p className="history-pull-error">That pull couldn’t be loaded. Try selecting it again.</p>}
+        {loadError && <p className="history-pull-error">{t('insights.previousShot.loadError')}</p>}
       </section>
       <LiveBrewStages reasons={reasons} points={points} elapsedMs={elapsedMs} showYield={!isCleaning} selectedStageKey={selectedStage?.key} onStageSelect={(stage) => setStageSelection(stage ? { shotId: activeId, stage } : null)} />
     </section>

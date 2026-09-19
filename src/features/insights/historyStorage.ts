@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts'
 import type { HistoryCache } from './historyData.ts'
 import { validHistoryCache } from './historyData.ts'
 
@@ -8,7 +9,7 @@ export function browserHistoryStorage(): HistoryStorage {
     request.onupgradeneeded = () => request.result.createObjectStore('sources', { keyPath: 'source' })
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
-    request.onblocked = () => reject(new Error('History storage is busy in another tab.'))
+    request.onblocked = () => reject(new Error(t('common.error.storageBusy')))
   })
   return {
     async read(source) {

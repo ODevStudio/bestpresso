@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import scaleIcon from '../../assets/figma/scale.svg'
 import type { AvailableScale } from '../../domain/brewing'
+import { plural, t } from '../../i18n/index.ts'
 import { scalePresentationForDevice } from './scaleArtwork'
 
 interface ScaleDevicePickerProps {
@@ -27,8 +28,8 @@ export function ScaleDevicePicker({ devices, pendingDeviceId, onSelect, onDismis
     <section className="scale-picker" style={panelStyle} role="dialog" aria-modal="true" aria-labelledby="scale-picker-title" aria-describedby="scale-picker-count">
       <header className="scale-picker__header">
         <div>
-          <h2 id="scale-picker-title">Select scale to connect</h2>
-          <p id="scale-picker-count">{visibleDevices.length} devices found</p>
+          <h2 id="scale-picker-title">{t('shell.scale.selectTitle')}</h2>
+          <p id="scale-picker-count">{plural('shell.scale.devicesFound', visibleDevices.length)}</p>
         </div>
         <img className="scale-picker__hero-icon" src={scaleIcon} alt="" />
       </header>
@@ -43,13 +44,13 @@ export function ScaleDevicePicker({ devices, pendingDeviceId, onSelect, onDismis
             key={device.id}
             type="button"
             disabled={Boolean(pendingDeviceId)}
-            aria-label={`Connect ${displayName}`}
+            aria-label={t('shell.scale.connectAria', { name: displayName })}
             onClick={() => onSelect(device.id)}
           >
             <img className="scale-picker-card__icon" src={scaleIcon} alt="" />
             <strong>{displayName}</strong>
             {presentation?.imageSrc && <span className="scale-picker-card__art" aria-hidden="true"><img src={presentation.imageSrc} alt="" /></span>}
-            {isPending && <span className="scale-picker-card__status">Connecting…</span>}
+            {isPending && <span className="scale-picker-card__status">{t('shell.scale.connecting')}</span>}
           </button>
         })}
       </div>

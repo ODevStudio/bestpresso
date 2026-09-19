@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react'
 import logo from '../../assets/figma/decent-logo.png'
 import { MAX_VALUE_SUGGESTIONS } from '../../domain/valueAdjustments'
+import { decimalSeparator, formatNumber, localizeDecimalText, t } from '../../i18n/index.ts'
 import { NumericKeypad } from './NumericKeypad'
 import { ValueAdjustmentContext } from './ValueAdjustmentContext'
 import type { ValueAdjustmentMode, ValueAdjustmentRequest } from './ValueAdjustmentContext'
@@ -10,8 +11,14 @@ import { appendNumericKey, gestureIncrement, maximumGesturePointers, normalizedA
 const SUGGESTION_STORAGE_KEY = 'bestpresso.value-adjustment-suggestions.v2'
 type SuggestionStore = Partial<Record<ValueAdjustmentRequest['suggestionKey'], number[]>>
 
+// Draft text stays dot-based: it round-trips through appendNumericKey/Number() for direct
+// entry. displayNumber() converts only at render time, so the on-screen text uses the
+// active locale's decimal separator without touching the parseable value underneath.
 const formatValue = (value: number, mode: ValueAdjustmentMode) => mode === 'decimal' ? value.toFixed(1) : String(Math.round(value))
 const formatSuggestion = (value: number, mode: ValueAdjustmentMode) => mode === 'decimal' && !Number.isInteger(value) ? value.toFixed(1) : String(value)
+const displayNumber = (text: string) => text.endsWith('.') ? localizeDecimalText(text.slice(0, -1) || '0') + decimalSeparator() : localizeDecimalText(text)
+const displayValue = (value: number, mode: ValueAdjustmentMode) => displayNumber(formatValue(value, mode))
+const displaySuggestion = (value: number, mode: ValueAdjustmentMode) => displayNumber(formatSuggestion(value, mode))
 
 const clampedValue = (value: number, request: ValueAdjustmentRequest) => Math.min(request.max, Math.max(request.min, value))
 
@@ -86,10 +93,10 @@ function ValueAdjustmentScreen({ request, onClose }: { request: ValueAdjustmentR
   const draftValueRef = useRef(draftValue)
   const draftRangeIssue = editingValue ? numericDraftRangeIssue(draftValue, activeRequest.min, activeRequest.max) : null
   const directInputError = draftRangeIssue === 'above'
-    ? `Maximum is ${activeRequest.max.toLocaleString()}.`
+    ? t('shell.adjust.maxError', { max: formatNumber(activeRequest.max) })
     : draftRangeIssue === 'below'
-      ? `Minimum is ${activeRequest.min.toLocaleString()}.`
-      : draftRangeIssue === 'required' ? 'Enter a number.' : null
+      ? t('shell.adjust.minError', { min: formatNumber(activeRequest.min) })
+      : draftRangeIssue === 'required' ? t('shell.adjust.requiredError') : null
   const [suggestionStore, setSuggestionStore] = useState<SuggestionStore>(readSuggestionStore)
   const suggestionStoreRef = useRef(suggestionStore)
   const hasSuggestionHistory = Object.prototype.hasOwnProperty.call(suggestionStore, activeRequest.suggestionKey)
@@ -270,7 +277,7 @@ function ValueAdjustmentScreen({ request, onClose }: { request: ValueAdjustmentR
     if (!/^\d*(?:\.\d*)?$/.test(normalizedDraft)) return
     stopAnimation()
     draftValueRef.current = normalizedDraft
-    if (directDraftText.current) directDraftText.current.textContent = normalizedDraft || '—'
+    if (directDraftText.current) directDraftText.current.textContent = normalizedDraft ? displayNumber(normalizedDraft) : '—'
     if (directEntryAnimation.current !== null) window.clearTimeout(directEntryAnimation.current)
     directEntryAnimation.current = null
     if (!normalizedDraft || normalizedDraft === '.') return
@@ -451,7 +458,7 @@ function ValueAdjustmentScreen({ request, onClose }: { request: ValueAdjustmentR
       completedSingleFingerSwipes.current += 1
       if (completedSingleFingerSwipes.current > 3) {
         gestureTipShown.current = true
-        setGestureTip('Swipe with two fingers for steps of 10, or three fingers for steps of 100.')
+        setGestureTip(t('shell.adjust.gestureTip'))
         gestureTipTimer.current = window.setTimeout(() => {
           gestureTipTimer.current = null
           setGestureTip(null)
@@ -490,25 +497,25 @@ function ValueAdjustmentScreen({ request, onClose }: { request: ValueAdjustmentR
 
   const hasFixedSuggestions = Boolean(activeRequest.fixedSuggestions?.length)
 
-  return <main className={`value-adjuster value-adjuster--${mode}${request.variants?.length ? ' value-adjuster--has-variants' : ''}${hasFixedSuggestions ? ' value-adjuster--has-fixed-suggestions' : ''}${editingValue ? ' value-adjuster--keyboard' : ''}`} aria-label={`Adjust ${request.label}`}>
+  return <main className={`value-adjuster value-adjuster--${mode}${request.variants?.length ? ' value-adjuster--has-variants' : ''}${hasFixedSuggestions ? ' value-adjuster--has-fixed-suggestions' : ''}${editingValue ? ' value-adjuster--keyboard' : ''}`} aria-label={t('shell.adjust.adjustAria', { label: request.label })}>
     {gestureTip && <div className="system-messages"><div className="system-message value-adjuster__gesture-tip" role="status" aria-live="polite"><span className="value-adjuster__gesture-tip-icon" aria-hidden="true">i</span><span>{gestureTip}</span></div></div>}
     <header className="value-adjuster__header">
       <img className="logo" src={logo} alt="decent" />
-      <div className="value-adjuster__actions"><button className="value-adjuster__cancel" type="button" onClick={onClose}>Cancel</button><button className="value-adjuster__save" type="button" disabled={Boolean(directInputError)} onClick={saveAdjustment}>Save</button></div>
+      <div className="value-adjuster__actions"><button className="value-adjuster__cancel" type="button" onClick={onClose}>{t('shell.adjust.cancel')}</button><button className="value-adjuster__save" type="button" disabled={Boolean(directInputError)} onClick={saveAdjustment}>{t('shell.adjust.save')}</button></div>
     </header>
     <section className="value-adjuster__body">
       <p>{request.label}</p>
-      {request.variants && request.variants.length > 1 && <div className="value-adjuster__variants" role="tablist" aria-label={`${request.label} options`}>
+      {request.variants && request.variants.length > 1 && <div className="value-adjuster__variants" role="tablist" aria-label={t('shell.adjust.optionsAria', { label: request.label })}>
         {request.variants.map((variant) => <button key={variant.id} type="button" role="tab" aria-selected={variant.id === activeVariantId} className={variant.id === activeVariantId ? 'is-selected' : ''} onClick={() => selectVariant(variant.id)}>{variant.label}</button>)}
       </div>}
       <div className="value-adjuster__value" aria-live="polite">
         {editingValue
-          ? <span className="value-adjuster__direct-value" aria-label={`${request.label}, ${draftValue || 'empty'}`}><span ref={directDraftText} className="value-adjuster__direct-number">{draftValue || '—'}</span>{activeRequest.unit && <small>{activeRequest.unit}</small>}</span>
-          : <button type="button" onClick={beginDirectEntry} aria-label={`Enter ${request.label} with keypad`}>{formatValue(visualValue, mode)}{activeRequest.unit && <small>{activeRequest.unit}</small>}</button>}
+          ? <span className="value-adjuster__direct-value" aria-label={t('shell.adjust.valueAnnouncement', { label: request.label, value: draftValue ? displayNumber(draftValue) : t('shell.adjust.emptyValue') })}><span ref={directDraftText} className="value-adjuster__direct-number">{draftValue ? displayNumber(draftValue) : '—'}</span>{activeRequest.unit && <small>{activeRequest.unit}</small>}</span>
+          : <button type="button" onClick={beginDirectEntry} aria-label={t('shell.adjust.enterWithKeypadAria', { label: request.label })}>{displayValue(visualValue, mode)}{activeRequest.unit && <small>{activeRequest.unit}</small>}</button>}
       </div>
       {directInputError && <p className="value-adjuster__validation" role="alert">{directInputError}</p>}
       {valueHint && <div className="value-adjuster__value-hint"><span>{valueHint}</span></div>}
-      <div ref={ruler} className="value-adjuster__scrubber" role="slider" tabIndex={0} aria-label={request.label} aria-valuemin={activeRequest.min} aria-valuemax={activeRequest.max} aria-valuenow={value} aria-valuetext={`${formatValue(value, mode)}${activeRequest.unit ?? ''}${valueHint ? `, ${valueHint}` : ''}`} onKeyDown={handleKeyDown} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
+      <div ref={ruler} className="value-adjuster__scrubber" role="slider" tabIndex={0} aria-label={request.label} aria-valuemin={activeRequest.min} aria-valuemax={activeRequest.max} aria-valuenow={value} aria-valuetext={`${displayValue(value, mode)}${activeRequest.unit ?? ''}${valueHint ? `, ${valueHint}` : ''}`} onKeyDown={handleKeyDown} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <div className="value-adjuster__scrubber-track">
           <div className="value-adjuster__labels" aria-hidden="true">{labels.map((label, index) => {
             const inRange = label >= activeRequest.min && label <= activeRequest.max
@@ -524,11 +531,11 @@ function ValueAdjustmentScreen({ request, onClose }: { request: ValueAdjustmentR
     </section>
     {editingValue && <NumericKeypad disabled={Boolean(directInputError)} label={request.label} onDelete={deleteKeypadKey} onDismiss={() => { playKeypadFeedback(); commitDirectEntry() }} onKey={pressKeypadKey} />}
     {!editingValue && <footer className="value-adjuster__presets">
-      <div className="value-adjuster__preset-row" aria-label={`${request.label} suggestions`}>{presets.map((preset) => <button key={preset} type="button" className={preset === value ? 'value-adjuster__preset value-adjuster__preset--active' : 'value-adjuster__preset'} onClick={() => selectPreset(preset)}>{formatSuggestion(preset, mode)}{activeRequest.unit && <small>{activeRequest.unit}</small>}</button>)}</div>
-      {activeRequest.fixedSuggestions && <div className="value-adjuster__preset-row value-adjuster__preset-row--fixed" aria-label={`${request.label} typical ratios`}>{activeRequest.fixedSuggestions.map((suggestion) => {
+      <div className="value-adjuster__preset-row" aria-label={t('shell.adjust.suggestionsAria', { label: request.label })}>{presets.map((preset) => <button key={preset} type="button" className={preset === value ? 'value-adjuster__preset value-adjuster__preset--active' : 'value-adjuster__preset'} onClick={() => selectPreset(preset)}>{displaySuggestion(preset, mode)}{activeRequest.unit && <small>{activeRequest.unit}</small>}</button>)}</div>
+      {activeRequest.fixedSuggestions && <div className="value-adjuster__preset-row value-adjuster__preset-row--fixed" aria-label={t('shell.adjust.typicalRatiosAria', { label: request.label })}>{activeRequest.fixedSuggestions.map((suggestion) => {
         const available = Number.isFinite(suggestion.value) && suggestion.value >= activeRequest.min && suggestion.value <= activeRequest.max
         const suggestionValue = available ? normalizedValue(suggestion.value, activeRequest) : suggestion.value
-        return <button key={suggestion.label} type="button" className={available && suggestionValue === value ? 'value-adjuster__fixed-preset value-adjuster__fixed-preset--active' : 'value-adjuster__fixed-preset'} disabled={!available} aria-label={`${suggestion.label}, ${formatSuggestion(suggestion.value, mode)}${activeRequest.unit ?? ''}, ${suggestion.detail}`} onClick={() => { fixedSelection.current = suggestionValue; prepareAudioFeedback(); animateToValue(suggestionValue) }}>{suggestion.label}</button>
+        return <button key={suggestion.label} type="button" className={available && suggestionValue === value ? 'value-adjuster__fixed-preset value-adjuster__fixed-preset--active' : 'value-adjuster__fixed-preset'} disabled={!available} aria-label={`${suggestion.label}, ${displaySuggestion(suggestion.value, mode)}${activeRequest.unit ?? ''}, ${suggestion.detail}`} onClick={() => { fixedSelection.current = suggestionValue; prepareAudioFeedback(); animateToValue(suggestionValue) }}>{suggestion.label}</button>
       })}</div>}
     </footer>}
   </main>

@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.ts'
 import type { PaginatedShots } from '../../api/decaid/types.ts'
 import { canonical, HISTORY_LIMIT, HISTORY_PAGE_SIZE, mergeRecentHistory, reconcileHistory, type HistoryCache } from './historyData.ts'
 import { assertHistoryActive } from './historyPacing.ts'
@@ -6,12 +7,12 @@ import { assertHistoryActive } from './historyPacing.ts'
 // competes with the machine and scale for Decaid's attention, so it runs rarely.
 export const FULL_HISTORY_INTERVAL = 6 * 60 * 60 * 1000
 class HistoryChanged extends Error {
-  constructor() { super('History changed while syncing. Please refresh again. Your saved history is unchanged.') }
+  constructor() { super(t('common.error.historyChanged')) }
 }
 
 function checkPage(page: PaginatedShots, offset: number) {
   if (!page || !Array.isArray(page.items) || page.offset !== offset || page.limit !== HISTORY_PAGE_SIZE || !Number.isInteger(page.total) || page.total < 0
-    || page.items.length !== Math.min(HISTORY_PAGE_SIZE, Math.max(0, page.total - offset))) throw new Error('Decaid returned an incomplete history page. Your saved history is unchanged.')
+    || page.items.length !== Math.min(HISTORY_PAGE_SIZE, Math.max(0, page.total - offset))) throw new Error(t('common.error.incompleteHistorySaved'))
   if (new Set(page.items.map(r => r.id)).size !== page.items.length) throw new HistoryChanged()
 }
 

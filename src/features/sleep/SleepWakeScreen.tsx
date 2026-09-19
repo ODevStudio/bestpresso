@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type TouchEvent as ReactTouchEvent } from 'react'
 import logo from '../../assets/figma/decent-logo.png'
+import { t } from '../../i18n/index.ts'
 import { formatDeviceTime } from './deviceTime'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import { WAKE_HOLD_DURATION_MS, WakeHoldGesture, type WakeHoldUpdate } from './wakeHoldGesture'
@@ -118,7 +119,7 @@ export function SleepWakeScreen({ onWake }: SleepWakeScreenProps) {
     ref={screenRef}
     className="sleep-screen"
     type="button"
-    aria-label="Hold with one finger for 1 second to wake machine"
+    aria-label={t('shell.sleep.wakeAria')}
     onContextMenu={(event) => event.preventDefault()}
     onPointerDown={handlePointerDown}
     onPointerMove={handlePointerMove}
@@ -133,7 +134,7 @@ export function SleepWakeScreen({ onWake }: SleepWakeScreenProps) {
       <img src={logo} alt="" />
       <span className="sleep-screen__time">{formatDeviceTime(now, undefined, preferences.clockFormat)}</span>
     </span>
-    <span className="sleep-screen__hint">Touch and hold to wake</span>
+    <span className="sleep-screen__hint">{t('shell.sleep.touchAndHold')}</span>
     {pulse && <span className="sleep-screen__pulse" style={{ left: pulse.x, top: pulse.y }} aria-hidden="true" />}
   </button>
 }

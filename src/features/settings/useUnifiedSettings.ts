@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { displayBrightness } from './displayBrightness'
 import { hotWaterSettings } from '../brew/hotWaterSettings'
+import { t } from '../../i18n/index.ts'
 import {
   connectDevice,
   createWakeSchedule,
@@ -83,12 +84,18 @@ export function useUnifiedSettings(enabled: boolean) {
   const [saving, setSaving] = useState(false)
   const [acting, setActing] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  // Decoupled from `message`'s text on purpose: the status banner used to style itself by matching
+  // English substrings in the (now translatable) message, e.g. `message.includes('could not')`.
+  // That broke as soon as messages were localised, and it also missed genuine errors whose text
+  // didn't contain those words. Every catch block below sets this explicitly instead.
+  const [messageError, setMessageError] = useState(false)
   const [unavailable, setUnavailable] = useState<string[]>([])
 
   const reload = useCallback(async () => {
     if (!enabled) return
     setLoading(true)
     setMessage(null)
+    setMessageError(false)
     const names = ['Decaid', 'machine', 'advanced machine', 'workflow', 'display', 'presence', 'devices', 'plugins', 'system', 'capabilities']
     const results = await Promise.allSettled([
       getSettings(), getMachineSettings(), getAdvancedMachineSettings(), getWorkflow(), getDisplayState(),
@@ -119,7 +126,7 @@ export function useUnifiedSettings(enabled: boolean) {
   }, [reload])
 
   const dirty = useMemo(() => !same(baseline, draft), [baseline, draft])
-  const reset = () => { setDraft(baseline); setMessage(null) }
+  const reset = () => { setDraft(baseline); setMessage(null); setMessageError(false) }
   const patchRea = (patch: Partial<DecaidSettings>) => setDraft((current) => ({ ...current, rea: { ...current.rea, ...patch } }))
   const patchMachine = (patch: Partial<DecaidMachineSettings>) => setDraft((current) => ({ ...current, machine: { ...current.machine, ...patch } }))
   const patchAdvanced = (patch: Partial<DecaidAdvancedMachineSettings>) => setDraft((current) => ({ ...current, advanced: { ...current.advanced, ...patch } }))
@@ -134,6 +141,7 @@ export function useUnifiedSettings(enabled: boolean) {
     if (!dirty || saving) return
     setSaving(true)
     setMessage(null)
+    setMessageError(false)
     try {
       const rea = changedFields(baseline.rea, draft.rea)
       const machine = changedFields(baseline.machine, draft.machine)
@@ -160,9 +168,11 @@ export function useUnifiedSettings(enabled: boolean) {
       if (requestedBrightness !== undefined && requestedBrightness !== oldBrightness) await displayBrightness.choose(requestedBrightness)
       const refreshed = await reload()
       window.dispatchEvent(new CustomEvent(UNIFIED_SETTINGS_SAVED_EVENT, { detail: refreshed }))
-      setMessage('Settings sent to Decaid. Values refreshed from the machine.')
+      setMessage(t('settings.message.saved'))
+      setMessageError(false)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Settings could not be saved.')
+      setMessage(error instanceof Error ? error.message : t('settings.message.saveFailed'))
+      setMessageError(true)
     } finally {
       setSaving(false)
     }
@@ -202,6 +212,7 @@ export function useUnifiedSettings(enabled: boolean) {
     if (acting) return
     setActing(key)
     setMessage(null)
+    setMessageError(false)
     try {
       await action()
       // Refresh only the domain changed by this immediate action. A full
@@ -209,22 +220,23 @@ export function useUnifiedSettings(enabled: boolean) {
       await refresh()
       setMessage(success)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'The action could not be completed.')
+      setMessage(error instanceof Error ? error.message : t('settings.message.actionFailed'))
+      setMessageError(true)
     } finally {
       setActing(null)
     }
   }
 
   return {
-    draft, loading, saving, acting, dirty, message, unavailable,
+    draft, loading, saving, acting, dirty, message, messageError, unavailable,
     reload, reset, save, patchRea, patchMachine, patchAdvanced, patchPresence, patchDisplay, patchWorkflow,
-    scan: () => runAction('scan', () => scanForDevices(), refreshDevices, 'Device scan complete.'),
-    connect: (id: string) => runAction(`connect:${id}`, () => connectDevice(id), refreshDevices, 'Device connected.'),
-    disconnect: (id: string) => runAction(`disconnect:${id}`, () => disconnectDevice(id), refreshDevices, 'Device disconnected.'),
-    forget: (id: string) => runAction(`forget:${id}`, () => forgetDevice(id), refreshDevices, 'Device forgotten.'),
-    togglePlugin: (id: string, next: boolean) => runAction(`plugin:${id}`, () => enablePlugin(id, next), refreshPlugins, next ? 'Plugin enabled.' : 'Plugin disabled.'),
-    createSchedule: (schedule: Parameters<typeof createWakeSchedule>[0]) => runAction('schedule:new', () => createWakeSchedule(schedule), refreshPresence, 'Wake schedule added.'),
-    updateSchedule: (id: string, patch: Parameters<typeof updateWakeSchedule>[1]) => runAction(`schedule:${id}`, () => updateWakeSchedule(id, patch), refreshPresence, 'Wake schedule updated.'),
-    deleteSchedule: (id: string) => runAction(`schedule:${id}`, () => deleteWakeSchedule(id), refreshPresence, 'Wake schedule removed.'),
+    scan: () => runAction('scan', () => scanForDevices(), refreshDevices, t('settings.message.scanComplete')),
+    connect: (id: string) => runAction(`connect:${id}`, () => connectDevice(id), refreshDevices, t('settings.message.deviceConnected')),
+    disconnect: (id: string) => runAction(`disconnect:${id}`, () => disconnectDevice(id), refreshDevices, t('settings.message.deviceDisconnected')),
+    forget: (id: string) => runAction(`forget:${id}`, () => forgetDevice(id), refreshDevices, t('settings.message.deviceForgotten')),
+    togglePlugin: (id: string, next: boolean) => runAction(`plugin:${id}`, () => enablePlugin(id, next), refreshPlugins, next ? t('settings.message.pluginEnabled') : t('settings.message.pluginDisabled')),
+    createSchedule: (schedule: Parameters<typeof createWakeSchedule>[0]) => runAction('schedule:new', () => createWakeSchedule(schedule), refreshPresence, t('settings.message.scheduleAdded')),
+    updateSchedule: (id: string, patch: Parameters<typeof updateWakeSchedule>[1]) => runAction(`schedule:${id}`, () => updateWakeSchedule(id, patch), refreshPresence, t('settings.message.scheduleUpdated')),
+    deleteSchedule: (id: string) => runAction(`schedule:${id}`, () => deleteWakeSchedule(id), refreshPresence, t('settings.message.scheduleRemoved')),
   }
 }

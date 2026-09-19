@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { setActiveLanguage } from '../src/i18n/index.ts'
 import { analyseStageMoveOn, reconcileStageReasons, stageReasonKey, STAGE_REASON_VERSION } from '../src/features/brew/stageMoveOn.ts'
 import { weightAdvanceEvidence, recordedStopReason } from '../src/features/brew/stageShotEvents.ts'
 import { readStageEvidence, saveStageEvidence, withStageEvidence } from '../src/features/brew/stageEvidenceStorage.ts'
@@ -24,7 +25,7 @@ test('all plausible causes use OR; inferred yield does not override others', () 
 })
 test('recorded weight/manual override inference only for a matched frame and boundary', () => {
   const evidence = [{ frame: 0, timestamp: 14500, reason: 'weight' as const }]
-  assert.deepEqual(reason([step], { evidence, telemetryStartedAt: 10000 }), { label: 'Stage yield reached', source: 'recorded', kind: 'advance' })
+  assert.deepEqual(reason([step], { evidence, telemetryStartedAt: 10000 }), { conditions: [{ code: 'stageYield' }], label: 'Stage yield reached', source: 'recorded', kind: 'advance' })
   assert.equal(reason([step], { evidence: [...evidence, { frame: 0, timestamp: 14700, reason: 'manual' }], telemetryStartedAt: 10000 }).label, 'Stage yield reached or Manually advanced')
   for (const invalid of [{ frame: 1, timestamp: 14500 }, { frame: 0, timestamp: 15001 }, { frame: 0, timestamp: 10000 }]) {
     assert.equal(reason([step], { telemetryStartedAt: 10000, evidence: [{ ...invalid, reason: 'manual' }] }).source, 'telemetry')
@@ -33,7 +34,7 @@ test('recorded weight/manual override inference only for a matched frame and bou
 test('active stage has no reason; final stage uses whole-shot stop, not a move-on exit', () => {
   const lastKey = stageReasonKey(points.at(-1)!)
   assert.equal(analyseStageMoveOn(points, [step], { active: true }).reasons[lastKey], undefined)
-  assert.deepEqual(analyseStageMoveOn(points, [step], { stopReason: 'targetWeight' }).reasons[lastKey], { label: 'Target yield reached', source: 'recorded', kind: 'stop' })
+  assert.deepEqual(analyseStageMoveOn(points, [step], { stopReason: 'targetWeight' }).reasons[lastKey], { conditions: [{ code: 'targetYield' }], label: 'Target yield reached', source: 'recorded', kind: 'stop' })
   assert.equal(analyseStageMoveOn(points, [step], { stopReason: 'machineEnded' }).reasons[lastKey].label, 'Unknown')
 })
 test('old gaps and forward jumps preserve departing-frame evidence but not arbitrary new-frame jumps', () => {
@@ -87,4 +88,13 @@ test('cached graphs reconcile offline in batches; resume once, use saved recipe 
   assert.equal(await restarted.reconcileStageReasonBatch(), true)
   assert.equal((await restarted.detail('8')).stageReasons?.reasons[key].label, 'Pressure >4 bar reached')
   assert.equal(requests, 1)
+})
+test('reason generation stays English regardless of the active display language (persisted evidence)', () => {
+  setActiveLanguage('de', ['de-DE'])
+  try {
+    assert.equal(reason([step]).label, 'Pressure >4 bar reached')
+    assert.equal(reason([{ seconds: 5, pressure: 2, limiter: { value: 2 } }]).label, 'Time limit reached')
+  } finally {
+    setActiveLanguage('en', ['en-US'])
+  }
 })

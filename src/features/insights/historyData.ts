@@ -1,12 +1,18 @@
 import type { PaginatedShots, ShotRecord } from '../../api/decaid/types.ts'
 import type { PreviousShot } from '../../domain/brewing.ts'
+import { dateFormatter, formatDecimal, localizeDecimalText, t } from '../../i18n/index.ts'
 
 export const HISTORY_LIMIT = 1000
 export const HISTORY_PAGE_SIZE = 100
-export const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+// Monday=0..Sunday=6, matching HistoryRecord.weekday. 2024-01-01 was a Monday, so it
+// anchors a reference week; the actual year never appears in the formatted output.
+const weekdayReference = (index: number) => new Date(Date.UTC(2024, 0, 1 + index))
+export const weekdayShort = (index: number) => dateFormatter({ weekday: 'short', timeZone: 'UTC' }).format(weekdayReference(index))
+export const weekdayNarrow = (index: number) => dateFormatter({ weekday: 'narrow', timeZone: 'UTC' }).format(weekdayReference(index))
 export const timeWindows = Array.from({ length: 12 }, (_, i) => ({ start: i * 2, end: i * 2 + 2, label: `${String(i * 2).padStart(2, '0')}:00–${String(i * 2 + 2).padStart(2, '0')}:00` }))
 export type Beverage = 'espresso' | 'pourover' | 'other' | 'excluded'
 export interface HistoryRecord {
+  profileNameMissing?: boolean
   id: string; timestamp: string; profile: string; profileKey: string; beverage: Beverage
   dose: number | null; yield: number | null; duration: number | null
   signature: string; date: string; weekday: number; hour: number; minute: number
@@ -78,9 +84,11 @@ export function normalizeShot(shot: ShotRecord, timezone: string): HistoryRecord
   const excluded = ['cleaning', 'calibrate', 'calibration'].includes(type ?? '') || profile?.category?.trim().toLowerCase() === 'cleaning'
     || explicitlyExcluded
   const beverage: Beverage = excluded ? 'excluded' : type === 'espresso' ? 'espresso' : type === 'pourover' ? 'pourover' : 'other'
-  const name = profile?.title?.trim() || shot.workflow?.name?.trim() || 'Unknown profile'
+  const authoredName = profile?.title?.trim() || shot.workflow?.name?.trim()
+  const name = authoredName || 'Unknown profile'
   return { id: shot.id, timestamp: shot.timestamp, ...parts,
     profile: name,
+    ...(!authoredName ? { profileNameMissing: true } : {}),
     profileKey: profileUsageKey(name, beverage), beverage,
     dose: finiteMetric(shot.annotations?.actualDoseWeight) ?? finiteMetric(shot.workflow?.context?.targetDoseWeight) ?? finiteMetric(profile?.dose_weight),
     yield: finiteMetric(shot.annotations?.actualYield), duration: null,
@@ -88,10 +96,10 @@ export function normalizeShot(shot: ShotRecord, timezone: string): HistoryRecord
   }
 }
 export function reconcileHistory(page: PaginatedShots, previous: HistoryCache | null, source: string, timezone: string, now = new Date()): HistoryCache {
-  if (!page || !Array.isArray(page.items) || !Number.isInteger(page.total) || page.total < 0 || page.offset !== 0 || page.items.length > HISTORY_LIMIT || page.total < page.items.length || (page.total > 0 && !page.items.length)) throw new Error('Decaid returned an incomplete history page.')
+  if (!page || !Array.isArray(page.items) || !Number.isInteger(page.total) || page.total < 0 || page.offset !== 0 || page.items.length > HISTORY_LIMIT || page.total < page.items.length || (page.total > 0 && !page.items.length)) throw new Error(t('common.error.incompleteHistory'))
   const prior = previous?.source === source ? previous : null
   const records = page.items.map(s => normalizeShot(s, timezone)).filter((s): s is HistoryRecord => s !== null)
-  if (new Set(records.map(s => s.id)).size !== records.length) throw new Error('Decaid returned duplicate shot IDs. Please refresh.')
+  if (new Set(records.map(s => s.id)).size !== records.length) throw new Error(t('common.error.duplicateShots'))
   records.sort((a, b) => b.date.localeCompare(a.date) || b.hour - a.hour || b.minute - a.minute || Date.parse(b.timestamp) - Date.parse(a.timestamp) || b.id.localeCompare(a.id))
   return retainHistoryDetails({ version: 1, source, timezone, syncedAt: now.toISOString(), fullSyncedAt: now.toISOString(), total: page.total, omitted: page.items.length - records.length, records, details: {} }, prior)
 }
@@ -156,17 +164,28 @@ export const median = (values: number[]) => { const sorted = values.filter(v => 
 export function summarize(shots: HistoryRecord[]) {
   const yields = shots.flatMap(r => r.yield === null ? [] : [r.yield])
   const profileMap = new Map<string, { key: string; name: string; count: number }>()
-  shots.forEach(r => { const p = profileMap.get(r.profileKey); if (p) p.count++; else profileMap.set(r.profileKey, { key: r.profileKey, name: r.profile, count: 1 }) })
+  shots.forEach(r => { const p = profileMap.get(r.profileKey); if (p) p.count++; else profileMap.set(r.profileKey, { key: r.profileKey, name: historyProfileName(r), count: 1 }) })
   return { count: shots.length, days: new Set(shots.map(r => r.date)).size, yieldCoverage: yields.length,
     typicalYield: yields.length >= 5 ? median(yields) : null, averageYield: yields.length ? yields.reduce((a, b) => a + b, 0) / yields.length : null,
     profileCounts: [...profileMap.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
-    weekdays: weekdays.map((_, i) => shots.filter(s => s.weekday === i).length) }
+    weekdays: Array.from({ length: 7 }, (_, i) => shots.filter(s => s.weekday === i).length) }
 }
 export const timeWindowCounts = (shots: HistoryRecord[]) => timeWindows.map(w => shots.filter(s => s.hour >= w.start && s.hour < w.end).length)
+export function historyProfileName(record: Pick<HistoryRecord, 'profile' | 'profileNameMissing' | 'signature'>): string {
+  if (record.profileNameMissing) return t('insights.profile.unknown')
+  // Migrate display of old generated fallbacks only when the original snapshot proves it.
+  if (record.profile === 'Unknown profile' && record.signature) {
+    try {
+      const saved = JSON.parse(record.signature)
+      if (saved.workflow && !saved.workflow.profile?.title?.trim() && !saved.workflow.name?.trim()) return t('insights.profile.unknown')
+    } catch { /* Authored/uncertain names remain unchanged. */ }
+  }
+  return record.profile
+}
 export const matches = (r: HistoryRecord, f: InsightFilter) => !f || (f.kind === 'weekday' ? r.weekday === Number(f.value) : f.kind === 'profile' ? r.profileKey === f.value : r.hour >= Number(f.value) * 2 && r.hour < Number(f.value) * 2 + 2)
-export const dateLabel = (date: string, includeYear = false) => new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', ...(includeYear ? { year: 'numeric' as const } : {}), timeZone: 'UTC' }).format(new Date(`${date.slice(0, 10)}T12:00:00Z`))
+export const dateLabel = (date: string, includeYear = false) => dateFormatter({ month: 'short', day: 'numeric', ...(includeYear ? { year: 'numeric' as const } : {}), timeZone: 'UTC' }).format(new Date(`${date.slice(0, 10)}T12:00:00Z`))
 export const timeLabel = (r: HistoryRecord) => `${String(r.hour).padStart(2, '0')}:${String(r.minute).padStart(2, '0')}`
-export const shotRecipeLabel = (r: Pick<HistoryRecord, 'dose' | 'yield' | 'duration'>) => `${r.dose !== null ? `${r.dose} → ` : ''}${r.yield !== null ? `${r.yield.toFixed(1)} g` : '—'} • ${r.duration ?? '—'}s`
+export const shotRecipeLabel = (r: Pick<HistoryRecord, 'dose' | 'yield' | 'duration'>) => `${r.dose !== null ? `${localizeDecimalText(String(r.dose))} → ` : ''}${r.yield !== null ? `${formatDecimal(r.yield, 1)} g` : '—'} • ${r.duration !== null ? localizeDecimalText(String(r.duration)) : '—'}s`
 
 export function validHistoryCache(value: unknown, source: string): value is HistoryCache {
   if (!plain(value) || value.version !== 1 || value.source !== source || typeof value.timezone !== 'string' || typeof value.syncedAt !== 'string' || !Number.isFinite(Date.parse(value.syncedAt)) || !Number.isInteger(value.total) || !Number.isInteger(value.omitted) || !Array.isArray(value.records) || value.records.length > HISTORY_LIMIT || !plain(value.details)) return false

@@ -16,12 +16,12 @@ test('suppresses native tap flashes throughout the app without removing keyboard
 })
 
 test('steam duration is visible and editable on the card and in Settings', () => {
-  assert.match(utilityCard, /label === 'Duration'\s*\? 'steamDuration'/)
+  assert.match(utilityCard, /metricId === 'duration'\s*\? 'steamDuration'/)
   assert.match(utilityCard, /'steamTemperature'/)
   assert.match(utilityCard, /'steamFlow'/)
   assert.match(utilityCard, /const metrics = utility\.metrics\.map/)
   const settings = readFileSync(new URL('../src/features/settings/SettingsScreen.tsx', import.meta.url), 'utf8')
-  assert.match(settings, /label="Duration"[^\n]*patchWorkflow\('steamSettings', \{ duration \}\)/)
+  assert.match(settings, /label=\{t\('common\.metric\.duration'\)\}[^\n]*patchWorkflow\('steamSettings', \{ duration \}\)/)
 })
 
 test('marks disabled steam heating so its temperature is no longer shown as a warning', () => {

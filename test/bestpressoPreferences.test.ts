@@ -29,6 +29,7 @@ test('water warning preferences remain ordered and within the reservoir control 
     temperatureUnit: 'C',
     clockFormat: 'device',
     screensaverBrightness: 7,
+    language: 'auto',
   })
   const maximum = normalizeBestpressoPreferences({ waterCriticalLevelMl: 9_000, waterWarningLevelMl: 9_000 })
   assert.equal(maximum.waterCriticalLevelMl, 1_999)
@@ -73,9 +74,9 @@ test('unified settings use Decaid domains instead of delegating to a second sett
   assert.match(screen, /className="settings-number-value"/)
   assert.match(screen, /suggestionKey: key/)
   assert.match(screen, /settings\.draft\.workflow\.rinseData/)
-  assert.match(screen, /label="Espresso yield"/)
-  assert.match(screen, /label="Hot-water yield"/)
-  assert.match(screen, /label="Volume" hint="Shot stopping without a scale"/)
+  assert.match(screen, /label=\{t\('settings\.prepare\.espressoYield'\)\}/)
+  assert.match(screen, /label=\{t\('settings\.prepare\.hotWaterYield'\)\}/)
+  assert.match(screen, /label=\{t\('common\.metric\.volume'\)\} hint=\{t\('settings\.prepare\.volumeHint'\)\}/)
   assert.match(screen, /startRoutine\('descaling'/)
   assert.match(screen, /startRoutine\('airPurge'/)
   assert.match(client, /'descaling' \| 'airPurge'/)

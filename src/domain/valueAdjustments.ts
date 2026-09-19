@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts'
 import type { EditableMachineSetting, EditableProfileSetting } from './brewing'
 
 export type BuilderValueAdjustmentKey =
@@ -33,7 +34,7 @@ export const MAX_VALUE_SUGGESTIONS = 8
 
 export const VALUE_ADJUSTMENTS = {
   hotWaterVolume: {
-    title: 'Hot water volume',
+    get title() { return t('shell.adjust.hotWaterVolume.title') },
     min: 0,
     max: 250,
     step: 1,
@@ -41,7 +42,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [],
   },
   hotWaterTemperature: {
-    title: 'Hot water temperature',
+    get title() { return t('shell.adjust.hotWaterTemperature.title') },
     min: 35,
     max: 95,
     step: 1,
@@ -49,7 +50,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [],
   },
   steamTemperature: {
-    title: 'Steam target temperature',
+    get title() { return t('shell.adjust.steamTemperature.title') },
     min: 135,
     max: 170,
     step: 1,
@@ -57,7 +58,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [150, 155, 160, 165, 170],
   },
   hotWaterDuration: {
-    title: 'Hot water max duration',
+    get title() { return t('shell.adjust.hotWaterDuration.title') },
     min: 5,
     max: 120,
     step: 5,
@@ -65,7 +66,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [],
   },
   steamDuration: {
-    title: 'Steam duration',
+    get title() { return t('shell.adjust.steamDuration.title') },
     min: 0,
     max: 120,
     step: 1,
@@ -73,7 +74,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [],
   },
   steamFlow: {
-    title: 'Steam flow',
+    get title() { return t('shell.adjust.steamFlow.title') },
     min: 0.4,
     max: 2.5,
     step: 0.1,
@@ -81,7 +82,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [0.6, 0.8, 1, 1.2, 1.4],
   },
   temperature: {
-    title: 'Brew temperature',
+    get title() { return t('shell.adjust.temperature.title') },
     min: 80,
     max: 100,
     step: 1,
@@ -89,7 +90,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [86, 88, 90, 92, 94, 96, 98],
   },
   grindSetting: {
-    title: 'Grind size',
+    get title() { return t('shell.adjust.grindSetting.title') },
     min: 0,
     max: 2500,
     step: 0.1,
@@ -98,7 +99,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [],
   },
   dose: {
-    title: 'Dose',
+    get title() { return t('shell.adjust.dose.title') },
     min: 0,
     max: 30,
     step: 0.1,
@@ -107,7 +108,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [7, 16, 18, 20, 22, 24],
   },
   targetYield: {
-    title: 'Yield',
+    get title() { return t('shell.adjust.targetYield.title') },
     min: 0,
     max: 1000,
     step: 0.1,
@@ -116,7 +117,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [14, 18, 20, 36, 40, 44, 48, 50],
   },
   builderPressure: {
-    title: 'Pressure',
+    get title() { return t('shell.adjust.builderPressure.title') },
     min: 0,
     max: 15.9,
     step: 0.1,
@@ -124,7 +125,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [2, 4, 6, 8, 9, 10, 12],
   },
   builderFlow: {
-    title: 'Flow',
+    get title() { return t('shell.adjust.builderFlow.title') },
     min: 0,
     max: 15.9,
     step: 0.1,
@@ -132,7 +133,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [1, 2, 3, 4, 6, 8],
   },
   builderTemperature: {
-    title: 'Temperature',
+    get title() { return t('shell.adjust.builderTemperature.title') },
     min: 0,
     max: 127.5,
     step: 0.5,
@@ -140,7 +141,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [80, 85, 90, 93, 95, 100],
   },
   builderDuration: {
-    title: 'Max time',
+    get title() { return t('shell.adjust.builderDuration.title') },
     min: 0,
     max: 127,
     step: 1,
@@ -148,7 +149,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [5, 10, 15, 20, 30, 40, 60],
   },
   builderVolume: {
-    title: 'Move on volume',
+    get title() { return t('shell.adjust.builderVolume.title') },
     min: 0,
     max: 1023,
     step: 1,
@@ -156,7 +157,7 @@ export const VALUE_ADJUSTMENTS = {
     suggestions: [10, 20, 30, 40, 60, 100],
   },
   builderYield: {
-    title: 'Move on yield',
+    get title() { return t('shell.adjust.builderYield.title') },
     min: 0,
     max: 1000,
     step: 0.1,

@@ -3,6 +3,7 @@ import { createId } from '../../utils/browserCompatibility.ts'
 import { reconcileStageReasons } from '../../features/brew/stageMoveOn.ts'
 import { sourceForRecord } from '../../features/profiles/profileLibraryModel.ts'
 import { isSteamHeatingEnabled } from '../../features/machine/steamHeating.ts'
+import { t } from '../../i18n/index.ts'
 import { profileStepsToTargetPoints } from './profileTargetPoints.ts'
 import { profileConfiguredTargetYield, profileTargetYield } from './profileWorkflow.ts'
 import type { DecaidProfileRecord, DecaidWorkflow, FavoriteAssignments, ShotRecord } from './types.ts'
@@ -22,20 +23,18 @@ export function shotStage(profileFrame: number | undefined, substate: string | u
   if (configuredName) return { stageIndex: frame, stageName: configuredName.replaceAll('_', ' ') }
 
   const normalizedSubstate = substate?.toLowerCase()
-  const stageName = normalizedSubstate === 'preinfusion'
-    ? 'Pre-infusion'
-    : normalizedSubstate === 'pouringdone'
-      ? 'Cooling'
-      : normalizedSubstate === 'pouring'
-        ? 'Extraction'
-        : frame === undefined ? 'Extraction' : `Stage ${frame + 1}`
-  return { stageIndex: frame, stageName }
+  const stageNameFallback = normalizedSubstate === 'preinfusion' ? 'preinfusion' as const
+    : normalizedSubstate === 'pouringdone' ? 'cooling' as const
+      : normalizedSubstate === 'pouring' || frame === undefined ? 'extraction' as const : 'stageNumber' as const
+  const stageName = stageNameFallback === 'stageNumber' ? `Stage ${frame! + 1}`
+    : { preinfusion: 'Pre-infusion', cooling: 'Cooling', extraction: 'Extraction' }[stageNameFallback]
+  return { stageIndex: frame, stageName, stageNameFallback }
 }
 
 export { profileStepsToTargetPoints }
 
 export function parseProfileTitle(title: string | undefined) {
-  const fullTitle = title?.trim() || 'Untitled profile'
+  const fullTitle = title?.trim() || t('shell.profile.untitled')
   const separatorIndex = fullTitle.indexOf('/')
   if (separatorIndex < 0) return { name: fullTitle, category: undefined }
 
@@ -88,7 +87,7 @@ export function profileRecordsToDomain(records: DecaidProfileRecord[], workflow:
       dose: numberString(isActive ? workflow.context?.targetDoseWeight : metadata.targetDoseWeight ?? profile.dose_weight, '18'),
       targetYield: numberString(profileConfiguredTargetYield(profile, metadata, isActive ? workflow.context?.targetYield ?? workflow.profile?.target_weight : undefined), '—'),
       targetPoints: profileStepsToTargetPoints(chartSteps),
-      stepNames: chartSteps?.map((step, index) => textValue(step.name) ?? `Stage ${index + 1}`),
+      stepNames: chartSteps?.map(step => textValue(step.name) ?? ''),
       profileSteps: isActive && workflow.profile?.steps?.length ? workflow.profile.steps : chartSteps,
     }
   }))
@@ -145,13 +144,13 @@ export function applyWorkflow(model: BrewingScreenModel, workflow: DecaidWorkflo
   const profiles = carouselProfiles(allProfiles, assignments, active?.id, retainedAdHocProfileId)
   const utilities = model.utilities.map((utility) => {
     if (utility.id === 'water') {
-      const waterMetrics = utility.metrics.some(metric => metric.label === 'Max duration')
+      const waterMetrics = utility.metrics.some(metric => metric.id === 'maxDuration')
         ? utility.metrics
-        : [...utility.metrics, { label: 'Max duration', value: '—', unit: 's' }]
+        : [...utility.metrics, { id: 'maxDuration' as const, value: '—', unit: 's' }]
       return { ...utility, metrics: waterMetrics.map(metric => {
-        const value = metric.label === 'Volume' ? workflow.hotWaterData?.volume
-          : metric.label === 'Temperature' ? workflow.hotWaterData?.targetTemperature
-          : metric.label === 'Max duration' ? workflow.hotWaterData?.duration : undefined
+        const value = metric.id === 'volume' ? workflow.hotWaterData?.volume
+          : metric.id === 'temperature' ? workflow.hotWaterData?.targetTemperature
+          : metric.id === 'maxDuration' ? workflow.hotWaterData?.duration : undefined
         return { ...metric, value: numberString(value, metric.value) }
       }) }
     }
@@ -161,11 +160,11 @@ export function applyWorkflow(model: BrewingScreenModel, workflow: DecaidWorkflo
       return {
         ...utility,
         enabled,
-        metrics: utility.metrics.map((metric) => metric.label === 'Target'
+        metrics: utility.metrics.map((metric) => metric.id === 'target'
           ? enabled ? { ...metric, value: numberString(targetTemperature, metric.value) } : metric
-          : metric.label === 'Duration'
+          : metric.id === 'duration'
             ? { ...metric, value: numberString(workflow.steamSettings?.duration, metric.value) }
-            : metric.label === 'Flow'
+            : metric.id === 'flow'
               ? { ...metric, value: numberString(workflow.steamSettings?.flow, metric.value) }
               : metric),
       }
@@ -199,7 +198,7 @@ export function shotToDomain(shot: ShotRecord): PreviousShot {
   const duration = firstTimestamp && lastTimestamp ? Math.max(0, Math.round((Date.parse(lastTimestamp) - Date.parse(firstTimestamp)) / 1000)) : undefined
   const lastWeight = [...extraction].reverse().find((entry) => entry.scale?.weight !== undefined)?.scale?.weight
   const startedAt = firstTimestamp ? Date.parse(firstTimestamp) : Number.NaN
-  const stepNames = shot.workflow?.profile?.steps?.map((step, index) => textValue(step.name) ?? `Stage ${index + 1}`)
+  const stepNames = shot.workflow?.profile?.steps?.map(step => textValue(step.name) ?? '')
   const points = Number.isFinite(startedAt) ? extraction.flatMap((entry) => {
     const timestamp = entry.machine?.timestamp ? Date.parse(entry.machine.timestamp) : Number.NaN
     if (!Number.isFinite(timestamp)) return []
@@ -215,13 +214,14 @@ export function shotToDomain(shot: ShotRecord): PreviousShot {
       ...shotStage(entry.machine?.profileFrame, entry.machine?.state?.substate, stepNames),
     }]
   }) : []
-  const shotProfileTitle = shot.workflow?.profile?.title || shot.workflow?.name || 'Previous pull'
+  const shotProfileTitle = textValue(shot.workflow?.profile?.title, shot.workflow?.name)
   return reconcileStageReasons({
     profileSteps: shot.workflow?.profile?.steps,
     telemetryStartedAt: Number.isFinite(startedAt) ? startedAt : undefined,
     stopReason: shot.stopReason ?? undefined,
     id: shot.id,
-    profileName: parseProfileTitle(shotProfileTitle).name,
+    profileName: shotProfileTitle ? parseProfileTitle(shotProfileTitle).name : 'Previous pull',
+    ...(!shotProfileTitle ? { profileNameFallback: 'previousPull' as const } : {}),
     beverageType,
     timestamp: shot.timestamp ?? firstTimestamp ?? lastTimestamp,
     totalYield: numberString(shot.annotations?.actualYield ?? lastWeight, '—'),

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { plural, t } from '../../i18n/index.ts'
 import { timeWindowCounts, type HistoryRecord } from './historyData'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import { insightHour, insightHourRange, toggleHour } from './insightClock'
@@ -21,20 +22,20 @@ export function TimeCoxcomb({ current, previous, onOpen, comparison, periodLabel
   const [selected, setSelected] = useState<number | null>(null)
   const periodNames = periodLabels.slice(0, comparison ? 2 : 1)
   const selectedCount = selected === null ? 0 : counts[period][selected]
-  const selectionLabel = selected === null ? '' : `${periodNames[period]}, ${range(selected)}: ${selectedCount} ${selectedCount === 1 ? 'brew' : 'brews'}`
+  const selectionLabel = selected === null ? '' : plural('insights.coxcomb.sectorAriaLabel', selectedCount, { period: periodNames[period], range: range(selected) })
 
-  return <section className="ins-chart-section ins-time-panel" aria-label="Brewing across 24 hours">
-    <header><h2>By hour</h2><div className="ins-time-switch" role="group" aria-label="Time chart period">
+  return <section className="ins-chart-section ins-time-panel" aria-label={t('insights.coxcomb.sectionAriaLabel')}>
+    <header><h2>{t('insights.coxcomb.heading')}</h2><div className="ins-time-switch" role="group" aria-label={t('insights.coxcomb.periodGroupAriaLabel')}>
       {periodNames.map((name, index) => <button key={name} type="button" aria-pressed={period === index}
         onClick={() => setPeriod(index)}>{name}</button>)}
     </div></header>
     <div className="ins-coxcomb" data-previous={period === 1}>
-      <svg viewBox="0 0 272 272" role="group" aria-label={`${periodNames[period]}: brews in two-hour windows, clockwise with noon at the top and midnight at the bottom. Lighter base is 6 am to 6 pm; darker base is night. Sector area represents count; both periods use the same scale.`}>
+      <svg viewBox="0 0 272 272" role="group" aria-label={t('insights.coxcomb.chartAriaLabel', { period: periodNames[period] })}>
         {counts[period].map((count, index) => {
           const radius = coxcombRadius(count, maximum)
           const dot = clockPoint(index * 30 + 195, COXCOMB.outer + 7)
           return <g key={index} role="button" tabIndex={0} aria-pressed={selected === index}
-            aria-label={`${periodNames[period]}, ${range(index)}: ${count} ${count === 1 ? 'brew' : 'brews'}`}
+            aria-label={plural('insights.coxcomb.sectorAriaLabel', count, { period: periodNames[period], range: range(index) })}
             onClick={() => setSelected(value => toggleHour(value, index))} onKeyDown={event => {
               if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(value => toggleHour(value, index)) }
             }}>
@@ -48,12 +49,12 @@ export function TimeCoxcomb({ current, previous, onOpen, comparison, periodLabel
           return <text className="ins-coxcomb-hour" key={hour} x={point[0]} y={point[1]} aria-hidden="true">{insightHour(hour, preferences.clockFormat, hour % 6 !== 0)}</text>
         })}
       </svg>
-      <div className="ins-coxcomb-center" aria-live="polite" aria-label={selectionLabel || '24 hours'}>
-        {selected === null ? <span>24h</span> : <><strong>{counts[period][selected]}</strong><small>{counts[period][selected] === 1 ? 'brew' : 'brews'}</small></>}
+      <div className="ins-coxcomb-center" aria-live="polite" aria-label={selectionLabel || t('insights.coxcomb.allDayAriaLabel')}>
+        {selected === null ? <span>{t('insights.coxcomb.allDay')}</span> : <><strong>{counts[period][selected]}</strong><small>{plural('insights.coxcomb.brewWord', counts[period][selected])}</small></>}
       </div>
     </div>
     <div className="ins-time-detail">{selected !== null && <button className="ins-link" type="button"
-      aria-label={`View brews: ${selectionLabel}`} onClick={() => onOpen(selected, period === 1)}>
+      aria-label={t('insights.coxcomb.viewBrewsAriaLabel', { selection: selectionLabel })} onClick={() => onOpen(selected, period === 1)}>
       {range(selected)} <span aria-hidden="true">↗</span>
     </button>}</div>
   </section>
