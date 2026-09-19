@@ -12,6 +12,10 @@ export interface LocaleDefinition {
 export const languageRegistry = {
   en: { name: 'English', locale: 'en-US', direction: 'ltr', load: () => Promise.resolve(en) },
   de: { name: 'Deutsch', locale: 'de-DE', direction: 'ltr', load: () => import('./de/index.ts').then(m => m.de) },
+  fr: { name: 'Français', locale: 'fr-FR', direction: 'ltr', load: () => import('./fr/index.ts').then(m => m.catalog) },
+  it: { name: 'Italiano', locale: 'it-IT', direction: 'ltr', load: () => import('./it/index.ts').then(m => m.catalog) },
+  'zh-Hant': { name: '繁體中文', locale: 'zh-TW', direction: 'ltr', load: () => import('./zh-Hant/index.ts').then(m => m.catalog) },
+  'zh-Hans': { name: '简体中文', locale: 'zh-CN', direction: 'ltr', load: () => import('./zh-Hans/index.ts').then(m => m.catalog) },
 } satisfies Record<string, LocaleDefinition>
 
 export type Language = keyof typeof languageRegistry
@@ -36,7 +40,14 @@ export function matchLanguage<Code extends string>(tag: string, registry: Record
     })
     return sameScript.find(code => code === requested.language) ?? sameScript[0]
   } catch {
-    // Older WebViews may not have Intl.Locale; retain basic language matching.
-    return codes.find(code => code.toLowerCase() === tag.toLowerCase()) ?? codes.find(code => code === tag.toLowerCase().split('-')[0])
+    // Older WebViews may lack Intl.Locale. Preserve Chinese script selection
+    // rather than treating both scripts as the same bare language.
+    const parts = tag.toLowerCase().split('-')
+    const script = parts.find(part => part === 'hans' || part === 'hant')
+      ?? (parts[0] === 'zh' ? (parts.some(part => ['tw', 'hk', 'mo'].includes(part)) ? 'hant' : 'hans') : undefined)
+    return codes.find(code => code.toLowerCase() === tag.toLowerCase())
+      ?? codes.find(code => registry[code].locale.toLowerCase() === tag.toLowerCase())
+      ?? (script ? codes.find(code => code.toLowerCase() === `${parts[0]}-${script}`) : undefined)
+      ?? codes.find(code => code === parts[0])
   }
 }

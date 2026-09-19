@@ -74,6 +74,8 @@ export function setActiveLanguage(language: Language, languages: readonly string
 
 export const activeLanguage = () => active
 export const activeLocaleTag = () => activeLocale
+/** Distinguishes an explicit locale pattern from English fallback prose. */
+export const hasLocalizedMessage = (key: MessageKey) => typeof catalogs[active]?.[key] === 'string'
 
 const pseudoEnabled = () => {
   try {

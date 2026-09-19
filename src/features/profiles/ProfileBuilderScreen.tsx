@@ -239,10 +239,11 @@ function EditableChoice({ id, label, value, options, placeholder, onChange, inli
   </label>
 }
 
-function SettingsMetric({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) {
+function SettingsMetric({ label, hint, children, className = '' }: { label: string; hint?: string; children: ReactNode; className?: string }) {
   return <div className={`pb-settings-metric${className ? ` ${className}` : ''}`}>
     <span>{label}</span>
     {children}
+    {hint && <small className="pb-settings-metric__hint">{hint}</small>}
   </div>
 }
 
@@ -1038,10 +1039,10 @@ export function ProfileBuilderScreen({ onClose, initialRecord, existingTitles = 
             <SettingsMetric label={t('builder.details.endShotVolumeLabel')} className="pb-settings-metric--volume">
               <Stepper label={t('builder.details.endShotVolumeFallbackLabel')} value={draft.targetVolume} unit="ml" step={1} max={1023} onOpen={() => openProfileMetric({ label: t('builder.details.endShotVolumeFallbackLabel'), value: draft.targetVolume ?? 0, unit: 'ml', definition: VALUE_ADJUSTMENTS.builderVolume, suggestionKey: 'builderVolume', onSave: (targetVolume) => updateDraft('targetVolume', targetVolume > 0 ? targetVolume : undefined) })} onChange={(targetVolume) => updateDraft('targetVolume', targetVolume)} />
             </SettingsMetric>
-            <SettingsMetric label={t('builder.details.flowToleranceLabel')} className="pb-settings-metric--flow">
+            <SettingsMetric label={t('builder.details.flowToleranceLabel')} hint={t('builder.details.limiterRangeHint')} className="pb-settings-metric--flow">
               <Stepper label={t('builder.details.flowToleranceLabel')} value={limiterTolerance('flow')} unit="ml/s" step={0.1} max={VALUE_ADJUSTMENTS.builderFlow.max} onOpen={() => openProfileMetric({ label: t('builder.details.flowToleranceLabel'), value: limiterTolerance('flow'), unit: 'ml/s', definition: VALUE_ADJUSTMENTS.builderFlow, suggestionKey: 'builderFlow', onSave: (range) => updateLimiterTolerance('flow', range) })} onChange={(range) => updateLimiterTolerance('flow', range)} />
             </SettingsMetric>
-            <SettingsMetric label={t('builder.details.pressureToleranceLabel')} className="pb-settings-metric--pressure">
+            <SettingsMetric label={t('builder.details.pressureToleranceLabel')} hint={t('builder.details.limiterRangeHint')} className="pb-settings-metric--pressure">
               <Stepper label={t('builder.details.pressureToleranceLabel')} value={limiterTolerance('pressure')} unit="bar" step={0.1} max={VALUE_ADJUSTMENTS.builderPressure.max} onOpen={() => openProfileMetric({ label: t('builder.details.pressureToleranceLabel'), value: limiterTolerance('pressure'), unit: 'bar', definition: VALUE_ADJUSTMENTS.builderPressure, suggestionKey: 'builderPressure', onSave: (range) => updateLimiterTolerance('pressure', range) })} onChange={(range) => updateLimiterTolerance('pressure', range)} />
             </SettingsMetric>
             {volumeFallbackActive && <label className="pb-profile-details__measure-from" data-builder-field="targetVolumeCountStart" data-validation-severity={profileFieldSeverity('targetVolumeCountStart')}>

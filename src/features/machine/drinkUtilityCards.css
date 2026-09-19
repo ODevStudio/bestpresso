@@ -122,7 +122,6 @@
   .app-shell .topbar nav {gap:8px}
   .app-shell .topbar nav>button {width:48px;height:48px}
   .app-shell .status-pill {height:48px}
-  .app-shell .status-pill--heating,.app-shell .status-pill--not-heating {width:184px}
   .app-shell .status-pill--heating strong,.app-shell .status-pill--not-heating strong {font-size:16px}
 }
 @media(min-width:761px) and (max-width:899px) and (max-height:680px) {
