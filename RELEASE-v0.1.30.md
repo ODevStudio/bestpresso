@@ -21,3 +21,14 @@ Install `bestpresso-v0.1.30.zip` in Decaid.
 This patch addresses confirmed compatibility and profile-handling bugs. The separate intermittent issue requiring an app/machine restart remains under investigation.
 
 Install `bestpresso-v0.1.30-patch002.zip` in Decaid.
+
+## Patch 003 — Lighter animations and tablet reliability
+
+- Added an Animations switch in App experience. Turn it off to reduce device workload: status and favorite-card effects become static, and steam readings update without smoothing or crossfades.
+- The choice is saved on each device. Live readings and operational indicators remain active; the device's reduced-motion preference is also respected.
+- Improved layout compatibility with older tablet browsers.
+- Automatic scale searches now back off, pause during brewing, and recover after wake or reconnect.
+- Automatic tare is limited to shot preparation, avoiding a mid-shot tare when reconnecting.
+- Stop confirmation now requires fresh machine feedback. Unconfirmed stops remain clearly indicated and can be retried.
+
+Install `bestpresso-v0.1.30-patch003.zip` in Decaid.

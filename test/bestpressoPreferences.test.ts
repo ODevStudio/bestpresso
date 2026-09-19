@@ -22,6 +22,7 @@ test('water warning preferences remain ordered and within the reservoir control 
   assert.deepEqual(normalizeBestpressoPreferences({ waterCriticalLevelMl: 500, waterWarningLevelMl: 100 }), {
     theme: 'dark',
     completionSoundEnabled: true,
+    animationsEnabled: true,
     waterCriticalLevelMl: 500,
     waterWarningLevelMl: 501,
     chartLineWeight: 'fine',
