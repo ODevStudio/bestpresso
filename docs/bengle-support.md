@@ -30,7 +30,11 @@ it does not publish four releases or migrate hardware settings automatically.
 - Water shows measured height and lookup-estimated volume. Neither the lookup
   maximum nor the old 43 mm reading defines a verified capacity.
 - The old local critical-water preference remains stored for compatibility but
-  no longer creates a machine-out-of-water state.
+  no longer creates a machine-out-of-water state or constrains the warning threshold.
+- Sensor discovery accepts Decaid's top-level `id` and `info.data`, as well as
+  the legacy embedded ID and `dataChannels` representation. Selection prefers
+  the current machine's milk probe, then a named probe, then a generic temperature
+  sensor; machine-derived probe IDs belonging to other machines are excluded.
 - Sensor readings require finite non-placeholder temperatures and timestamps
   within five seconds of the browser clock. Stale/detached probes disappear.
 - Lighting Apply persists immediately; Reload reads the current palette. There
@@ -48,6 +52,8 @@ For browser checks, start `node test/bengle-api-fixture.mjs` and `npm run dev --
 --host 127.0.0.1 --port 5173 --strictPort`. Run `node test/bengle-browser.mjs` with
 Playwright available on the module search path and Microsoft Edge installed.
 Do not replace the fixture address with a real machine gateway.
+Set `BENGLE_FIXTURE_PORT` for both fixture and browser processes to use a separate
+fixture when another preview is open; subscription counts must be test-local.
 
 Browser checks cover writes and readback, calibration progress/abort, power cycle,
 machine swap, unsupported preheat, sensor detachment, and 1280x800, 1024x768,

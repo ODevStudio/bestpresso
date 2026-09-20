@@ -6,16 +6,18 @@ const context = await browser.newContext({ viewport: { width: 1280, height: 800 
 const page = await context.newPage()
 const errors = []
 page.on('pageerror', error => errors.push(error.message))
-const control = body => fetch('http://127.0.0.1:5396/test-control', { method: 'POST', body: JSON.stringify(body) })
-const state = async () => (await fetch('http://127.0.0.1:5396/test-state')).json()
+const gateway = `127.0.0.1:${process.env.BENGLE_FIXTURE_PORT ?? 5396}`
+const homeUrl = `http://127.0.0.1:5173/?gateway=${gateway}`
+const control = body => fetch(`http://${gateway}/test-control`, { method: 'POST', body: JSON.stringify(body) })
+const state = async () => (await fetch(`http://${gateway}/test-state`)).json()
 const panel = name => page.locator('.hardware-panel').filter({ has: page.getByRole('heading', { name, exact: true }) })
 await context.addInitScript(() => {
   sessionStorage.setItem('bestpresso.fullscreen-prompt-dismissed.v1', 'true')
-  localStorage.setItem('bestpresso.preferences.v1', JSON.stringify({ language: 'en' }))
+  localStorage.setItem('bestpresso.preferences.v1', JSON.stringify({ language: 'en', waterCriticalLevelMl: 1999, waterWarningLevelMl: 100 }))
 })
 try {
   await control({ reset: true, model: 'Bengle', connected: true, sensor: true, currentLevel: 50, state: 'idle', failPath: '', powerCycle: true })
-  await page.goto('http://127.0.0.1:5173/?gateway=127.0.0.1:5396')
+  await page.goto(homeUrl)
   await page.waitForFunction(() => document.querySelector('.reservoir-reading')?.textContent.includes('50 mm'))
   assert.match(await page.locator('.reservoir-reading').innerText(), /1,453/)
   assert.equal(await page.locator('.reservoir-reading[role=meter]').count(), 0)
@@ -25,6 +27,7 @@ try {
     const steamCard = page.locator('.drink-card.utility-card--steam')
     if (await steamCard.evaluate(element => element.classList.contains('is-compact'))) await steamCard.locator('.drink-card__expand').click()
     await steamCard.locator('.probe-reading').waitFor()
+    assert.match(await steamCard.locator('.probe-reading').innerText(), /42/)
     await page.evaluate(() => document.fonts.ready)
     await steamCard.scrollIntoViewIfNeeded()
     await page.waitForFunction(() => {
@@ -41,8 +44,16 @@ try {
     await page.screenshot({ path: `artifacts/bengle-probe-${viewport.width}.png`, fullPage: true })
   }
   await page.setViewportSize({ width: 1280, height: 800 })
+  assert.equal((await state()).sockets.filter(path => path.startsWith('/ws/v1/sensors/')).join(), '/ws/v1/sensors/bengle-milkprobe/snapshot')
   await page.screenshot({ path: 'artifacts/bengle-home-desktop.png', fullPage: true })
-  await page.goto('http://127.0.0.1:5173/?gateway=127.0.0.1:5396&page=settings')
+  await page.goto(`${homeUrl}&page=settings`)
+  await page.getByRole('button', { name: 'Alerts & water', exact: true }).click()
+  await page.getByRole('button', { name: 'Decrease Warn me', exact: true }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  assert.deepEqual(await page.evaluate(() => {
+    const preferences = JSON.parse(localStorage.getItem('bestpresso.preferences.v1'))
+    return [preferences.waterWarningLevelMl, preferences.waterCriticalLevelMl]
+  }), [90, 1999])
   await page.getByRole('button', { name: 'Machine hardware', exact: true }).click()
   const cup = panel('Cup warmer')
   await cup.getByRole('checkbox').waitFor()
@@ -52,6 +63,21 @@ try {
   await cup.getByRole('button', { name: 'Apply', exact: true }).click()
   await cup.getByText('Confirmed by machine').waitFor()
   assert.equal((await state()).warmer.enabled, false)
+  const warmerUrl = '**/api/v1/machine/cupWarmer'
+  await page.route(warmerUrl, route => route.request().method() === 'PUT'
+    ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ reason: 'simulated heater rejection' }) })
+    : route.continue())
+  await cup.getByRole('button', { name: 'Increase Target temperature (°C)', exact: true }).click()
+  await cup.getByRole('button', { name: 'Apply', exact: true }).click()
+  await cup.getByRole('alert').waitFor()
+  const rejection = cup.getByText('/machine/cupWarmer: 503 - simulated heater rejection', { exact: true })
+  await rejection.waitFor()
+  await page.waitForResponse(response => response.url().endsWith('/machine/cupWarmer') && response.request().method() === 'GET' && response.status() === 200)
+  assert.equal(await cup.getByRole('alert').count(), 1)
+  await cup.getByRole('button', { name: 'Reload', exact: true }).click()
+  await cup.getByRole('alert').waitFor({ state: 'detached', timeout: 3000 })
+  assert.equal(await rejection.count(), 0)
+  await page.unroute(warmerUrl)
   await cup.getByRole('checkbox').check()
   await cup.getByRole('button', { name: 'Apply', exact: true }).click()
   await page.waitForFunction(() => document.querySelectorAll('.hardware-panel output').length >= 3)
@@ -109,10 +135,10 @@ try {
   await page.locator('.live-utility-overlay .probe-reading').waitFor({ state: 'detached', timeout: 15000 })
   await control({ state: 'idle', sensor: true })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('http://127.0.0.1:5173/?gateway=127.0.0.1:5396')
+  await page.goto(homeUrl)
   await page.waitForFunction(() => document.querySelector('.reservoir-reading')?.textContent.includes('50 mm'))
   await page.screenshot({ path: 'artifacts/bengle-home-mobile.png', fullPage: true })
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
   assert.deepEqual(errors, [])
-  console.log('Bengle browser checks passed: water, writes, calibration, reconnect, swap, preheat failure, sensor detachment, desktop/tablet/mobile.')
+  console.log('Bengle browser checks passed: independent water warning, Decaid sensor discovery and selection, manual reload recovery, writes, calibration, reconnect, swap, preheat failure, sensor detachment, desktop/tablet/mobile.')
 } finally { await browser.close() }

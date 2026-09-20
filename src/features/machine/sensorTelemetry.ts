@@ -1,8 +1,13 @@
 import type { Sensor } from '../../api/decaid/hardwareTypes.ts'
 import { inRange } from '../../api/decaid/hardwareValidation.ts'
 
-export function temperatureSensor(sensors: readonly Sensor[]) {
-  return sensors.find(sensor => sensor.dataChannels.some(channel => channel.key === 'temperature' && ['number', 'integer'].includes(channel.type)))
+export function temperatureSensor(sensors: readonly Sensor[], machineDeviceId?: string) {
+  const probeId = machineDeviceId ? `${machineDeviceId}-milkprobe` : undefined
+  const temperatures = sensors.filter(sensor => sensor.dataChannels.some(channel => channel.key === 'temperature' && ['number', 'integer'].includes(channel.type))
+    && (!machineDeviceId || !sensor.id.endsWith('-milkprobe') || sensor.id === probeId))
+  return temperatures.find(sensor => sensor.id === probeId)
+    ?? temperatures.find(sensor => sensor.name === 'Bengle Milk Probe' || sensor.id.endsWith('-milkprobe'))
+    ?? temperatures[0]
 }
 
 export function probeTemperature(frame: unknown, now: number): number | undefined {

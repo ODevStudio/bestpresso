@@ -33,7 +33,7 @@ export function startProbeDiscovery() {
     if (Date.now() - receivedAt > 5000) publish(undefined)
     if (session.deviceId && document.visibilityState !== 'hidden') {
       try {
-        const sensor = temperatureSensor(await getSensors())
+        const sensor = temperatureSensor(await getSensors(), session.deviceId)
         if (!stopped && session.generation === machineSession.get().generation && sensor?.id !== sensorId) {
           clear()
           sensorId = sensor?.id

@@ -184,7 +184,7 @@ export function SettingsScreen({ model, connection, machineConnection, scale, on
     const value = utility?.metrics.find((candidate) => candidate.id === metricId)?.value
     return `${formatTemperatureValue(value, temperatureUnit)}${temperatureUnitText}`
   }
-  const updateWarning = (value: number) => updatePreferences({ waterWarningLevelMl: Math.max(preferences.waterCriticalLevelMl + 10, Math.min(2_000, value)) })
+  const updateWarning = (value: number) => updatePreferences({ waterWarningLevelMl: value })
   const startRoutine = async (state: 'descaling' | 'airPurge', confirmation: string) => {
     if (!window.confirm(confirmation)) return
     setRoutinePending(state)
@@ -224,7 +224,7 @@ export function SettingsScreen({ model, connection, machineConnection, scale, on
   </div>
 
   const alerts = <div className="settings-grid settings-grid--alerts">
-    <SettingsCard eyebrow={t('settings.group.bestpresso')} title={t('settings.alerts.reservoir.title')} description={t('settings.alerts.reservoir.description')} action={<button className="settings-reset" type="button" onClick={() => updatePreferences({ waterWarningLevelMl: DEFAULT_BESTPRESSO_PREFERENCES.waterWarningLevelMl })}>{t('settings.action.reset')}</button>}><SectionList><NumberSetting label={t('settings.alerts.warnMe')} hint={t('settings.alerts.warnMeHint')} value={preferences.waterWarningLevelMl} unit="ml" min={preferences.waterCriticalLevelMl + 10} max={2000} step={10} onChange={updateWarning} /></SectionList><p className="settings-helper">{t('settings.alerts.priorityHelper')}</p></SettingsCard>
+    <SettingsCard eyebrow={t('settings.group.bestpresso')} title={t('settings.alerts.reservoir.title')} description={t('settings.alerts.reservoir.description')} action={<button className="settings-reset" type="button" onClick={() => updatePreferences({ waterWarningLevelMl: DEFAULT_BESTPRESSO_PREFERENCES.waterWarningLevelMl })}>{t('settings.action.reset')}</button>}><SectionList><NumberSetting label={t('settings.alerts.warnMe')} hint={t('settings.alerts.warnMeHint')} value={preferences.waterWarningLevelMl} unit="ml" min={0} max={2000} step={10} onChange={updateWarning} /></SectionList><p className="settings-helper">{t('settings.alerts.priorityHelper')}</p></SettingsCard>
     <SettingsCard eyebrow={t('settings.alerts.safeguard.eyebrow')} title={t('settings.alerts.safeguard.title')}><SectionList><SwitchSetting label={t('settings.alerts.requireScale')} hint={t('settings.alerts.requireScaleHint')} checked={settings.draft.rea.blockOnNoScale} disabled={reaUnavailable} onChange={(blockOnNoScale) => settings.patchRea({ blockOnNoScale })} /><SwitchSetting label={t('settings.alerts.blockTare')} hint={t('settings.alerts.blockTareHint')} checked={settings.draft.rea.blockTareDuringShot} disabled={reaUnavailable} onChange={(blockTareDuringShot) => settings.patchRea({ blockTareDuringShot })} /></SectionList></SettingsCard>
   </div>
 

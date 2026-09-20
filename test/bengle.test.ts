@@ -128,3 +128,29 @@ test('temperature discovery uses manifests and rejects stale, placeholder and in
   assert.equal(probeTemperature({ timestamp, temperature: 65 }, now + 5001), undefined)
   assert.equal(temperatureSensor([]), undefined)
 })
+
+test('sensor discovery accepts the Decaid handler response and legacy manifest shapes', () => {
+  const data = [{ key: 'timestamp', type: 'string', unit: null }, { key: 'temperature', type: 'number', unit: '°C' }]
+  const list = sensors([{ id: 'bengle:a/b-milkprobe', info: { name: 'Bengle Milk Probe', vendor: 'DecentEspresso', data, commands: [] } }])
+  assert.deepEqual(list, [{ id: 'bengle:a/b-milkprobe', name: 'Bengle Milk Probe', dataChannels: [{ key: 'timestamp', type: 'string' }, { key: 'temperature', type: 'number' }] }])
+  for (const id of [{ id: 'probe' }, { info: { id: 'probe' } }]) {
+    for (const channels of [{ data }, { dataChannels: data }]) {
+      assert.equal(sensors([{ ...id, info: { ...id.info, ...channels, name: 'Probe' } }])[0]?.id, 'probe')
+    }
+  }
+  assert.deepEqual(sensors([{ info: { data } }, { id: 'invalid', info: {} }]), [])
+})
+
+test('probe selection prefers the current machine over ambient and other machine sensors', () => {
+  const dataChannels = [{ key: 'temperature', type: 'number' }]
+  const ambient = { id: 'ambient', name: 'Ambient', dataChannels }
+  const foreign = { id: 'other-milkprobe', name: 'Bengle Milk Probe', dataChannels }
+  const probe = { id: 'bengle:a/b-milkprobe', name: 'Bengle Milk Probe', dataChannels }
+  const named = { ...probe, id: 'custom-probe' }
+  assert.equal(temperatureSensor([ambient, foreign, named, probe], 'bengle:a/b'), probe)
+  assert.equal(temperatureSensor([ambient, probe]), probe)
+  assert.equal(temperatureSensor([ambient, named], 'bengle:a/b'), named)
+  assert.equal(temperatureSensor([foreign, ambient], 'bengle:a/b'), ambient)
+  assert.equal(temperatureSensor([foreign], 'bengle:a/b'), undefined)
+  assert.equal(temperatureSensor([{ ...probe, dataChannels: [{ key: 'temperature', type: 'string' }] }, ambient], 'bengle:a/b'), ambient)
+})

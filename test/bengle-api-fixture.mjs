@@ -32,7 +32,7 @@ const emit = () => {
     if (path === '/ws/v1/machine/snapshot') send(socket, snapshot())
     if (path === '/ws/v1/machine/waterLevels') send(socket, { currentLevel, refillLevel: 10 })
     if (path === '/ws/v1/scale/snapshot') send(socket, { weight: 10, weightFlow: 1, status: 'connected' })
-    if (path.startsWith('/ws/v1/sensors/') && sensor) send(socket, { timestamp: new Date().toISOString(), temperature: 42 })
+    if (path.startsWith('/ws/v1/sensors/') && sensor) send(socket, { timestamp: new Date().toISOString(), temperature: path.endsWith(`/${model.toLowerCase()}-milkprobe/snapshot`) ? 42 : 19 })
     if (path === '/ws/v1/machine/shotSettings') send(socket, { targetHotWaterVolume: workflow.hotWaterData.volume, targetHotWaterTemp: workflow.hotWaterData.targetTemperature, targetHotWaterDuration: workflow.hotWaterData.duration })
   }
 }
@@ -93,7 +93,11 @@ const server = createServer(async (request, response) => {
     }
     return reply(calibration)
   }
-  if (path === '/api/v1/sensors') return reply(sensor ? [{ name: 'Fixture probe', info: { id: 'probe:a/b', dataChannels: [{ key: 'temperature', type: 'number' }] } }] : [])
+  if (path === '/api/v1/sensors') return reply(sensor ? [
+    { id: 'ambient', info: { name: 'Ambient', data: [{ key: 'temperature', type: 'number' }] } },
+    { id: 'other-milkprobe', info: { name: 'Bengle Milk Probe', data: [{ key: 'temperature', type: 'number' }] } },
+    { id: `${model.toLowerCase()}-milkprobe`, info: { name: 'Bengle Milk Probe', vendor: 'DecentEspresso', data: [{ key: 'timestamp', type: 'string', unit: null }, { key: 'temperature', type: 'number', unit: '°C' }], commands: [] } },
+  ] : [])
   if (path === '/api/v1/settings') { settings = { ...settings, ...body }; return reply(settings) }
   if (path === '/api/v1/workflow') {
     workflow = { ...workflow, ...body, hotWaterData: { ...workflow.hotWaterData, ...body.hotWaterData }, steamSettings: { ...workflow.steamSettings, ...body.steamSettings } }
@@ -122,4 +126,5 @@ setInterval(() => {
   }
   emit()
 }, 500)
-server.listen(5396, '127.0.0.1', () => console.log('Bengle fixture: http://127.0.0.1:5396'))
+const port = Number(process.env.BENGLE_FIXTURE_PORT ?? 5396)
+server.listen(port, '127.0.0.1', () => console.log(`Bengle fixture: http://127.0.0.1:${port}`))

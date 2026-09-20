@@ -60,11 +60,13 @@ export function sensors(value: unknown): Sensor[] {
   return value.flatMap(entry => {
     const data = object(entry)
     const info = object(data.info ?? data)
-    if (typeof info.id !== 'string' || !Array.isArray(info.dataChannels)) return []
-    const channels = info.dataChannels.flatMap(channel => {
+    const id = typeof data.id === 'string' ? data.id : info.id
+    const manifest = info.data ?? info.dataChannels
+    if (typeof id !== 'string' || !Array.isArray(manifest)) return []
+    const channels = manifest.flatMap(channel => {
       const item = object(channel)
       return typeof item.key === 'string' && typeof item.type === 'string' ? [{ key: item.key, type: item.type }] : []
     })
-    return [{ id: info.id, name: typeof data.name === 'string' ? data.name : undefined, dataChannels: channels }]
+    return [{ id, name: typeof info.name === 'string' ? info.name : typeof data.name === 'string' ? data.name : undefined, dataChannels: channels }]
   })
 }

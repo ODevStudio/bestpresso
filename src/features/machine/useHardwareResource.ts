@@ -14,13 +14,17 @@ export function useHardwareResource<T>(capability: MachineCapability, read: () =
   const active = useRef(false)
   const pending = useRef(false)
   const current = () => active.current && session.generation === machineSession.get().generation
-  const reload = useStableEvent(async () => {
+  const refresh = useStableEvent(async (manual: boolean) => {
     if (pending.current || !current()) return
     pending.current = true
     setBusy(true)
     try {
       const result = await read()
-      if (current()) { setValue(result); setStatus(previous => previous === 'failed' || previous === 'saved' ? previous : null) }
+      if (current()) {
+        setValue(result)
+        setStatus(previous => !manual && (previous === 'failed' || previous === 'saved') ? previous : null)
+        if (manual) setRequestError(undefined)
+      }
     } catch {
       if (current()) { setValue(undefined); setStatus('unavailable') }
     } finally { pending.current = false; if (current()) setBusy(false) }
@@ -30,12 +34,12 @@ export function useHardwareResource<T>(capability: MachineCapability, read: () =
     let cancelled = false
     let timer: ReturnType<typeof setTimeout>
     const tick = async () => {
-      if (document.visibilityState !== 'hidden') await reload()
+      if (document.visibilityState !== 'hidden') await refresh(false)
       if (!cancelled) timer = setTimeout(tick, interval)
     }
     void tick()
     return () => { cancelled = true; active.current = false; clearTimeout(timer) }
-  }, [reload, interval, session.generation])
+  }, [refresh, interval, session.generation])
 
   const save = async (write: () => Promise<unknown>, verify: (result: T) => boolean, idleOnly = false) => {
     if (pending.current || !value || !current()) return false
@@ -55,5 +59,5 @@ export function useHardwareResource<T>(capability: MachineCapability, read: () =
       if (current()) setBusy(false)
     }
   }
-  return { value, busy, status, requestError, reload, save, disabled: busy || !value || !session.state }
+  return { value, busy, status, requestError, reload: () => refresh(true), save, disabled: busy || !value || !session.state }
 }
