@@ -2,6 +2,18 @@
 
 Bestpresso is a brewing-first Decaid skin. The brewing screen reads live Decaid values through typed adapters and falls back to fixtures when the gateway is unavailable.
 
+## Install in Decaid
+
+Install a built Bestpresso ZIP using **Web Interface > + > ZIP file**. Do not use
+GitHub's source-code ZIP or the GitHub Branch installer: they contain unbuilt
+TypeScript. The GitHub Release installer requires a published release ZIP asset.
+
+For a local build, run `npm ci` and `npm run build`, then ZIP the contents of
+`dist` with `index.html`, `skin-manifest.json`, and `assets/` at the archive root.
+Keep `index.html` in LF format, as enforced by `.gitattributes`: some Decaid
+versions misplace their injected script in CRLF HTML and break the CSS link.
+Re-import the ZIP and reopen the skin after replacing an installed build.
+
 ## Development
 
 ```sh
