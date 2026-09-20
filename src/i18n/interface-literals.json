@@ -1,5 +1,5 @@
 {
-  "src/features/machine/ReservoirReading.tsx: ml": "Standard measurement unit, not prose.",
+  "src/features/machine/ReservoirReading.tsx: mm": "Standard measurement unit, not prose.",
   "src/app/AppShell.tsx: Decent": "Product brand name.",
   "src/components/Sidebar/SidebarNavigation.tsx: Decent": "Product brand name.",
   "src/components/StatusPill/StatusPill.tsx: s": "Standard measurement unit, not prose.",
@@ -26,6 +26,6 @@
   "src/features/profiles/ProfileBuilderScreen.tsx: s": "Standard measurement unit, not prose.",
   "src/features/profiles/ProfileBuilderScreen.tsx: g": "Standard measurement unit, not prose.",
   "src/features/profiles/ProfilesPanel.tsx: g": "Standard measurement unit, not prose.",
-  "src/features/settings/SettingsScreen.tsx: ml": "Standard measurement unit, not prose.",
+  "src/features/settings/SettingsScreen.tsx: mm": "Standard measurement unit, not prose.",
   "src/features/settings/SettingsScreen.tsx: B": "Bestpresso brand monogram."
 }

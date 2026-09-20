@@ -58,6 +58,7 @@ export interface MachineUtility {
   levelPercent?: number
   waterLevelMm?: number
   refillLevelMm?: number
+  warningLevelMm?: number
 }
 
 export interface ProfileTargetPoint {

@@ -14,6 +14,14 @@ Keep `index.html` in LF format, as enforced by `.gitattributes`: some Decaid
 versions misplace their injected script in CRLF HTML and break the CSS link.
 Re-import the ZIP and reopen the skin after replacing an installed build.
 
+The water gauge is a millimetre ruler, initially 0-70 mm, not a tank-capacity
+percentage. Its range expands for taller readings. Bengle's advisory marker is
+15 mm; the warning clears at 17 mm to avoid flicker. Detected automatic refill
+hardware suppresses this advisory, but never the machine's own Needs water
+alert. DE1 retains its configured volume warning. Firmware refill settings are
+not changed; the reported refill threshold and estimated volume remain in the
+gauge's accessible description and tooltip.
+
 ## Development
 
 ```sh

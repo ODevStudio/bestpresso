@@ -9,7 +9,7 @@ import { assertProfileDeletionAllowed, canDeleteProfile, deleteVerifiedUserProfi
 import { hotWaterWeightStoppingPatch } from '../settings/yieldLookAhead'
 import { hotWaterSettings } from './hotWaterSettings'
 import type { HotWaterShotSettings } from './hotWaterSync'
-import { activeProfileForWorkflow, applyWorkflow, carouselProfiles, favoriteProfileSlots as resolveFavoriteProfileSlots, isCleaningProfile, profileRecordsToDomain, profilesWithParsedTitles, retainedAdHocProfileAtBrewStart, shotStage, shotToDomain as rawShotToDomain, STEAM_HEATER_READY_C, tankMillilitres } from '../../api/decaid/adapters'
+import { activeProfileForWorkflow, applyWorkflow, carouselProfiles, favoriteProfileSlots as resolveFavoriteProfileSlots, isCleaningProfile, profileRecordsToDomain, profilesWithParsedTitles, retainedAdHocProfileAtBrewStart, shotStage, shotToDomain as rawShotToDomain, STEAM_HEATER_READY_C } from '../../api/decaid/adapters'
 import { getDecaidEndpoints } from '../../api/decaid/config'
 import { reconcileStageReasons, type StageAdvanceEvidence } from './stageMoveOn'
 import { readStageEvidence, saveStageEvidence, withStageEvidence } from './stageEvidenceStorage'
@@ -22,10 +22,10 @@ import { createMachineReadinessTracker } from '../../api/decaid/readiness'
 import { subscribe } from '../../api/decaid/machineSocket'
 import { getCapabilities, getMachineInfo } from '../../api/decaid/hardware'
 import { hasCapability, machineSession } from '../machine/machineSession'
-import { displayWater, mergeWaterLevels } from '../machine/waterTelemetry'
+import { displayWater, isBengle, mergeWaterLevels, waterWarningLevelMm, waterWarningState } from '../machine/waterTelemetry'
 import { machineWeightFlow } from '../machine/scaleTelemetry'
 import type { DecaidProfile, DecaidProfileRecord, DecaidWorkflowPatch, FavoriteAssignments, MachineSnapshot, ScaleSnapshot, TimeToReadyFrame, WaterLevels } from '../../api/decaid/types'
-import { liveScaleDisplayWeight, liveShotYield, normalizedLiveScaleWeight, scaleConnectionIsActive, waterTankLevelState } from '../../domain/brewing'
+import { liveScaleDisplayWeight, liveShotYield, normalizedLiveScaleWeight, scaleConnectionIsActive } from '../../domain/brewing'
 import type { AvailableScale, BrewProfile, BrewingScreenModel, DataConnection, EditableMachineSetting, EditableProfileSetting, LiveBrewState, LiveShotPoint, LiveUtilityOperation, MachineReadiness, PreviousShot, PreviousShotStatus, ScaleConnection, SettingFeedback, UtilityMetricId, UtilityOperationKind } from '../../domain/brewing'
 import { brewingFixture, demoLiveBrewFixture } from '../../fixtures/brewingFixture'
 import { scaleFixtureForKey } from '../../fixtures/scaleFixtures'
@@ -48,7 +48,7 @@ import { UNIFIED_SETTINGS_SAVED_EVENT, type UnifiedSettingsSnapshot } from '../s
 
 const currentWaterThresholds = () => {
   const preferences = readBestpressoPreferences()
-  return { warningLevelMl: preferences.waterWarningLevelMl, refillKit: machineSession.get().info?.extra?.refillKit }
+  return { warningLevelMl: preferences.waterWarningLevelMl, refillKit: machineSession.get().info?.extra?.refillKit, model: machineSession.get().info?.model }
 }
 
 const shotToDomain = (shot: ShotRecord) => reconcileStageReasons(withStageEvidence(rawShotToDomain(shot), readStageEvidence(getDecaidEndpoints().apiBase, shot.id)))
@@ -246,8 +246,19 @@ export function useBrewingData() {
   const pendingCleaningSequence = useRef<PendingCleaningSequence | null>(null)
   const cleaningRestoreWorkflow = useRef<DecaidWorkflowPatch | null>(null)
   const latestScaleSnapshot = useRef<Pick<LiveShotPoint, 'weight' | 'weightFlow'>>({})
-  const latestTankVolume = useRef<number | null>(null)
+  const latestWaterLevels = useRef<WaterLevels>({})
+  const waterWarning = useRef(false)
   const machineNeedsWater = useRef(false)
+  const currentWaterState = () => {
+    const thresholds = currentWaterThresholds()
+    const state = waterWarningState(latestWaterLevels.current, false, thresholds, waterWarning.current)
+    waterWarning.current = isBengle(thresholds.model) && state === 'warning'
+    return machineNeedsWater.current ? 'needsWater' : state
+  }
+  const updateWaterDisplay = (current: BrewingScreenModel, state: string) => {
+    const thresholds = currentWaterThresholds()
+    return displayWater(current, latestWaterLevels.current, state, waterWarningLevelMm(thresholds.model, thresholds.warningLevelMl))
+  }
   const machineConnectionRef = useRef<DataConnection>('connecting')
   const liveShotSession = useRef<LiveShotSession | null>(null)
   const demoBrewSession = useRef<DemoBrewSession | null>(null)
@@ -261,19 +272,10 @@ export function useBrewingData() {
   useEffect(() => { allProfilesRef.current = allProfiles }, [allProfiles])
   useEffect(() => { latestModel.current = model }, [model])
   useEffect(() => {
-    const volume = latestTankVolume.current
-    if (volume === null) return
-    const tankState = waterTankLevelState(volume, machineNeedsWater.current, {
-      warningLevelMl: preferences.waterWarningLevelMl,
-      refillKit: machineSession.get().info?.extra?.refillKit,
-    })
-    setModel((current) => ({
-      ...current,
-      utilities: current.utilities.map((utility) => utility.id === 'tank'
-        ? { ...utility, alert: tankState === 'needsWater', warning: tankState === 'warning' }
-        : utility),
-    }))
-  }, [preferences.waterWarningLevelMl, preferences.waterCriticalLevelMl])
+    if (latestWaterLevels.current.currentLevel === undefined) return
+    const state = currentWaterState()
+    setModel(current => updateWaterDisplay(current, state))
+  }, [preferences.waterWarningLevelMl])
   useEffect(() => () => {
     const interval = demoBrewSession.current?.interval
     if (interval != null) window.clearInterval(interval)
@@ -778,15 +780,14 @@ export function useBrewingData() {
         }))
       })
 
-    let levels: WaterLevels = {}
     let sessionGeneration = -1
     let scaleSource: string | undefined
     const sessionChanged = () => {
       const session = machineSession.get()
       if (session.generation !== sessionGeneration) {
         sessionGeneration = session.generation
-        levels = {}
-        latestTankVolume.current = null
+        latestWaterLevels.current = {}
+        waterWarning.current = false
         machineNeedsWater.current = false
         latestScaleSnapshot.current = {}
         scaleStreamConnected.current = false
@@ -810,8 +811,8 @@ export function useBrewingData() {
           })
         }
       }
-      const state = waterTankLevelState(latestTankVolume.current ?? Number.NaN, machineNeedsWater.current, currentWaterThresholds())
-      setModel(current => displayWater(current, levels, state))
+      const state = currentWaterState()
+      setModel(current => updateWaterDisplay(current, state))
     }
     const releaseMachineSession = machineSession.subscribe(sessionChanged)
     sessionChanged()
@@ -984,8 +985,8 @@ export function useBrewingData() {
         timeToReadyEstimate = null
         setHeatingSeconds(null)
       }
-      setModel(current => withHomeMachineDisplay(current, readiness, snapshot.steamTemperature, STEAM_HEATER_READY_C,
-        waterTankLevelState(latestTankVolume.current ?? Number.POSITIVE_INFINITY, machineNeedsWater.current, currentWaterThresholds())))
+      const tankState = currentWaterState()
+      setModel(current => withHomeMachineDisplay(current, readiness, snapshot.steamTemperature, STEAM_HEATER_READY_C, tankState))
     }, (connected) => {
       snapshotConnected = connected
       if (!connected) {
@@ -1064,16 +1065,14 @@ export function useBrewingData() {
     })
 
     const water = subscribe<WaterLevels>('/machine/waterLevels', (frame) => {
-      levels = mergeWaterLevels(levels, frame)
-      const volume = levels.currentLevel === undefined ? undefined : tankMillilitres(levels.currentLevel)
-      latestTankVolume.current = volume ?? null
-      const tankState = waterTankLevelState(volume ?? Number.NaN, machineNeedsWater.current, currentWaterThresholds())
-      setModel(current => displayWater(current, levels, tankState))
+      latestWaterLevels.current = mergeWaterLevels(latestWaterLevels.current, frame)
+      const tankState = currentWaterState()
+      setModel(current => updateWaterDisplay(current, tankState))
     }, connected => {
       if (connected) return
-      levels = {}
-      latestTankVolume.current = null
-      setModel(current => displayWater(current, levels, machineNeedsWater.current ? 'needsWater' : 'normal'))
+      latestWaterLevels.current = {}
+      waterWarning.current = false
+      setModel(current => updateWaterDisplay(current, machineNeedsWater.current ? 'needsWater' : 'normal'))
     })
 
     const timeToReady = subscribe<TimeToReadyFrame>('/plugins/time-to-ready.reaplugin/timeToReady', (frame) => {
