@@ -27,6 +27,7 @@ interface MachineUtilityCardProps {
   onSearchScale?: () => void
   onTareScale?: () => void
   scaleTarePending?: boolean
+  scaleTareDisabled?: boolean
   settingsDisabled?: boolean
   onUpdateSetting?: (setting: EditableMachineSetting, value: number) => void
 }
@@ -63,7 +64,7 @@ const editForMetric = (utility: MachineUtility, metricId: UtilityMetricId, tempe
   }
 }
 
-function MachineUtilityCardComponent({ utility, compact = false, scale, onExpand, onSearchScale, onTareScale, scaleTarePending = false, settingsDisabled, onUpdateSetting }: MachineUtilityCardProps) {
+function MachineUtilityCardComponent({ utility, compact = false, scale, onExpand, onSearchScale, onTareScale, scaleTarePending = false, scaleTareDisabled = false, settingsDisabled, onUpdateSetting }: MachineUtilityCardProps) {
   useLanguage()
   const { preferences } = useBestpressoPreferences()
   const temperatureUnit = preferences.temperatureUnit
@@ -119,7 +120,7 @@ function MachineUtilityCardComponent({ utility, compact = false, scale, onExpand
     {!scaleConnected
       ? <button className={compact ? 'scale-search scale-compact-summary' : 'scale-search'} type="button" onClick={onSearchScale} disabled={scale?.status === 'searching'}>{scale?.status === 'searching' ? t('shell.scale.searching') : t('shell.scale.search')}</button>
       : <div className="utility-card__metrics">{metrics.map((metric) => scaleCanTare
-        ? <button className={`scale-tare-control${scaleTarePending ? ' scale-tare-control--pending' : ''}`} key={metric.id} type="button" aria-label={t('shell.scale.tareAria', { value: metric.value, unit: metric.unit ?? '' })} title={t('shell.scale.tareTitle')} disabled={scaleTarePending} onClick={onTareScale}>
+        ? <button className={`scale-tare-control${scaleTarePending ? ' scale-tare-control--pending' : ''}`} key={metric.id} type="button" aria-label={t('shell.scale.tareAria', { value: metric.value, unit: metric.unit ?? '' })} title={t(scaleTareDisabled ? 'brew.data.error.tareUnavailableDuringShot' : 'shell.scale.tareTitle')} disabled={scaleTarePending || scaleTareDisabled} onClick={onTareScale}>
           <Metric metric={metric} compact size="large" />
           <svg className="scale-tare-control__icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M6.1 9a7 7 0 0 1 11.6-2.6L20 8.8M4 15.2l2.3 2.4A7 7 0 0 0 17.9 15" /></svg>
         </button>

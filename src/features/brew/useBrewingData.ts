@@ -36,6 +36,7 @@ import { DEMO_BREW_TICK_MS, demoBrewForProfile, demoBrewPointsAtElapsed, demoPul
 import { advanceShotTimeline, appendLiveShotSample, beginSkipTransition, isEspressoMonitoringSnapshot, observeSkipTransition, shouldAutoTareAtShotStart, type SkipTransition } from './liveShotState'
 import { createStopObservation, requestMachineStop } from './stopRequest'
 import { createBackgroundScaleSearch } from './backgroundScaleSearch'
+import { observeTareShotState, requestGuardedScaleTare, scaleTareBlocked, type ScaleTareState } from './scaleTareSafety'
 import { sleepMachineWithConfiguredScalePolicy } from './sleepControl'
 import { utilityElapsedMs, utilityTimerStartedAt } from './utilityOperationTiming'
 import { readBestpressoPreferences, useBestpressoPreferences } from '../settings/bestpressoPreferences'
@@ -182,6 +183,12 @@ export function useBrewingData() {
   const [availableScales, setAvailableScales] = useState<AvailableScale[]>([])
   const [scaleConnectPendingId, setScaleConnectPendingId] = useState<string | null>(null)
   const [scaleTarePending, setScaleTarePending] = useState(false)
+  const [scaleTareDisabled, setScaleTareDisabled] = useState(true)
+  const tareSafety = useRef<ScaleTareState>({ shotActive: false, machineKnown: false, scaleConnected: false, preparing: false })
+  const rememberTarePolicy = (blockDuringShot: boolean | undefined) => {
+    tareSafety.current.blockDuringShot = blockDuringShot
+    setScaleTareDisabled(scaleTareBlocked(tareSafety.current))
+  }
   const [brewStopPending, setBrewStopPending] = useState(false)
   const [brewSkipPending, setBrewSkipPending] = useState(false)
   const [cleaningStartPending, setCleaningStartPending] = useState(false)
@@ -332,6 +339,7 @@ export function useBrewingData() {
   useEffect(() => {
     const applySavedSettings = (event: Event) => {
       const snapshot = (event as CustomEvent<UnifiedSettingsSnapshot>).detail
+      if (snapshot?.rea) rememberTarePolicy(snapshot.rea.blockTareDuringShot)
       if (!snapshot?.workflow) return
       rememberFlushDuration(snapshot.workflow)
       setModel((current) => applyWorkflow(current, snapshot.workflow, profileRecords.current, favoriteAssignments.current, retainedAdHocProfileId.current))
@@ -377,7 +385,18 @@ export function useBrewingData() {
       setScaleTarePending(true)
     }
     try {
-      await tareScale()
+      const result = await requestGuardedScaleTare({
+        automatic: silent,
+        readState: () => ({ ...tareSafety.current, scaleConnected: connectedScale.current }),
+        refreshSettings: async () => rememberTarePolicy((await getSettings()).blockTareDuringShot),
+        sendTare: tareScale,
+      })
+      if (result !== 'tared') {
+        if (!silent && result !== 'cancelled') showMachineActionError(t(result === 'blocked'
+          ? 'brew.data.error.tareUnavailableDuringShot'
+          : 'brew.data.error.tareScaleDisconnected'))
+        return false
+      }
       latestScaleSnapshot.current = { ...latestScaleSnapshot.current, weight: 0 }
       setDisplayedScaleWeight(0)
       return true
@@ -475,6 +494,9 @@ export function useBrewingData() {
       machineConnectionRef.current = next
       setMachineConnection(next)
       if (next !== 'connected') {
+        tareSafety.current.machineKnown = false
+        tareSafety.current.preparing = false
+        setScaleTareDisabled(scaleTareBlocked(tareSafety.current))
         pendingStopRequest.current?.evidence.disconnect()
         latestMachineTimestamp.current = undefined
         hotWaterMachineState = undefined
@@ -661,6 +683,7 @@ export function useBrewingData() {
 
     const refreshPreferredScale = () => getSettings().then((settings) => {
       if (!disposed) {
+        rememberTarePolicy(settings.blockTareDuringShot)
         preferredScaleId = settings.preferredScaleId?.trim() || null
         backgroundScaleSearch.refresh()
       }
@@ -766,6 +789,14 @@ export function useBrewingData() {
 
     const machine = subscribe<MachineSnapshot>('/machine/snapshot', (snapshot) => {
       if (machineConnectionRef.current !== 'connected') return
+      const hasMachineState = Boolean(typeof snapshot.state === 'string' ? snapshot.state : snapshot.state?.state)
+      if (hasMachineState) {
+        tareSafety.current.machineKnown = true
+        tareSafety.current.shotActive = observeTareShotState(tareSafety.current.shotActive, snapshot)
+          || Boolean(brewSkipTransition.current && liveShotSession.current?.kind === 'espresso')
+        tareSafety.current.preparing = shouldAutoTareAtShotStart(snapshot)
+        setScaleTareDisabled(scaleTareBlocked(tareSafety.current))
+      }
       pendingStopRequest.current?.evidence.observe(snapshot, liveShotSession.current)
       if (snapshot.timestamp && Number.isFinite(Date.parse(snapshot.timestamp)) && (!latestMachineTimestamp.current || Date.parse(snapshot.timestamp) > Date.parse(latestMachineTimestamp.current))) latestMachineTimestamp.current = snapshot.timestamp
       const machineState = (typeof snapshot.state === 'string' ? snapshot.state : snapshot.state?.state)?.toLowerCase()
@@ -902,6 +933,9 @@ export function useBrewingData() {
     }, (connected) => {
       snapshotConnected = connected
       if (!connected) {
+        tareSafety.current.machineKnown = false
+        tareSafety.current.preparing = false
+        setScaleTareDisabled(scaleTareBlocked(tareSafety.current))
         pendingStopRequest.current?.evidence.disconnect()
         latestMachineTimestamp.current = undefined
         previousReadiness.current = null
@@ -1735,5 +1769,5 @@ export function useBrewingData() {
   const dismissLiveBrew = () => setLiveBrew((current) => current.active ? current : { ...current, visible: false })
   const favoriteProfileIds = favoriteProfileSlots.filter((id): id is string => Boolean(id))
 
-  return { model, allProfiles, favoriteProfileIds, favoriteProfileSlots, liveBrew, utilityOperation, previousShotStatus, shotHistory, loadHistoryShot, heatingSeconds, connection, machineConnection, demoPullEnabled, scale, availableScales, scaleConnectPendingId, scaleTarePending, brewStopPending, brewSkipPending, cleaningStartPending, cleaningPreparedProfileId, sleepPending, sleepScreenActive, machineActionError, settingFeedback: settingFeedbackVisible ? settingFeedback : null, settingsDisabled, toggleSleep, wakeMachine, stopEspresso, skipBrewStage, startDemoBrew, prepareCleaningSequence, cancelCleaningSequence, dismissLiveBrew, searchForScale, connectToScale, dismissScalePicker, tareConnectedScale: () => requestScaleTare(false), updateMachineSetting, updateProfileSetting, profileRecordForEditing, saveProfileDraft, selectProfile, setFavoriteProfileSlot, removeFavoriteProfile, profileCanBeDeleted, deleteSavedProfile }
+  return { model, allProfiles, favoriteProfileIds, favoriteProfileSlots, liveBrew, utilityOperation, previousShotStatus, shotHistory, loadHistoryShot, heatingSeconds, connection, machineConnection, demoPullEnabled, scale, availableScales, scaleConnectPendingId, scaleTarePending, scaleTareDisabled, brewStopPending, brewSkipPending, cleaningStartPending, cleaningPreparedProfileId, sleepPending, sleepScreenActive, machineActionError, settingFeedback: settingFeedbackVisible ? settingFeedback : null, settingsDisabled, toggleSleep, wakeMachine, stopEspresso, skipBrewStage, startDemoBrew, prepareCleaningSequence, cancelCleaningSequence, dismissLiveBrew, searchForScale, connectToScale, dismissScalePicker, tareConnectedScale: () => requestScaleTare(false), updateMachineSetting, updateProfileSetting, profileRecordForEditing, saveProfileDraft, selectProfile, setFavoriteProfileSlot, removeFavoriteProfile, profileCanBeDeleted, deleteSavedProfile }
 }

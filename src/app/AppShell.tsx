@@ -41,6 +41,7 @@ interface AppShellProps {
   availableScales: AvailableScale[]
   scaleConnectPendingId: string | null
   scaleTarePending: boolean
+  scaleTareDisabled?: boolean
   brewStopPending: boolean
   brewSkipPending: boolean
   cleaningStartPending: boolean
@@ -75,7 +76,7 @@ const initialUtilityLayout = () => {
   }
 }
 
-export function AppShell({ historyEntry, model, allProfiles, liveBrew, utilityOperation, previousShotStatus, connection, machineConnection, demoPullEnabled, heatingSeconds, sleepPending, sleepScreenActive, machineActionError, settingFeedback, settingsDisabled, scale, availableScales, scaleConnectPendingId, scaleTarePending, brewStopPending, brewSkipPending, cleaningStartPending, cleaningPreparedProfileId, onSleep, onWake, onStopEspresso, onSkipBrewStage, onPrepareCleaning, onCancelCleaning, onDismissLiveBrew, onSearchScale, onConnectScale, onDismissScalePicker, onTareScale, onUpdateMachineSetting, onUpdateProfileSetting, onSelectProfile, onStartDemoBrew, onOpenSettings, onManageProfiles, onOpenPreviousShot }: AppShellProps) {
+export function AppShell({ historyEntry, model, allProfiles, liveBrew, utilityOperation, previousShotStatus, connection, machineConnection, demoPullEnabled, heatingSeconds, sleepPending, sleepScreenActive, machineActionError, settingFeedback, settingsDisabled, scale, availableScales, scaleConnectPendingId, scaleTarePending, scaleTareDisabled = false, brewStopPending, brewSkipPending, cleaningStartPending, cleaningPreparedProfileId, onSleep, onWake, onStopEspresso, onSkipBrewStage, onPrepareCleaning, onCancelCleaning, onDismissLiveBrew, onSearchScale, onConnectScale, onDismissScalePicker, onTareScale, onUpdateMachineSetting, onUpdateProfileSetting, onSelectProfile, onStartDemoBrew, onOpenSettings, onManageProfiles, onOpenPreviousShot }: AppShellProps) {
   const [utilitiesCollapsed, setUtilitiesCollapsed] = useState(initialUtilityLayout)
   const [utilityLayoutHasChanged, setUtilityLayoutHasChanged] = useState(false)
   const [cleaningPickerOpen, setCleaningPickerOpen] = useState(false)
@@ -112,7 +113,7 @@ export function AppShell({ historyEntry, model, allProfiles, liveBrew, utilityOp
       {machineActionError && <div className="system-message system-message--error" role="alert">{machineActionError}</div>}
       {settingFeedback && <div className={`system-message system-message--${settingFeedback.status}`} role={settingFeedback.status === 'error' ? 'alert' : 'status'} aria-live="polite">{settingFeedback.message}</div>}
     </div>}
-    <div className="dashboard"><aside className="utilities" id="machine-utilities">{model.utilities.map((utility) => <MachineUtilityCard key={utility.id} utility={utility} compact={utilitiesCollapsed} scale={utility.id === 'scale' ? scale : undefined} scaleTarePending={utility.id === 'scale' && scaleTarePending} onExpand={utility.id === 'tank' ? undefined : toggleUtilityLayout} onSearchScale={utility.id === 'scale' ? searchScale : undefined} onTareScale={utility.id === 'scale' ? tareScale : undefined} settingsDisabled={settingsDisabled} onUpdateSetting={updateSetting} />)}</aside><div className="primary"><BrewingPanel profiles={model.profiles} activeProfileId={model.activeProfileId} settingsDisabled={settingsDisabled} demoMode={demoPullEnabled} onUpdateProfile={updateProfile} onSelectProfile={selectProfile} onStartDemoBrew={startDemo} onManageProfiles={manageProfiles} />{historyEntry ?? <HistoryPanel shot={model.previousShot} status={previousShotStatus} onOpen={onOpenPreviousShot} />}</div></div>
+    <div className="dashboard"><aside className="utilities" id="machine-utilities">{model.utilities.map((utility) => <MachineUtilityCard key={utility.id} utility={utility} compact={utilitiesCollapsed} scale={utility.id === 'scale' ? scale : undefined} scaleTarePending={utility.id === 'scale' && scaleTarePending} scaleTareDisabled={utility.id === 'scale' && scaleTareDisabled} onExpand={utility.id === 'tank' ? undefined : toggleUtilityLayout} onSearchScale={utility.id === 'scale' ? searchScale : undefined} onTareScale={utility.id === 'scale' ? tareScale : undefined} settingsDisabled={settingsDisabled} onUpdateSetting={updateSetting} />)}</aside><div className="primary"><BrewingPanel profiles={model.profiles} activeProfileId={model.activeProfileId} settingsDisabled={settingsDisabled} demoMode={demoPullEnabled} onUpdateProfile={updateProfile} onSelectProfile={selectProfile} onStartDemoBrew={startDemo} onManageProfiles={manageProfiles} />{historyEntry ?? <HistoryPanel shot={model.previousShot} status={previousShotStatus} onOpen={onOpenPreviousShot} />}</div></div>
     {utilityOperation && <LiveUtilityOperationOverlay operation={utilityOperation} />}
     <ScaleDevicePicker devices={availableScales} pendingDeviceId={scaleConnectPendingId} onSelect={onConnectScale} onDismiss={onDismissScalePicker} />
     {cleaningPickerOpen && <CleaningSequencePicker profiles={cleaningProfiles} pending={cleaningStartPending} preparedProfileId={cleaningPreparedProfileId} onPrepare={onPrepareCleaning} onDismiss={dismissCleaningPicker} />}
