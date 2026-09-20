@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { displayBrightness } from './displayBrightness'
 import { hotWaterSettings } from '../brew/hotWaterSettings'
 import { t } from '../../i18n/index.ts'
+import { machineSession } from '../machine/machineSession'
+import { useMachineSession } from '../machine/useMachineSession'
 import {
   connectDevice,
   createWakeSchedule,
@@ -13,7 +15,6 @@ import {
   getDecaidInfo,
   getDevices,
   getDisplayState,
-  getMachineCapabilities,
   getMachineSettings,
   getPlugins,
   getPresenceSettings,
@@ -78,6 +79,7 @@ const settledNormalized = <T,>(result: PromiseSettledResult<T>, fallback: T, nor
 )
 
 export function useUnifiedSettings(enabled: boolean) {
+  const session = useMachineSession()
   const [baseline, setBaseline] = useState<UnifiedSettingsSnapshot>(emptySnapshot)
   const [draft, setDraft] = useState<UnifiedSettingsSnapshot>(emptySnapshot)
   const [loading, setLoading] = useState(enabled)
@@ -93,14 +95,16 @@ export function useUnifiedSettings(enabled: boolean) {
 
   const reload = useCallback(async () => {
     if (!enabled) return
+    const generation = session.generation
     setLoading(true)
     setMessage(null)
     setMessageError(false)
     const names = ['Decaid', 'machine', 'advanced machine', 'workflow', 'display', 'presence', 'devices', 'plugins', 'system', 'capabilities']
     const results = await Promise.allSettled([
       getSettings(), getMachineSettings(), getAdvancedMachineSettings(), getWorkflow(), getDisplayState(),
-      getPresenceSettings(), getDevices(), getPlugins(), getDecaidInfo(), getMachineCapabilities(),
+      getPresenceSettings(), getDevices(), getPlugins(), getDecaidInfo(), Promise.resolve({ capabilities: session.capabilities ? [...session.capabilities] : undefined }),
     ])
+    if (machineSession.get().generation !== generation) return
     const next: UnifiedSettingsSnapshot = {
       rea: settledNormalized(results[0], {}, normalizeReaSettings),
       machine: settledNormalized(results[1], {}, normalizeMachineSettings),
@@ -111,14 +115,14 @@ export function useUnifiedSettings(enabled: boolean) {
       devices: settledValue(results[6], []),
       plugins: settledValue(results[7], []),
       info: settledValue(results[8], {}),
-      capabilities: settledValue(results[9], {}),
+      capabilities: settledValue(results[9], { capabilities: undefined }),
     }
     setUnavailable(results.flatMap((result, index) => result.status === 'rejected' ? [names[index]] : []))
     setBaseline(next)
     setDraft(next)
     setLoading(false)
     return next
-  }, [enabled])
+  }, [enabled, session.generation, session.capabilities])
 
   useEffect(() => {
     const loadTimer = window.setTimeout(() => { void reload() }, 0)
@@ -138,11 +142,15 @@ export function useUnifiedSettings(enabled: boolean) {
   }))
 
   const save = async () => {
-    if (!dirty || saving) return
+    if (!dirty || saving || loading) return
+    const assertSession = () => {
+      if (session.generation !== machineSession.get().generation) throw new Error(t('hardware.failed'))
+    }
     setSaving(true)
     setMessage(null)
     setMessageError(false)
     try {
+      assertSession()
       const rea = changedFields(baseline.rea, draft.rea)
       const machine = changedFields(baseline.machine, draft.machine)
       const advanced = changedFields(baseline.advanced, draft.advanced)
@@ -161,12 +169,17 @@ export function useUnifiedSettings(enabled: boolean) {
       // Streamline and Decaid both treat these as separate persistence domains.
       // Keep the writes ordered so workflow and machine writes never race each other.
       if (Object.keys(rea).length) await updateSettings(rea)
+      assertSession()
       if (Object.keys(machine).length) await updateMachineSettings(machine)
+      assertSession()
       if (Object.keys(advanced).length) await updateAdvancedMachineSettings(advanced)
+      assertSession()
       if (Object.keys(workflow).length) await hotWaterSettings.save(workflow)
+      assertSession()
       if (Object.keys(presence).length) await updatePresenceSettings(presence)
       if (requestedBrightness !== undefined && requestedBrightness !== oldBrightness) await displayBrightness.choose(requestedBrightness)
       const refreshed = await reload()
+      assertSession()
       window.dispatchEvent(new CustomEvent(UNIFIED_SETTINGS_SAVED_EVENT, { detail: refreshed }))
       setMessage(t('settings.message.saved'))
       setMessageError(false)

@@ -1,4 +1,5 @@
 {
+  "src/features/machine/ReservoirReading.tsx: ml": "Standard measurement unit, not prose.",
   "src/app/AppShell.tsx: Decent": "Product brand name.",
   "src/components/Sidebar/SidebarNavigation.tsx: Decent": "Product brand name.",
   "src/components/StatusPill/StatusPill.tsx: s": "Standard measurement unit, not prose.",

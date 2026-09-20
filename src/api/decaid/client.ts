@@ -1,6 +1,7 @@
 import { t } from '../../i18n/index.ts'
-import { getDecaidEndpoints } from './config'
-import { parseJsonBody } from './jsonBody'
+import { getDecaidEndpoints } from './config.ts'
+import { parseJsonBody } from './jsonBody.ts'
+import { hasCapability, machineSession } from '../../features/machine/machineSession.ts'
 import type { DecaidAdvancedMachineSettings, DecaidDevice, DecaidInfo, DecaidMachineSettings, DecaidProfile, DecaidProfileRecord, DecaidSettings, DecaidWorkflow, DecaidWorkflowPatch, DecentAccountStatus, DisplayState, FavoriteAssignments, MachineCapabilities, PaginatedShots, PresenceSettings, ScalePowerMode, ShotRecord, WakeSchedule } from './types'
 
 export interface DecaidPluginManifest {
@@ -204,13 +205,25 @@ export async function importDecaidBackup(file: File, overwrite = false) {
 }
 
 export async function updateWorkflow(patch: DecaidWorkflowPatch) {
-  const response = await fetch(`${getDecaidEndpoints().apiBase}/workflow`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  })
-  if (!response.ok) throw new Error(t('common.error.workflowUpdate', { status: response.status }) + ': ' + await response.text())
-  return await response.json() as DecaidWorkflow
+  const session = machineSession.get()
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 8000)
+  try {
+    const response = await fetch(`${getDecaidEndpoints().apiBase}/workflow`, {
+      method: 'PUT', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    if (!response.ok) throw new Error(t('common.error.workflowUpdate', { status: response.status }) + ': ' + await response.text())
+    const workflow = await response.json() as DecaidWorkflow
+    if (session.generation !== machineSession.get().generation) throw new Error(t('hardware.failed'))
+    if (hasCapability('stopAtWeight', session) && patch.context?.targetYield !== undefined) {
+      const confirmed = await getWorkflow()
+      if (session.generation !== machineSession.get().generation || confirmed.context?.targetYield !== patch.context.targetYield) throw new Error(t('hardware.failed'))
+      return confirmed
+    }
+    return workflow
+  } finally { window.clearTimeout(timeout) }
 }
 
 export async function updateProfileMetadata(profileId: string, metadata: Record<string, unknown>) {

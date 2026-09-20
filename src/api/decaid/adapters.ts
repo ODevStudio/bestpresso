@@ -175,8 +175,8 @@ export function applyWorkflow(model: BrewingScreenModel, workflow: DecaidWorkflo
 }
 
 export function tankMillilitres(level: number) {
-  const index = Math.max(0, Math.floor(level))
-  return MM_TO_ML[Math.min(index, MM_TO_ML.length - 1)]
+  if (!Number.isFinite(level) || level < 0 || level > MM_TO_ML.length - 1) return undefined
+  return MM_TO_ML[Math.round(level)]
 }
 
 export function tankSensorLevelForMillilitres(volume: number) {

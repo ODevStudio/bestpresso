@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { withDisplayedScaleWeight, withHomeMachineDisplay, withHomeTankDisplay, withScaleConnection } from './homeDisplayUpdates'
+import { withDisplayedScaleWeight, withHomeMachineDisplay, withScaleConnection } from './homeDisplayUpdates'
 import { cloneJsonData, createId } from '../../utils/browserCompatibility'
 import { t } from '../../i18n/index.ts'
 import { playCompletionSound } from '../../audio/completionSound'
@@ -19,9 +19,13 @@ import { connectDevice, createProfile, DecaidApiError, getDecentAccountStatus, g
 import { displayBrightness } from '../settings/displayBrightness'
 import { workflowPatchForSavedActiveProfile, workflowValuesForProfile } from '../../api/decaid/profileWorkflow'
 import { createMachineReadinessTracker } from '../../api/decaid/readiness'
-import { subscribe } from '../../api/decaid/socket'
+import { subscribe } from '../../api/decaid/machineSocket'
+import { getCapabilities, getMachineInfo } from '../../api/decaid/hardware'
+import { hasCapability, machineSession } from '../machine/machineSession'
+import { displayWater, mergeWaterLevels } from '../machine/waterTelemetry'
+import { machineWeightFlow } from '../machine/scaleTelemetry'
 import type { DecaidProfile, DecaidProfileRecord, DecaidWorkflowPatch, FavoriteAssignments, MachineSnapshot, ScaleSnapshot, TimeToReadyFrame, WaterLevels } from '../../api/decaid/types'
-import { liveScaleDisplayWeight, liveShotYield, normalizedLiveScaleWeight, scaleConnectionIsActive, WATER_TANK_SENSOR_FULL_MM, waterTankLevelState } from '../../domain/brewing'
+import { liveScaleDisplayWeight, liveShotYield, normalizedLiveScaleWeight, scaleConnectionIsActive, waterTankLevelState } from '../../domain/brewing'
 import type { AvailableScale, BrewProfile, BrewingScreenModel, DataConnection, EditableMachineSetting, EditableProfileSetting, LiveBrewState, LiveShotPoint, LiveUtilityOperation, MachineReadiness, PreviousShot, PreviousShotStatus, ScaleConnection, SettingFeedback, UtilityMetricId, UtilityOperationKind } from '../../domain/brewing'
 import { brewingFixture, demoLiveBrewFixture } from '../../fixtures/brewingFixture'
 import { scaleFixtureForKey } from '../../fixtures/scaleFixtures'
@@ -44,7 +48,7 @@ import { UNIFIED_SETTINGS_SAVED_EVENT, type UnifiedSettingsSnapshot } from '../s
 
 const currentWaterThresholds = () => {
   const preferences = readBestpressoPreferences()
-  return { warningLevelMl: preferences.waterWarningLevelMl, criticalLevelMl: preferences.waterCriticalLevelMl }
+  return { warningLevelMl: preferences.waterWarningLevelMl, refillKit: machineSession.get().info?.extra?.refillKit }
 }
 
 const shotToDomain = (shot: ShotRecord) => reconcileStageReasons(withStageEvidence(rawShotToDomain(shot), readStageEvidence(getDecaidEndpoints().apiBase, shot.id)))
@@ -172,7 +176,7 @@ const storeLastSelectedProfileIdLocally = (profileId: string) => {
 
 export function useBrewingData() {
   const { preferences } = useBestpressoPreferences()
-  const [model, setModel] = useState<BrewingScreenModel>({ ...brewingFixture, profiles: fixtureProfiles.slice(0, 5), previousShot: null })
+  const [model, setModel] = useState<BrewingScreenModel>(displayWater({ ...brewingFixture, profiles: fixtureProfiles.slice(0, 5), previousShot: null }, {}, 'normal'))
   const [allProfiles, setAllProfiles] = useState(fixtureProfiles)
   const [favoriteProfileSlots, setFavoriteProfileSlots] = useState<Array<string | null>>(fixtureProfiles.slice(0, 5).map((profile) => profile.id))
   const [heatingSeconds, setHeatingSeconds] = useState<number | null>(null)
@@ -261,7 +265,7 @@ export function useBrewingData() {
     if (volume === null) return
     const tankState = waterTankLevelState(volume, machineNeedsWater.current, {
       warningLevelMl: preferences.waterWarningLevelMl,
-      criticalLevelMl: preferences.waterCriticalLevelMl,
+      refillKit: machineSession.get().info?.extra?.refillKit,
     })
     setModel((current) => ({
       ...current,
@@ -514,7 +518,16 @@ export function useBrewingData() {
 
     const applyConnectedDevices = (devices: Awaited<ReturnType<typeof getDevices>>) => {
       const connectedMachine = devices.find((device) => device.type === 'machine' && device.state === 'connected')
+      machineSession.connect(connectedMachine?.id)
       const activeScale = localScaleFixture ?? devices.find((device) => device.type === 'scale' && device.state === 'connected')
+        ?? (hasCapability('integratedScale') ? { id: `integrated:${connectedMachine?.id}`, name: t('hardware.integratedScale') } : undefined)
+      if (scaleSource !== activeScale?.id) {
+        scaleSource = activeScale?.id
+        latestScaleSnapshot.current = {}
+        scaleStreamConnected.current = false
+        pendingScaleRenderWeight = null
+        setModel(current => ({ ...current, utilities: current.utilities.map(utility => utility.id !== 'scale' ? utility : { ...utility, metrics: utility.metrics.map(metric => ({ ...metric, value: '-' })) }) }))
+      }
       const scaleConnected = scaleConnectionIsActive(Boolean(activeScale), scaleStreamConnected.current)
       connectedScale.current = scaleConnected
       if (scaleConnected) setAvailableScales(current => current.length ? [] : current)
@@ -530,10 +543,14 @@ export function useBrewingData() {
             : { status: 'disconnected' }))
     }
 
-    const refreshConnectedDevices = () => getDevices().then((devices) => {
+    let deviceRequest: Promise<Awaited<ReturnType<typeof getDevices>>> | undefined
+    const refreshConnectedDevices = () => deviceRequest ??= getDevices().then((devices) => {
       if (!disposed) applyConnectedDevices(devices)
       return devices
-    })
+    }).catch(error => {
+      if (!disposed) { machineSession.connect(undefined); updateMachineConnection('disconnected') }
+      throw error
+    }).finally(() => { deviceRequest = undefined })
 
     const schedulePersistedShotRefresh = (session: LiveShotSession, attempt = 0) => {
       if (latestShotRefreshTimeout !== null) window.clearTimeout(latestShotRefreshTimeout)
@@ -675,7 +692,7 @@ export function useBrewingData() {
       refreshConnectedDevices().then((devices) => {
         if (disposed) return
         const connectedScale = devices.find((device) => device.type === 'scale' && device.state === 'connected')
-        setScale(current => withScaleConnection(current, { status: 'connected', id: connectedScale?.id, name: connectedScale?.name || t('brew.data.scale.fallbackName') }))
+        setScale(current => withScaleConnection(current, { status: 'connected', id: connectedScale?.id ?? (hasCapability('integratedScale') ? `integrated:${machineSession.get().deviceId}` : undefined), name: connectedScale?.name || t(hasCapability('integratedScale') ? 'hardware.integratedScale' : 'brew.data.scale.fallbackName') }))
       }).catch(() => undefined)
     }
 
@@ -761,6 +778,44 @@ export function useBrewingData() {
         }))
       })
 
+    let levels: WaterLevels = {}
+    let sessionGeneration = -1
+    let scaleSource: string | undefined
+    const sessionChanged = () => {
+      const session = machineSession.get()
+      if (session.generation !== sessionGeneration) {
+        sessionGeneration = session.generation
+        levels = {}
+        latestTankVolume.current = null
+        machineNeedsWater.current = false
+        latestScaleSnapshot.current = {}
+        scaleStreamConnected.current = false
+        connectedScale.current = false
+        scaleSource = undefined
+        pendingScaleRenderWeight = null
+        hotWaterSettings.disconnect()
+        hotWaterWorkflowLoaded = false
+        timeToReadyEstimate = null
+        setHeatingSeconds(null)
+        latestMachineTimestamp.current = undefined
+        readinessTracker.current.reset()
+        previousReadiness.current = null
+        setModel(current => displayWater({ ...current, readiness: 'disconnected', utilities: current.utilities.map(utility => utility.id !== 'scale' ? utility : { ...utility, metrics: utility.metrics.map(metric => ({ ...metric, value: '-' })) }) }, {}, 'normal'))
+        setScale({ status: 'disconnected' })
+        if (session.deviceId) {
+          const generation = session.generation
+          void Promise.allSettled([getMachineInfo(), getCapabilities()]).then(([info, capabilities]) => {
+            if (disposed) return
+            machineSession.metadata(generation, info.status === 'fulfilled' ? info.value : undefined, capabilities.status === 'fulfilled' ? capabilities.value : undefined)
+          })
+        }
+      }
+      const state = waterTankLevelState(latestTankVolume.current ?? Number.NaN, machineNeedsWater.current, currentWaterThresholds())
+      setModel(current => displayWater(current, levels, state))
+    }
+    const releaseMachineSession = machineSession.subscribe(sessionChanged)
+    sessionChanged()
+
     const shotSettings = subscribe<HotWaterShotSettings>('/machine/shotSettings', (frame) => {
       if (disposed) return
       if (hotWaterSettings.observe(frame)) {
@@ -800,6 +855,7 @@ export function useBrewingData() {
       pendingStopRequest.current?.evidence.observe(snapshot, liveShotSession.current)
       if (snapshot.timestamp && Number.isFinite(Date.parse(snapshot.timestamp)) && (!latestMachineTimestamp.current || Date.parse(snapshot.timestamp) > Date.parse(latestMachineTimestamp.current))) latestMachineTimestamp.current = snapshot.timestamp
       const machineState = (typeof snapshot.state === 'string' ? snapshot.state : snapshot.state?.state)?.toLowerCase()
+      machineSession.observeState(machineState)
       const wasIdle = hotWaterMachineState === 'idle'
       hotWaterMachineState = machineState
       if (!wasIdle && machineState === 'idle') reconcileHotWater()
@@ -903,7 +959,7 @@ export function useBrewingData() {
             targetFlow: snapshot.targetFlow,
             temperature: snapshot.mixTemperature ?? snapshot.groupTemperature,
             weight: latestScaleSnapshot.current.weight,
-            weightFlow: latestScaleSnapshot.current.weightFlow,
+            weightFlow: machineWeightFlow(hasCapability('integratedScale'), snapshot.weightFlow, latestScaleSnapshot.current.weightFlow),
             ...stage,
           })
           if (appended) session.lastSampleReceivedAt = Date.now()
@@ -933,6 +989,7 @@ export function useBrewingData() {
     }, (connected) => {
       snapshotConnected = connected
       if (!connected) {
+        machineSession.observeState(undefined)
         tareSafety.current.machineKnown = false
         tareSafety.current.preparing = false
         setScaleTareDisabled(scaleTareBlocked(tareSafety.current))
@@ -955,6 +1012,7 @@ export function useBrewingData() {
 
     const scale = subscribe<ScaleSnapshot>('/scale/snapshot', (snapshot) => {
       if (localScaleFixture) return
+      const previouslyConnected = scaleStreamConnected.current
       const displayWeight = liveScaleDisplayWeight(snapshot.weight)
       const liveWeight = normalizedLiveScaleWeight(snapshot.weight)
       if (liveWeight !== undefined || snapshot.weightFlow !== undefined) {
@@ -982,7 +1040,7 @@ export function useBrewingData() {
         connectedScale.current = true
         backgroundScaleSearch.refresh()
         setUtilityOperation((current) => current?.kind === 'hotWater' ? { ...current, scaleConnected: true } : current)
-        refreshConnectedScale()
+        if (!previouslyConnected) refreshConnectedScale()
         return
       }
       if (snapshot.status === 'disconnected') {
@@ -997,18 +1055,26 @@ export function useBrewingData() {
         return
       }
     }, (socketConnected) => {
-      if (!socketConnected) scaleStreamConnected.current = false
+      if (!socketConnected) {
+        scaleStreamConnected.current = false
+        latestScaleSnapshot.current = {}
+        pendingScaleRenderWeight = null
+        setModel(current => ({ ...current, utilities: current.utilities.map(utility => utility.id !== 'scale' ? utility : { ...utility, metrics: utility.metrics.map(metric => ({ ...metric, value: '-' })) }) }))
+      }
     })
 
-    const water = subscribe<WaterLevels>('/machine/waterLevels', (levels) => {
-      if (levels.currentLevel === undefined) return
-      const sensorLevel = levels.currentLevel
-      const volume = tankMillilitres(sensorLevel)
-      const levelPercent = Math.max(0, Math.min(100, sensorLevel / WATER_TANK_SENSOR_FULL_MM * 100))
-      const tankState = waterTankLevelState(volume, machineNeedsWater.current, currentWaterThresholds())
-      latestTankVolume.current = volume
-      setModel(current => withHomeTankDisplay(current, String(volume), levelPercent, tankState))
-    }, () => undefined)
+    const water = subscribe<WaterLevels>('/machine/waterLevels', (frame) => {
+      levels = mergeWaterLevels(levels, frame)
+      const volume = levels.currentLevel === undefined ? undefined : tankMillilitres(levels.currentLevel)
+      latestTankVolume.current = volume ?? null
+      const tankState = waterTankLevelState(volume ?? Number.NaN, machineNeedsWater.current, currentWaterThresholds())
+      setModel(current => displayWater(current, levels, tankState))
+    }, connected => {
+      if (connected) return
+      levels = {}
+      latestTankVolume.current = null
+      setModel(current => displayWater(current, levels, machineNeedsWater.current ? 'needsWater' : 'normal'))
+    })
 
     const timeToReady = subscribe<TimeToReadyFrame>('/plugins/time-to-ready.reaplugin/timeToReady', (frame) => {
       const remainingTimeMs = frame.remainingTimeMs
@@ -1075,6 +1141,8 @@ export function useBrewingData() {
       if (actionErrorTimeout.current !== null) window.clearTimeout(actionErrorTimeout.current)
       if (scaleRenderFrame !== null) window.cancelAnimationFrame(scaleRenderFrame)
       machine.close(); scale.close(); water.close(); timeToReady.close(); shotSettings.close(); shotState.close()
+      releaseMachineSession()
+      machineSession.connect(undefined)
     }
   }, [])
 

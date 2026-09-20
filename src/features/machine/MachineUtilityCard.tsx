@@ -1,15 +1,14 @@
 import { memo } from 'react'
-import type { CSSProperties } from 'react'
-import reservoirIcon from '../../assets/figma/reservoir.svg'
 import scaleIcon from '../../assets/figma/scale.svg'
 import { Metric } from '../../components/Metric/Metric'
-import { scaleWeightCanTare, WATER_TANK_CAPACITY_ML } from '../../domain/brewing'
+import { scaleWeightCanTare } from '../../domain/brewing'
+import { ReservoirReading } from './ReservoirReading'
 import { formatTemperatureValue, temperatureBoundToDisplay, temperatureFromDisplay, temperatureStepToDisplay, temperatureUnitLabel, type TemperatureUnit } from '../../domain/temperature'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
 import type { EditableMachineSetting, MachineUtility, ScaleConnection, UtilityMetricId } from '../../domain/brewing'
 import { displayUtilityMetric, utilityLabel } from '../../domain/utilityLabels'
 import { VALUE_ADJUSTMENTS } from '../../domain/valueAdjustments'
-import { formatNumber, t, useLanguage } from '../../i18n/index.ts'
+import { t, useLanguage } from '../../i18n/index.ts'
 import { scalePresentationForDevice } from './scaleArtwork'
 import { steamTargetForToggle } from './steamHeating'
 import { DrinkUtilityCard } from './DrinkUtilityCard'
@@ -69,26 +68,7 @@ function MachineUtilityCardComponent({ utility, compact = false, scale, onExpand
   const { preferences } = useBestpressoPreferences()
   const temperatureUnit = preferences.temperatureUnit
   if (utility.id === 'tank') {
-    const metric = utility.metrics[0]
-    const volume = Number(metric?.value.replaceAll(',', ''))
-    const safeVolume = Number.isFinite(volume) ? Math.max(0, Math.min(WATER_TANK_CAPACITY_ML, volume)) : 0
-    const fallbackLevel = safeVolume / WATER_TANK_CAPACITY_ML * 100
-    const level = Math.max(0, Math.min(100, utility.levelPercent ?? fallbackLevel))
-    const needsWater = Boolean(utility.alert)
-    const warnsWater = !needsWater && Boolean(utility.warning)
-    const valueLabel = Number.isFinite(volume) ? `${formatNumber(volume)} ${metric.unit ?? 'ml'}` : t('shell.tank.unknownLevel')
-    const statusLabel = needsWater
-      ? t('shell.tank.needsWater', { value: valueLabel })
-      : warnsWater
-        ? t('shell.tank.low', { value: valueLabel })
-      : t('shell.tank.status', { value: valueLabel })
-    const style = { '--reservoir-level': `${level}%` } as CSSProperties
-    const className = `reservoir-meter${needsWater ? ' reservoir-meter--needs-water' : warnsWater ? ' reservoir-meter--warning' : ''}`
-
-    return <section className={className} role="meter" aria-label={statusLabel} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(level)} aria-valuetext={statusLabel} title={statusLabel} style={style}>
-      <span className="reservoir-meter__icon" aria-hidden="true"><img src={reservoirIcon} alt="" /></span>
-      <span className="reservoir-meter__track" aria-hidden="true"><span className="reservoir-meter__level" /></span>
-    </section>
+    return <ReservoirReading utility={utility} />
   }
 
   const isScale = utility.id === 'scale'

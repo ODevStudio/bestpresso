@@ -5,9 +5,10 @@ import { insights } from './insights.ts'
 import { library } from './library.ts'
 import { builder } from './builder.ts'
 import { settings } from './settings.ts'
+import { hardware } from './hardware.ts'
 import type { EnglishCatalog } from '../en/index.ts'
 import type { Translation } from '../types.ts'
 
 // Deliberately partial: uncertain wording falls back to English.
-export const catalog = { ...common, ...shell, ...brew, ...insights, ...library, ...builder, ...settings } satisfies Translation<EnglishCatalog>
+export const catalog = { ...common, ...shell, ...brew, ...insights, ...library, ...builder, ...settings, ...hardware } satisfies Translation<EnglishCatalog>
 
