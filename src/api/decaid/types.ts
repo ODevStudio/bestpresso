@@ -44,6 +44,8 @@ export interface DecaidWorkflow {
 }
 export type DecaidWorkflowPatch = Partial<Pick<DecaidWorkflow, 'profile' | 'context' | 'steamSettings' | 'hotWaterData' | 'rinseData'>>
 export interface MachineSnapshot {
+  weight?: number
+  weightFlow?: number
   timestamp?: string
   state?: string | { state?: string; substate?: string }
   flow?: number

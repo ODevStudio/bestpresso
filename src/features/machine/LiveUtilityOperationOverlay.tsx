@@ -8,6 +8,7 @@ import { formatTemperatureValue, temperatureUnitLabel } from '../../domain/tempe
 import { utilityMetricLabel } from '../../domain/utilityLabels'
 import { t } from '../../i18n/index.ts'
 import { useBestpressoPreferences } from '../settings/bestpressoPreferences'
+import { ProbeReading } from './ProbeReading'
 
 // Getters keep this a module-level constant while still translating lazily at read time,
 // the same pattern as domain/valueAdjustments.ts.
@@ -47,6 +48,7 @@ export function LiveUtilityOperationOverlay({ operation }: { operation: LiveUtil
           : <Reading label={t('common.metric.flow')} align="center">{decimal(operation.flow)}<small>ml/s</small></Reading>}
         <Reading label={t('common.metric.temperature')} align="end">{formatTemperatureValue(operation.temperature, preferences.temperatureUnit)}<small className="temperature-unit">{temperatureUnitLabel(preferences.temperatureUnit)}</small></Reading>
       </div>
+      {operation.kind === 'steam' && <ProbeReading />}
     </section>
   </div>
 }

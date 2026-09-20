@@ -8,6 +8,211 @@
     "insights.period.dayOnly"
   ],
   "entries": {
+    "hardware.title": {
+      "english": "Machine hardware",
+      "translation": "Hardware de la máquina",
+      "kind": "contextual"
+    },
+    "hardware.keywords": {
+      "english": "Bengle cup warmer preheat lighting load cells calibration sensors",
+      "translation": "Bengle calientatazas precalentamiento iluminación células de carga calibración sensores",
+      "kind": "contextual"
+    },
+    "hardware.unavailable": {
+      "english": "Unavailable",
+      "translation": "No disponible",
+      "kind": "contextual"
+    },
+    "hardware.loading": {
+      "english": "Loading",
+      "translation": "Cargando",
+      "kind": "contextual"
+    },
+    "hardware.failed": {
+      "english": "Operation not confirmed. Reload the machine state before trying again.",
+      "translation": "Operación no confirmada. Recarga el estado de la máquina antes de reintentar.",
+      "kind": "contextual"
+    },
+    "hardware.saved": {
+      "english": "Confirmed by machine",
+      "translation": "Confirmado por la máquina",
+      "kind": "contextual"
+    },
+    "hardware.reload": {
+      "english": "Reload",
+      "translation": "Recargar",
+      "kind": "contextual"
+    },
+    "hardware.apply": {
+      "english": "Apply",
+      "translation": "Aplicar",
+      "kind": "contextual"
+    },
+    "hardware.enabled": {
+      "english": "Enabled",
+      "translation": "Activado",
+      "kind": "contextual"
+    },
+    "hardware.current": {
+      "english": "Current temperature",
+      "translation": "Temperatura actual",
+      "kind": "contextual"
+    },
+    "hardware.target": {
+      "english": "Target temperature",
+      "translation": "Temperatura objetivo",
+      "kind": "contextual"
+    },
+    "hardware.cupWarmer": {
+      "english": "Cup warmer",
+      "translation": "Calientatazas",
+      "kind": "contextual"
+    },
+    "hardware.preheat": {
+      "english": "Scheduled preheat",
+      "translation": "Precalentamiento programado",
+      "kind": "contextual"
+    },
+    "hardware.lead": {
+      "english": "Lead time (min)",
+      "translation": "Antelación (min)",
+      "kind": "contextual"
+    },
+    "hardware.active": {
+      "english": "Active",
+      "translation": "Activo",
+      "kind": "contextual"
+    },
+    "hardware.inactive": {
+      "english": "Inactive",
+      "translation": "Inactivo",
+      "kind": "contextual"
+    },
+    "hardware.lighting": {
+      "english": "Lighting",
+      "translation": "Iluminación",
+      "kind": "contextual"
+    },
+    "hardware.front": {
+      "english": "Front strip",
+      "translation": "Tira delantera",
+      "kind": "contextual"
+    },
+    "hardware.back": {
+      "english": "Back strip",
+      "translation": "Tira trasera",
+      "kind": "contextual"
+    },
+    "hardware.switch": {
+      "english": "Front switch",
+      "translation": "Interruptor delantero",
+      "kind": "contextual"
+    },
+    "hardware.awake": {
+      "english": "Awake",
+      "translation": "Activa",
+      "kind": "contextual"
+    },
+    "hardware.sleeping": {
+      "english": "Sleeping",
+      "translation": "En reposo",
+      "kind": "contextual"
+    },
+    "hardware.calibration": {
+      "english": "Load cells",
+      "translation": "Células de carga",
+      "kind": "contextual"
+    },
+    "hardware.mass": {
+      "english": "Known mass (g)",
+      "translation": "Masa conocida (g)",
+      "kind": "contextual"
+    },
+    "hardware.zero": {
+      "english": "Zero",
+      "translation": "Poner a cero",
+      "kind": "contextual"
+    },
+    "hardware.latch": {
+      "english": "Latch mass",
+      "translation": "Registrar masa",
+      "kind": "contextual"
+    },
+    "hardware.abort": {
+      "english": "Abort",
+      "translation": "Abortar",
+      "kind": "contextual"
+    },
+    "hardware.confirmZero": {
+      "english": "Remove all loads from both load cells before zeroing. Start calibration?",
+      "translation": "Retira toda carga de ambas células. ¿Iniciar la calibración?",
+      "kind": "contextual"
+    },
+    "hardware.confirmLatch": {
+      "english": "Place the known mass on one load cell only. Record this mass?",
+      "translation": "Coloca la masa conocida en una sola célula. ¿Registrar esta masa?",
+      "kind": "contextual"
+    },
+    "hardware.idleRequired": {
+      "english": "An idle machine is required.",
+      "translation": "La máquina debe estar inactiva.",
+      "kind": "contextual"
+    },
+    "hardware.integratedScale": {
+      "english": "Integrated scale",
+      "translation": "Báscula integrada",
+      "kind": "contextual"
+    },
+    "hardware.refillKit": {
+      "english": "Detected refill kit",
+      "translation": "Kit de llenado detectado",
+      "kind": "contextual"
+    },
+    "hardware.yes": {
+      "english": "Yes",
+      "translation": "Sí",
+      "kind": "contextual"
+    },
+    "hardware.no": {
+      "english": "No",
+      "translation": "No",
+      "kind": "contextual"
+    },
+    "hardware.refill": {
+      "english": "Refill: {value} mm",
+      "translation": "Llenado: {value} mm",
+      "kind": "contextual"
+    },
+    "hardware.estimated": {
+      "english": "Estimated volume",
+      "translation": "Volumen estimado",
+      "kind": "contextual"
+    },
+    "hardware.sensor": {
+      "english": "Probe temperature",
+      "translation": "Temperatura de la sonda",
+      "kind": "contextual"
+    },
+    "hardware.model": {
+      "english": "Model",
+      "translation": "Modelo",
+      "kind": "contextual"
+    },
+    "hardware.firmware": {
+      "english": "Firmware",
+      "translation": "Firmware",
+      "kind": "contextual"
+    },
+    "hardware.capabilities": {
+      "english": "Capabilities",
+      "translation": "Funciones",
+      "kind": "contextual"
+    },
+    "hardware.none": {
+      "english": "None",
+      "translation": "Ninguna",
+      "kind": "contextual"
+    },
     "common.error.historyUnavailable": {
       "english": "Decaid history is unavailable.",
       "translation": "El historial de Decaid no está disponible.",

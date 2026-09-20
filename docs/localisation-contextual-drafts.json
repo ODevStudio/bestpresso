@@ -9,6 +9,416 @@
   ],
   "heldForClarification": [],
   "entries": {
+    "hardware.title": {
+      "english": "Machine hardware",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.keywords": {
+      "english": "Bengle cup warmer preheat lighting load cells calibration sensors",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.unavailable": {
+      "english": "Unavailable",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.loading": {
+      "english": "Loading",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.failed": {
+      "english": "Operation not confirmed. Reload the machine state before trying again.",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.saved": {
+      "english": "Confirmed by machine",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.reload": {
+      "english": "Reload",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.apply": {
+      "english": "Apply",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.enabled": {
+      "english": "Enabled",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.current": {
+      "english": "Current temperature",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.target": {
+      "english": "Target temperature",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.cupWarmer": {
+      "english": "Cup warmer",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.preheat": {
+      "english": "Scheduled preheat",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.lead": {
+      "english": "Lead time (min)",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.active": {
+      "english": "Active",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.inactive": {
+      "english": "Inactive",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.lighting": {
+      "english": "Lighting",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.front": {
+      "english": "Front strip",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.back": {
+      "english": "Back strip",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.switch": {
+      "english": "Front switch",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.awake": {
+      "english": "Awake",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.sleeping": {
+      "english": "Sleeping",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.calibration": {
+      "english": "Load cells",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.mass": {
+      "english": "Known mass (g)",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.zero": {
+      "english": "Zero",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.latch": {
+      "english": "Latch mass",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.abort": {
+      "english": "Abort",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.confirmZero": {
+      "english": "Remove all loads from both load cells before zeroing. Start calibration?",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.confirmLatch": {
+      "english": "Place the known mass on one load cell only. Record this mass?",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.idleRequired": {
+      "english": "An idle machine is required.",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.integratedScale": {
+      "english": "Integrated scale",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.refillKit": {
+      "english": "Detected refill kit",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.yes": {
+      "english": "Yes",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.no": {
+      "english": "No",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.refill": {
+      "english": "Refill: {value} mm",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.estimated": {
+      "english": "Estimated volume",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.sensor": {
+      "english": "Probe temperature",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.model": {
+      "english": "Model",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.firmware": {
+      "english": "Firmware",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.capabilities": {
+      "english": "Capabilities",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
+    "hardware.none": {
+      "english": "None",
+      "languages": [
+        "fr",
+        "it",
+        "zh-Hant",
+        "zh-Hans"
+      ],
+      "note": "Bengle hardware contextual draft; native-speaker review pending."
+    },
     "shell.status.heating": {
       "english": "Heating",
       "languages": ["it"],

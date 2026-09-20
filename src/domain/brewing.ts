@@ -8,16 +8,14 @@ export type ScaleConnectionStatus = 'connected' | 'disconnected' | 'searching'
 export type EditableMachineSetting = 'hotWaterVolume' | 'hotWaterTemperature' | 'hotWaterDuration' | 'steamTemperature' | 'steamDuration' | 'steamFlow'
 export type EditableProfileSetting = 'temperature' | 'grindSetting' | 'dose' | 'targetYield'
 export type PreviousShotStatus = 'loading' | 'loaded' | 'empty' | 'error' | 'fixture'
-export const WATER_TANK_CAPACITY_ML = 1207
-export const WATER_TANK_SENSOR_FULL_MM = 43
 export const WATER_TANK_LOW_LEVEL_ML = 300
 export const WATER_TANK_WARNING_LEVEL_ML = 426
 
-export interface WaterWarningThresholds { warningLevelMl: number; criticalLevelMl: number }
+export interface WaterWarningThresholds { warningLevelMl: number; criticalLevelMl?: number; refillKit?: boolean }
 
 export function waterTankLevelState(volumeMl: number, machineNeedsWater = false, thresholds: WaterWarningThresholds = { warningLevelMl: WATER_TANK_WARNING_LEVEL_ML, criticalLevelMl: WATER_TANK_LOW_LEVEL_ML }) {
-  if (machineNeedsWater || volumeMl <= thresholds.criticalLevelMl) return 'needsWater'
-  if (volumeMl <= thresholds.warningLevelMl) return 'warning'
+  if (machineNeedsWater) return 'needsWater'
+  if (!thresholds.refillKit && Number.isFinite(volumeMl) && volumeMl <= thresholds.warningLevelMl) return 'warning'
   return 'normal'
 }
 
@@ -58,6 +56,8 @@ export interface MachineUtility {
   alert?: boolean
   warning?: boolean
   levelPercent?: number
+  waterLevelMm?: number
+  refillLevelMm?: number
 }
 
 export interface ProfileTargetPoint {

@@ -18,13 +18,13 @@ test('screensaver brightness defaults to 7 but preserves user choices across the
   assert.match(source, /displayBrightness.dim\(readBestpressoPreferences\(\).screensaverBrightness\)/)
 })
 
-test('water warning preferences remain ordered and within the reservoir control range', () => {
+test('water warning preferences are independent of the retired critical threshold', () => {
   assert.deepEqual(normalizeBestpressoPreferences({ waterCriticalLevelMl: 500, waterWarningLevelMl: 100 }), {
     theme: 'dark',
     completionSoundEnabled: true,
     animationsEnabled: true,
     waterCriticalLevelMl: 500,
-    waterWarningLevelMl: 501,
+    waterWarningLevelMl: 100,
     chartLineWeight: 'fine',
     temperatureUnit: 'C',
     clockFormat: 'device',
@@ -34,6 +34,16 @@ test('water warning preferences remain ordered and within the reservoir control 
   const maximum = normalizeBestpressoPreferences({ waterCriticalLevelMl: 9_000, waterWarningLevelMl: 9_000 })
   assert.equal(maximum.waterCriticalLevelMl, 1_999)
   assert.equal(maximum.waterWarningLevelMl, 2_000)
+  for (const waterWarningLevelMl of [0, 10, 100, 426, 2000]) {
+    const normalized = normalizeBestpressoPreferences({ waterCriticalLevelMl: 1999, waterWarningLevelMl })
+    assert.equal(normalized.waterWarningLevelMl, waterWarningLevelMl)
+    assert.equal(normalized.waterCriticalLevelMl, 1999)
+    assert.deepEqual(normalizeBestpressoPreferences(JSON.parse(JSON.stringify(normalized))), normalized)
+  }
+  assert.equal(normalizeBestpressoPreferences({ waterCriticalLevelMl: 1999, waterWarningLevelMl: NaN }).waterWarningLevelMl, 426)
+  assert.equal(normalizeBestpressoPreferences({ waterWarningLevelMl: -10 }).waterWarningLevelMl, 0)
+  const screen = readFileSync(new URL('../src/features/settings/SettingsScreen.tsx', import.meta.url), 'utf8')
+  assert.doesNotMatch(screen, /waterCriticalLevelMl/)
 })
 
 test('settings are routed inside Bestpresso and expose real preference controls', () => {
@@ -70,9 +80,10 @@ test('unified settings use Decaid domains instead of delegating to a second sett
   assert.match(screen, /sleepTimeoutMinutes/)
   assert.match(screen, /automaticUpdateCheck/)
   assert.match(screen, /SETTINGS_PROTOCOL/)
-  assert.match(screen, /useValueAdjustment\(\)/)
-  assert.match(screen, /className="settings-number-value"/)
-  assert.match(screen, /suggestionKey: key/)
+  const numberControl = readFileSync(new URL('../src/features/settings/NumberSetting.tsx', import.meta.url), 'utf8')
+  assert.match(numberControl, /useValueAdjustment\(\)/)
+  assert.match(numberControl, /className="settings-number-value"/)
+  assert.match(numberControl, /suggestionKey: key/)
   assert.match(screen, /settings\.draft\.workflow\.rinseData/)
   assert.match(screen, /label=\{t\('settings\.prepare\.espressoYield'\)\}/)
   assert.match(screen, /label=\{t\('settings\.prepare\.hotWaterYield'\)\}/)

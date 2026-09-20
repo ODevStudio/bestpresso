@@ -42,7 +42,7 @@ const finiteRange = (value: unknown, fallback: number) => {
 export function normalizeBestpressoPreferences(value: unknown): BestpressoPreferences {
   const candidate = value && typeof value === 'object' ? value as Partial<BestpressoPreferences> : {}
   const critical = finiteRange(candidate.waterCriticalLevelMl, DEFAULT_BESTPRESSO_PREFERENCES.waterCriticalLevelMl)
-  const warning = Math.max(critical + 1, finiteRange(candidate.waterWarningLevelMl, DEFAULT_BESTPRESSO_PREFERENCES.waterWarningLevelMl))
+  const warning = finiteRange(candidate.waterWarningLevelMl, DEFAULT_BESTPRESSO_PREFERENCES.waterWarningLevelMl)
   const chartLineWeight = candidate.chartLineWeight === 'standard' || candidate.chartLineWeight === 'bold'
     ? candidate.chartLineWeight
     : 'fine'
@@ -55,7 +55,7 @@ export function normalizeBestpressoPreferences(value: unknown): BestpressoPrefer
     screensaverBrightness: typeof candidate.screensaverBrightness === 'number' && Number.isFinite(candidate.screensaverBrightness)
       ? Math.round(Math.max(0, Math.min(100, candidate.screensaverBrightness)))
       : DEFAULT_BESTPRESSO_PREFERENCES.screensaverBrightness,
-    waterWarningLevelMl: Math.min(2_000, warning),
+    waterWarningLevelMl: warning,
     waterCriticalLevelMl: Math.min(1_999, critical),
     chartLineWeight,
     temperatureUnit,

@@ -7,7 +7,8 @@ import { insightsDe } from './insights.ts'
 import { libraryDe } from './library.ts'
 import { settingsDe } from './settings.ts'
 import { shellDe } from './shell.ts'
+import { hardware } from './hardware.ts'
 
-export const areas = { common: commonDe, shell: shellDe, brew: brewDe, insights: insightsDe, library: libraryDe, builder: builderDe, settings: settingsDe } as const
+export const areas = { common: commonDe, shell: shellDe, brew: brewDe, insights: insightsDe, library: libraryDe, builder: builderDe, settings: settingsDe, hardware } as const
 
-export const de: Translation<EnglishCatalog> = { ...commonDe, ...shellDe, ...brewDe, ...insightsDe, ...libraryDe, ...builderDe, ...settingsDe }
+export const de: Translation<EnglishCatalog> = { ...commonDe, ...shellDe, ...brewDe, ...insightsDe, ...libraryDe, ...builderDe, ...settingsDe, ...hardware }

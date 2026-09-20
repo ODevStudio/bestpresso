@@ -10,6 +10,7 @@ import { formatTemperatureValue, temperatureBoundToDisplay, type TemperatureUnit
 import { VALUE_ADJUSTMENTS } from '../../domain/valueAdjustments'
 import { t } from '../../i18n/index.ts'
 import { TemperatureReading } from './TemperatureReading'
+import { ProbeReading } from './ProbeReading'
 import { useHomeAnimations } from '../settings/useHomeAnimations'
 import { GAUGE_MIN_C, GAUGE_CENTER, GAUGE_RADIUS, gaugeArcPath, gaugeFraction, gaugeGeometry, gaugeLayout, steamBelowReadyRange } from './steamGauge'
 
@@ -73,6 +74,7 @@ export function DrinkUtilityCard({ utility, metrics, compact, temperatureUnit, d
       <header><img src={icon} alt="" /><h2>{utilityLabel(utility.id)}</h2>{steam && <button className="drink-card__toggle" type="button" role="switch" aria-checked={enabled} aria-label={enabled ? t('shell.machine.disableSteamHeating') : t('shell.machine.enableSteamHeating')} disabled={disabled} onClick={onToggleSteam}><span /></button>}</header>
       {!steam ? <div className="drink-card__water-settings"><div>{displayMetric('temperature')}</div><div>{displayMetric('volume')}</div></div>
         : <div className="drink-card__steam-settings">
+          <div className="drink-card__temperature-group">
           <div className="drink-card__temperature-space" ref={temperatureSpace}>
           <div className={`drink-card__gauge${heating ? ' is-heating' : ''}`} data-tall={tallGauge} style={{ '--gauge-target-angle': `${marker.angle}deg`, '--gauge-view-height': gaugeViewHeight } as CSSProperties}>
             <svg className="drink-card__gauge-art" viewBox={`0 0 197 ${gaugeViewHeight}`} role="meter" aria-label={t('shell.machine.steamTemperatureAria')} aria-valuemin={temperatureBoundToDisplay(GAUGE_MIN_C, temperatureUnit)} aria-valuemax={temperatureBoundToDisplay(maxC, temperatureUnit)} aria-valuenow={currentValid ? temperatureBoundToDisplay(Math.max(GAUGE_MIN_C, Math.min(maxC, currentC)), temperatureUnit) : undefined} aria-valuetext={enabled ? t('shell.machine.steamGaugeValueText', { current: currentText, target: targetText }) : t('shell.machine.steamHeatingOff')}>
@@ -92,6 +94,8 @@ export function DrinkUtilityCard({ utility, metrics, compact, temperatureUnit, d
               <span className="metric__label">{t('common.metric.temperature')}{!targetDisabled && <span className="metric__edit-indicator" aria-hidden="true">›</span>}</span>
             </button>
           </div>
+          </div>
+          <ProbeReading />
           </div>
           <div className="drink-card__steam-secondary"><div>{displayMetric('flow')}</div><div>{displayMetric('duration', utilityMetricLabel('maxDuration'))}</div></div>
         </div>}

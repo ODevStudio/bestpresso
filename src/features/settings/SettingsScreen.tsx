@@ -8,11 +8,11 @@ import { DEFAULT_BESTPRESSO_PREFERENCES, type BestpressoPreferences, type ChartL
 import { SETTINGS_PROTOCOL } from './settingsProtocol'
 import { useUnifiedSettings } from './useUnifiedSettings'
 import { homeSettingValue } from './homeSettingValue'
-import { useValueAdjustment } from '../../components/ValueAdjustment/ValueAdjustmentContext'
-import type { SettingsValueAdjustmentKey, ValueAdjustmentMode } from '../../domain/valueAdjustments'
-import { formatDecimal, isLanguage, languageName, LANGUAGES, localizeDecimalText, plural, resolveLanguage, t, type MessageKey } from '../../i18n/index.ts'
+import { HardwareSettings } from '../machine/HardwareSettings'
+import { NumberSetting } from './NumberSetting'
+import { isLanguage, languageName, LANGUAGES, localizeDecimalText, plural, resolveLanguage, t, type MessageKey } from '../../i18n/index.ts'
 
-type SettingsSection = 'overview' | 'prepare' | 'clean' | 'alerts' | 'devices' | 'power' | 'experience' | 'data' | 'extensions' | 'advanced'
+type SettingsSection = 'overview' | 'prepare' | 'clean' | 'alerts' | 'devices' | 'power' | 'experience' | 'data' | 'extensions' | 'advanced' | 'hardware'
 
 interface SettingsScreenProps {
   model: BrewingScreenModel
@@ -38,6 +38,7 @@ const sectionDefs: { id: SettingsSection; group: SettingsSectionGroup; labelKey:
   { id: 'clean', group: 'makeMaintain', labelKey: 'settings.section.clean.label', keywordsKey: 'settings.section.clean.keywords' },
   { id: 'alerts', group: 'makeMaintain', labelKey: 'settings.section.alerts.label', keywordsKey: 'settings.section.alerts.keywords' },
   { id: 'devices', group: 'machineDevices', labelKey: 'settings.section.devices.label', keywordsKey: 'settings.section.devices.keywords' },
+  { id: 'hardware', group: 'machineDevices', labelKey: 'hardware.title', keywordsKey: 'hardware.keywords' },
   { id: 'power', group: 'machineDevices', labelKey: 'settings.section.power.label', keywordsKey: 'settings.section.power.keywords' },
   { id: 'experience', group: 'bestpresso', labelKey: 'settings.section.experience.label', keywordsKey: 'settings.section.experience.keywords' },
   { id: 'data', group: 'system', labelKey: 'settings.section.data.label', keywordsKey: 'settings.section.data.keywords' },
@@ -49,6 +50,7 @@ const sectionDefs: { id: SettingsSection; group: SettingsSectionGroup; labelKey:
 const getSections = () => sectionDefs.map((def) => ({ id: def.id, label: translateKey(def.labelKey), group: sectionGroupLabel(def.group), keywords: translateKey(def.keywordsKey) }))
 
 const sectionCopyDefs: Record<SettingsSection, { titleKey: MessageKey; descriptionKey: MessageKey }> = {
+  hardware: { titleKey: 'hardware.title', descriptionKey: 'hardware.keywords' },
   overview: { titleKey: 'settings.section.overview.title', descriptionKey: 'settings.section.overview.description' },
   prepare: { titleKey: 'settings.section.prepare.title', descriptionKey: 'settings.section.prepare.description' },
   clean: { titleKey: 'settings.section.clean.title', descriptionKey: 'settings.section.clean.description' },
@@ -113,38 +115,6 @@ function SettingsCard({ eyebrow, title, description, children, wide = false, act
   return <section className={`settings-card${wide ? ' settings-card--wide' : ''}`}><header><span><small>{eyebrow}</small><h2>{title}</h2>{description && <p>{description}</p>}</span>{action}</header>{children}</section>
 }
 
-function NumberSetting({ label, hint, value, unit = '', min, max, step = 1, digits = 0, disabled = false, adjustmentKey, presets, coerce, adjust, onChange }: { label: string; hint?: string; value?: number; unit?: string; min: number; max?: number; step?: number; digits?: number; disabled?: boolean; adjustmentKey?: string; presets?: readonly number[]; coerce?: (value: number) => number; adjust?: (value: number, direction: -1 | 1) => number; onChange: (value: number) => void }) {
-  const openAdjustment = useValueAdjustment()
-  const normalize = (candidate: number) => {
-    const bounded = Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, candidate))
-    return Number((coerce ? coerce(bounded) : bounded).toFixed(digits))
-  }
-  const move = (direction: -1 | 1) => {
-    const current = value ?? min
-    const next = normalize(adjust ? adjust(current, direction) : current + (step * direction))
-    onChange(next)
-  }
-  const open = () => {
-    if (disabled || value === undefined) return
-    const mode: ValueAdjustmentMode = digits > 0 ? 'decimal' : 'integer'
-    const key = `settings:${adjustmentKey ?? `${label}-${unit}-${min}-${max}-${step}`}` as SettingsValueAdjustmentKey
-    const adjustmentMax = max ?? Math.max(600, Math.ceil(value / 60) * 60)
-    openAdjustment({
-      label,
-      value,
-      unit,
-      min,
-      max: adjustmentMax,
-      step,
-      mode,
-      suggestionKey: key,
-      presets,
-      onSave: (next) => onChange(normalize(next)),
-    })
-  }
-  const displayValue = value === undefined ? '—' : formatDecimal(value, digits)
-  return <div className="settings-number-row"><span><strong>{label}</strong>{hint && <small>{hint}</small>}</span><div className="settings-number-control"><button type="button" disabled={disabled || value === undefined} aria-label={t('settings.number.decrease', { label })} onClick={() => move(-1)}>−</button><button className="settings-number-value" type="button" disabled={disabled || value === undefined} aria-label={t('settings.number.adjust', { label, value: `${displayValue}${unit}` })} onClick={open}><span>{displayValue}</span>{unit && <small className={unit === '°' ? 'settings-number-unit--degree' : undefined}>{unit}</small>}</button><button type="button" disabled={disabled || value === undefined} aria-label={t('settings.number.increase', { label })} onClick={() => move(1)}>+</button></div></div>
-}
 
 function TemperatureSetting({ label, hint, value, min, max, step = 1, disabled = false, unit, enabledMinimum, onChange }: { label: string; hint?: string; value?: number; min: number; max: number; step?: number; disabled?: boolean; unit: TemperatureUnit; enabledMinimum?: number; onChange: (celsius: number) => void }) {
   const off = enabledMinimum !== undefined && value === 0
@@ -214,7 +184,7 @@ export function SettingsScreen({ model, connection, machineConnection, scale, on
     const value = utility?.metrics.find((candidate) => candidate.id === metricId)?.value
     return `${formatTemperatureValue(value, temperatureUnit)}${temperatureUnitText}`
   }
-  const updateWarning = (value: number) => updatePreferences({ waterWarningLevelMl: Math.max(preferences.waterCriticalLevelMl + 10, Math.min(2_000, value)) })
+  const updateWarning = (value: number) => updatePreferences({ waterWarningLevelMl: value })
   const startRoutine = async (state: 'descaling' | 'airPurge', confirmation: string) => {
     if (!window.confirm(confirmation)) return
     setRoutinePending(state)
@@ -254,7 +224,7 @@ export function SettingsScreen({ model, connection, machineConnection, scale, on
   </div>
 
   const alerts = <div className="settings-grid settings-grid--alerts">
-    <SettingsCard eyebrow={t('settings.group.bestpresso')} title={t('settings.alerts.reservoir.title')} description={t('settings.alerts.reservoir.description')} action={<button className="settings-reset" type="button" onClick={() => updatePreferences({ waterWarningLevelMl: DEFAULT_BESTPRESSO_PREFERENCES.waterWarningLevelMl })}>{t('settings.action.reset')}</button>}><SectionList><NumberSetting label={t('settings.alerts.warnMe')} hint={t('settings.alerts.warnMeHint')} value={preferences.waterWarningLevelMl} unit="ml" min={preferences.waterCriticalLevelMl + 10} max={2000} step={10} onChange={updateWarning} /></SectionList><p className="settings-helper">{t('settings.alerts.priorityHelper')}</p></SettingsCard>
+    <SettingsCard eyebrow={t('settings.group.bestpresso')} title={t('settings.alerts.reservoir.title')} description={t('settings.alerts.reservoir.description')} action={<button className="settings-reset" type="button" onClick={() => updatePreferences({ waterWarningLevelMl: DEFAULT_BESTPRESSO_PREFERENCES.waterWarningLevelMl })}>{t('settings.action.reset')}</button>}><SectionList><NumberSetting label={t('settings.alerts.warnMe')} hint={t('settings.alerts.warnMeHint')} value={preferences.waterWarningLevelMl} unit="ml" min={0} max={2000} step={10} onChange={updateWarning} /></SectionList><p className="settings-helper">{t('settings.alerts.priorityHelper')}</p></SettingsCard>
     <SettingsCard eyebrow={t('settings.alerts.safeguard.eyebrow')} title={t('settings.alerts.safeguard.title')}><SectionList><SwitchSetting label={t('settings.alerts.requireScale')} hint={t('settings.alerts.requireScaleHint')} checked={settings.draft.rea.blockOnNoScale} disabled={reaUnavailable} onChange={(blockOnNoScale) => settings.patchRea({ blockOnNoScale })} /><SwitchSetting label={t('settings.alerts.blockTare')} hint={t('settings.alerts.blockTareHint')} checked={settings.draft.rea.blockTareDuringShot} disabled={reaUnavailable} onChange={(blockTareDuringShot) => settings.patchRea({ blockTareDuringShot })} /></SectionList></SettingsCard>
   </div>
 
@@ -316,6 +286,6 @@ export function SettingsScreen({ model, connection, machineConnection, scale, on
     </SettingsCard>
   </div>
 
-  const content: Record<SettingsSection, ReactNode> = { overview, prepare, clean, alerts, devices, power, experience, data, extensions, advanced }
+  const content: Record<SettingsSection, ReactNode> = { overview, prepare, clean, alerts, devices, power, experience, data, extensions, advanced, hardware: <HardwareSettings /> }
   return <main className="settings-screen"><aside className="settings-sidebar"><SidebarBrand onClose={onClose} closeLabel={t('settings.sidebar.closeSettings')} /><div className="settings-account"><span className="settings-account__avatar">B</span><span><strong>{t('settings.group.bestpresso')}</strong><small>{connection === 'connected' ? t('settings.sidebar.accountConnected') : t('settings.sidebar.accountLocal')}</small></span></div><nav aria-label={t('settings.sidebar.navLabel')}>{Array.from(new Set(visibleSections.map((candidate) => candidate.group))).map((group) => <div key={group}><small>{group}</small>{visibleSections.filter((candidate) => candidate.group === group).map((candidate) => <SidebarNavItem active={candidate.id === activeSection} key={candidate.id} onClick={() => setActiveSection(candidate.id)}><i aria-hidden="true" />{candidate.label}</SidebarNavItem>)}</div>)}</nav></aside><section className="settings-content"><header className="settings-content__header"><span><h1>{section.title}</h1></span><div className="settings-header-actions"><label><span aria-hidden="true">⌕</span><input type="search" value={search} placeholder={t('settings.search.placeholder')} aria-label={t('settings.search.placeholder')} onChange={(event) => setSearch(event.target.value)} /></label>{(settings.dirty || preferencesDirty) && <button type="button" className="settings-cancel" onClick={() => { settings.reset(); setPreferencePatch({}) }}>{t('settings.action.cancel')}</button>}<button type="button" className="settings-save" disabled={(!settings.dirty && !preferencesDirty) || settings.saving || settings.loading} onClick={() => { if (preferencesDirty) { persistPreferences(preferences); setPreferencePatch({}) } if (settings.dirty) void settings.save() }}>{settings.saving ? t('settings.action.saving') : t('settings.action.save')}</button></div></header>{(settings.message || settings.loading || settings.unavailable.length > 0) && <div className={`settings-status${settings.messageError ? ' is-error' : ''}`} role="status">{settings.loading ? t('settings.status.loading') : settings.message || t('settings.status.unavailable', { list: settings.unavailable.map(unavailableLabel).join(', ') })}</div>}<div className="settings-content__body">{content[activeSection]}</div></section></main>
 }

@@ -17,6 +17,7 @@ import { defaultInsightsRoute, readInsightsRoute, writeInsightsRoute, type Insig
 import { DecaidUpdatePrompt } from './features/updates/DecaidUpdatePrompt'
 import { SettingsScreen } from './features/settings/SettingsScreen'
 import { t, useLanguage } from './i18n/index.ts'
+import { startProbeDiscovery } from './features/machine/probeStore'
 import './styles/index.css'
 import './styles/cardSurfaces.css'
 import './styles/lightMode.css'
@@ -38,6 +39,7 @@ export default function App() {
   // Re-render the whole shell when the display language changes; texts are resolved at render time.
   useLanguage()
   const data = useBrewingData()
+  useEffect(startProbeDiscovery, [])
   const [importedProfileRecord, setImportedProfileRecord] = useState<DecaidProfileRecord | undefined>()
   const [, setPage] = useState(0)
   const page = data.utilityOperation ? 'home' : currentPage()

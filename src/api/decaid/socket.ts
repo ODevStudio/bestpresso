@@ -1,5 +1,5 @@
-import { getDecaidEndpoints } from './config'
-import { receiveSocketMessage } from './socketMessage'
+import { getDecaidEndpoints } from './config.ts'
+import { receiveSocketMessage } from './socketMessage.ts'
 
 export interface SocketSubscription {
   close(): void
@@ -22,11 +22,13 @@ export function subscribe<T>(path: string, onData: (data: T) => void, onConnecti
       retry = window.setTimeout(connect, 3000)
       return
     }
-    socket.addEventListener('open', () => onConnection(true))
+    socket.addEventListener('open', () => { if (!closed) onConnection(true) })
     socket.addEventListener('message', (event) => {
+      if (closed) return
       receiveSocketMessage(event.data, path, onData)
     })
     socket.addEventListener('close', () => {
+      if (closed) return
       onConnection(false)
       if (!closed) retry = window.setTimeout(connect, 3000)
     })
