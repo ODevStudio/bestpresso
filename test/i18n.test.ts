@@ -50,8 +50,10 @@ test('auto follows the first supported device language and falls back to English
   assert.equal(resolveLanguage('auto', ['de-DE', 'en-US']), 'de')
   assert.equal(resolveLanguage('auto', ['de-CH']), 'de')
   assert.equal(resolveLanguage('auto', ['fr-FR', 'de-AT']), 'fr')
-  assert.equal(resolveLanguage('auto', ['es-ES', 'de-AT']), 'de')
-  assert.equal(resolveLanguage('auto', ['es-ES']), 'en')
+  assert.equal(resolveLanguage('auto', ['es-ES', 'de-AT']), 'es')
+  assert.equal(resolveLanguage('auto', ['es-ES']), 'es')
+  assert.equal(resolveLanguage('auto', ['ja-JP', 'de-AT']), 'de')
+  assert.equal(resolveLanguage('auto', ['ja-JP']), 'en')
   assert.equal(resolveLanguage('auto', []), 'en')
   assert.equal(resolveLanguage('en', ['de-DE']), 'en')
   assert.equal(resolveLanguage('de', ['en-US']), 'de')
@@ -64,7 +66,8 @@ test('the language preference defaults to auto and rejects unknown values', () =
   assert.equal(normalizeBestpressoPreferences(undefined).language, 'auto')
   assert.equal(normalizeBestpressoPreferences({ language: 'de' }).language, 'de')
   assert.equal(normalizeBestpressoPreferences({ language: 'fr' }).language, 'fr')
-  assert.equal(normalizeBestpressoPreferences({ language: 'es' }).language, 'auto')
+  assert.equal(normalizeBestpressoPreferences({ language: 'es' }).language, 'es')
+  assert.equal(normalizeBestpressoPreferences({ language: 'not-a-locale' }).language, 'auto')
 })
 
 test('German uses the decimal comma without changing toFixed rounding; English output is unchanged', () => {

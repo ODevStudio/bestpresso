@@ -14,6 +14,7 @@ export const languageRegistry = {
   de: { name: 'Deutsch', locale: 'de-DE', direction: 'ltr', load: () => import('./de/index.ts').then(m => m.de) },
   fr: { name: 'Français', locale: 'fr-FR', direction: 'ltr', load: () => import('./fr/index.ts').then(m => m.catalog) },
   it: { name: 'Italiano', locale: 'it-IT', direction: 'ltr', load: () => import('./it/index.ts').then(m => m.catalog) },
+  es: { name: 'Español', locale: 'es-ES', direction: 'ltr', load: () => import('./es/index.ts').then(m => m.catalog) },
   'zh-Hant': { name: '繁體中文', locale: 'zh-TW', direction: 'ltr', load: () => import('./zh-Hant/index.ts').then(m => m.catalog) },
   'zh-Hans': { name: '简体中文', locale: 'zh-CN', direction: 'ltr', load: () => import('./zh-Hans/index.ts').then(m => m.catalog) },
 } satisfies Record<string, LocaleDefinition>
